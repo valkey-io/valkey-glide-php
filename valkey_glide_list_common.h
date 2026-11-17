@@ -147,6 +147,9 @@ int parse_list_position_options(zval* options, list_position_options_t* opts);
 
 
 /* Argument preparation functions */
+/* Argument preparation. On a return value <= 0 these functions must not free *args_out,
+ * *args_len_out or *allocated_strings: the caller (execute_list_generic_command) releases them
+ * on every path. */
 int prepare_list_key_only_args(list_command_args_t* args,
                                uintptr_t**          args_out,
                                unsigned long**      args_len_out);

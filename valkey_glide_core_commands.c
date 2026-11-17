@@ -582,6 +582,17 @@ void valkey_glide_update_saved_request_database(valkey_glide_object* valkey_glid
 
 #define ARG_IS(i, literal) zend_string_equals_literal_ci(args[i], literal)
 
+/* Whether valkey_glide_track_connection_command() mirrors this command: AUTH, HELLO,
+ * CLIENT SETNAME, SELECT or RESET. sub is the command's second word, or NULL */
+bool valkey_glide_is_tracked_connection_command(zend_string* name, zend_string* sub) {
+    return zend_string_equals_literal_ci(name, "SELECT") ||
+           zend_string_equals_literal_ci(name, "AUTH") ||
+           zend_string_equals_literal_ci(name, "HELLO") ||
+           zend_string_equals_literal_ci(name, "RESET") ||
+           (zend_string_equals_literal_ci(name, "CLIENT") && sub &&
+            zend_string_equals_literal_ci(sub, "SETNAME"));
+}
+
 /* Mirror a successful AUTH, HELLO, CLIENT SETNAME, SELECT or RESET into the saved connection
  * request, parsing it the way glide-core does when it keeps the change for its reconnects. Unlike
  * the core, AUTH with only a password clears the saved username, to match the live connection.
@@ -591,7 +602,8 @@ void valkey_glide_track_connection_command(valkey_glide_object* valkey_glide,
                                            int                  argc) {
     saved_request_update_t update = {0};
 
-    if (!valkey_glide->connection_request || argc < 1) {
+    if (!valkey_glide->connection_request || argc < 1 ||
+        !valkey_glide_is_tracked_connection_command(args[0], argc > 1 ? args[1] : NULL)) {
         return;
     }
     if (ARG_IS(0, "SELECT")) {
@@ -651,8 +663,6 @@ void valkey_glide_track_connection_command(valkey_glide_object* valkey_glide,
         update.database_id  = 0;
         update.set_protocol = true;
         update.protocol     = CONNECTION_REQUEST__PROTOCOL_VERSION__RESP2;
-    } else {
-        return;
     }
     update_saved_request(valkey_glide, &update);
 }
@@ -1167,8 +1177,8 @@ int execute_set_command(zval* object, int argc, zval* return_value, zend_class_e
             free_val = 1;  // We'll need to free this
             break;
         case IS_DOUBLE:
-            /* Convert float to string */
-            val      = double_to_string(Z_DVAL_P(z_value), &val_len);
+            /* Convert float to string as PHP does */
+            val      = double_to_php_string(Z_DVAL_P(z_value), &val_len);
             free_val = 1;  // We'll need to free this
             break;
         case IS_TRUE:
@@ -1275,7 +1285,12 @@ int execute_set_command_internal(valkey_glide_object* valkey_glide,
     struct set_result_data* result_data = emalloc(sizeof(struct set_result_data));
     result_data->has_get                = args.options.get_old_value;
 
-    return execute_core_command(valkey_glide, &args, result_data, process_set_result, return_value);
+    int status =
+        execute_core_command(valkey_glide, &args, result_data, process_set_result, return_value);
+    if (status && valkey_glide->is_in_batch_mode) {
+        valkey_glide_batch_own_result(valkey_glide, result_data, valkey_glide_batch_efree_result);
+    }
+    return status;
 }
 
 /* Execute a SETEX command using the Valkey Glide client */
@@ -1650,6 +1665,7 @@ int execute_ping_command(zval* object, int argc, zval* return_value, zend_class_
     /* Execute using unified core framework */
     if (execute_core_command(valkey_glide, &core_args, output, process_ping_result, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
+            valkey_glide_batch_own_result(valkey_glide, output, valkey_glide_batch_efree_result);
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);
             return 1;
@@ -2166,6 +2182,40 @@ int execute_setbit_command(zval* object, int argc, zval* return_value, zend_clas
     return 0;
 }
 
+/* Point keys_array at the keys for DEL/UNLINK without writing to the caller's array, which may be
+ * immutable (an opcache literal). An all-string array is borrowed as is. Otherwise the keys are
+ * copied into a new array of strings, because argument preparation converts non-string keys in
+ * place. Returns true when keys_array owns that copy and must be destroyed. A key that cannot be
+ * converted (an object without __toString()) leaves an exception pending; the caller then sends
+ * nothing */
+static bool borrow_keys_as_strings(HashTable* keys_hash, zval* keys_array) {
+    zval* key;
+    bool  all_strings = true;
+
+    ZEND_HASH_FOREACH_VAL(keys_hash, key) {
+        if (Z_TYPE_P(key) != IS_STRING) {
+            all_strings = false;
+            break;
+        }
+    }
+    ZEND_HASH_FOREACH_END();
+
+    if (all_strings) {
+        ZVAL_ARR(keys_array, keys_hash);
+        return false;
+    }
+
+    array_init_size(keys_array, zend_hash_num_elements(keys_hash));
+    ZEND_HASH_FOREACH_VAL(keys_hash, key) {
+        add_next_index_str(keys_array, zval_get_string(key));
+        if (EG(exception)) {
+            break;
+        }
+    }
+    ZEND_HASH_FOREACH_END();
+    return true;
+}
+
 /* Helper function to execute del_command with arrays - MIGRATED TO CORE FRAMEWORK */
 int execute_del_array(const void* glide_client,
                       HashTable*  keys_hash,
@@ -2176,11 +2226,14 @@ int execute_del_array(const void* glide_client,
         return 0;
     }
 
-    /* Create temporary zval array from HashTable */
+    /* The caller's array may be immutable (an opcache literal) and must not be written to,
+     * refcounted or destroyed */
     zval keys_array;
-    ZVAL_ARR(&keys_array, keys_hash);
-    /* Bump refcount so it stays alive while you pass it down */
-    GC_TRY_ADDREF(keys_hash);
+    bool owns_keys = borrow_keys_as_strings(keys_hash, &keys_array);
+    if (EG(exception)) {
+        zval_ptr_dtor(&keys_array);
+        return 0;
+    }
 
     /* Use core framework with converted array */
     core_command_args_t args = {0};
@@ -2210,7 +2263,9 @@ int execute_del_array(const void* glide_client,
             free_command_result(cmd_result);
         }
     }
-    zval_ptr_dtor(&keys_array);
+    if (owns_keys) {
+        zval_ptr_dtor(&keys_array);
+    }
     free_core_args(cmd_args, cmd_args_len, allocated_strings, allocated_count);
     return result;
 }
@@ -2264,10 +2319,14 @@ int execute_unlink_array(const void* glide_client,
         return 0;
     }
 
-    /* Create temporary zval array from HashTable */
+    /* The caller's array may be immutable (an opcache literal) and must not be written to,
+     * refcounted or destroyed */
     zval keys_array;
-    ZVAL_ARR(&keys_array, keys_hash);
-    GC_TRY_ADDREF(keys_hash);  // keep alive
+    bool owns_keys = borrow_keys_as_strings(keys_hash, &keys_array);
+    if (EG(exception)) {
+        zval_ptr_dtor(&keys_array);
+        return 0;
+    }
 
     /* Use core framework with converted array */
     core_command_args_t args = {0};
@@ -2297,7 +2356,9 @@ int execute_unlink_array(const void* glide_client,
             free_command_result(cmd_result);
         }
     }
-    zval_ptr_dtor(&keys_array);
+    if (owns_keys) {
+        zval_ptr_dtor(&keys_array);
+    }
     free_core_args(cmd_args, cmd_args_len, allocated_strings, allocated_count);
     return result;
 }

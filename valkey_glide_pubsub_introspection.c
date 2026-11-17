@@ -55,9 +55,9 @@ static void execute_numsub_command(const void*      connection,
                 ? result->command_error->command_error_message
                 : failure_msg;
         VALKEY_LOG_ERROR(log_name, error_msg);
+        zend_throw_exception(get_valkey_glide_exception_ce(), error_msg, 0);
         if (result)
             free_command_result(result);
-        zend_throw_exception(get_valkey_glide_exception_ce(), error_msg, 0);
         RETURN_FALSE;
     }
 }
@@ -113,9 +113,9 @@ void valkey_glide_pubsub_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connecti
                     ? result->command_error->command_error_message
                     : "PUBSUB CHANNELS command failed";
             VALKEY_LOG_ERROR("pubsub_channels", error_msg);
+            zend_throw_exception(get_valkey_glide_exception_ce(), error_msg, 0);
             if (result)
                 free_command_result(result);
-            zend_throw_exception(get_valkey_glide_exception_ce(), error_msg, 0);
             RETURN_FALSE;
         }
     } else if (strcasecmp(cmd, "numsub") == 0) {
@@ -168,9 +168,9 @@ void valkey_glide_pubsub_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connecti
                     ? result->command_error->command_error_message
                     : "PUBSUB SHARDCHANNELS command failed";
             VALKEY_LOG_ERROR("pubsub_shardchannels", error_msg);
+            zend_throw_exception(get_valkey_glide_exception_ce(), error_msg, 0);
             if (result)
                 free_command_result(result);
-            zend_throw_exception(get_valkey_glide_exception_ce(), error_msg, 0);
             RETURN_FALSE;
         }
     } else if (strcasecmp(cmd, "shardnumsub") == 0) {
@@ -206,9 +206,9 @@ void valkey_glide_pubsub_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connecti
                     ? result->command_error->command_error_message
                     : "PUBSUB NUMPAT command failed";
             VALKEY_LOG_ERROR("pubsub_numpat", error_msg);
+            zend_throw_exception(get_valkey_glide_exception_ce(), error_msg, 0);
             if (result)
                 free_command_result(result);
-            zend_throw_exception(get_valkey_glide_exception_ce(), error_msg, 0);
             RETURN_FALSE;
         }
     } else {

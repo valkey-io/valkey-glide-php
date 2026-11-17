@@ -208,12 +208,15 @@ int execute_xadd_command(zval* object, int argc, zval* return_value, zend_class_
             z_options = emalloc(sizeof(zval));
             array_init(z_options);
 
-            /* Add MAXLEN option */
-            add_assoc_long(z_options, "MAXLEN", maxlen);
+            /* Add MAXLEN only when positive, like PHPRedis: 0 means "do not trim" and would
+             * otherwise empty the stream */
+            if (maxlen > 0) {
+                add_assoc_long(z_options, "MAXLEN", maxlen);
 
-            /* Add APPROXIMATE option if true */
-            if (approximate) {
-                add_assoc_bool(z_options, "APPROXIMATE", 1);
+                /* Add APPROXIMATE option if true */
+                if (approximate) {
+                    add_assoc_bool(z_options, "APPROXIMATE", 1);
+                }
             }
 
             /* Flag that we created this and will need to free it later */
@@ -903,6 +906,8 @@ int execute_xclaim_command(zval* object, int argc, zval* return_value, zend_clas
         int res = execute_x_generic_command(
             valkey_glide, XClaim, &args, result_context, process_x_claim_result, return_value);
         if (res && valkey_glide->is_in_batch_mode) {
+            valkey_glide_batch_own_result(
+                valkey_glide, result_context, valkey_glide_batch_efree_result);
             ZVAL_COPY(return_value, object);
         }
         return res;

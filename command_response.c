@@ -23,6 +23,7 @@
 #include "valkey_glide_commands_common.h"
 #include "valkey_glide_otel.h"
 #include "valkey_glide_prefix.h"
+#include "zend_strtod.h"
 
 #define DEBUG_COMMAND_RESPONSE_TO_ZVAL 0
 
@@ -569,11 +570,12 @@ int command_response_to_zval(CommandResponse* response,
                                              use_false_if_null);
 
                     if (Z_TYPE(field) == IS_STRING) {
-                        add_assoc_zval(output, Z_STRVAL(field), &value);
-                        zval_dtor(&field);
+                        /* Binary-safe, and numeric strings become integer keys as in PHP */
+                        zend_symtable_update(Z_ARRVAL_P(output), Z_STR(field), &value);
+                        zval_ptr_dtor(&field);
                     } else {
-                        zval_dtor(&field);
-                        zval_dtor(&value);
+                        zval_ptr_dtor(&field);
+                        zval_ptr_dtor(&value);
                     }
                 }
             } else if (use_associative_array == COMMAND_RESPONSE_ARRAY_ASSOCIATIVE) {
@@ -605,7 +607,7 @@ int command_response_to_zval(CommandResponse* response,
                             /* The value may be any type (a server can send a non-string),
                              * so use the type-checked addref */
                             Z_TRY_ADDREF_P(val_zval);
-                            zend_hash_update(Z_ARRVAL_P(output), key, val_zval);
+                            zend_symtable_update(Z_ARRVAL_P(output), key, val_zval);
                         }
                         zval_ptr_dtor(&field);
                     }
@@ -690,8 +692,9 @@ int command_response_to_zval(CommandResponse* response,
                     // printf("%s:%d - DEBUG: Adding key %s \n", __FILE__, __LINE__,
                     // Z_STRVAL(key)); php_var_dump(&value, 2); // No need to modify this as
                     // it's not printf
-                    add_assoc_zval(output, Z_STRVAL(key), &value);
-                    zval_dtor(&key);  // Clean up the key since we're using it as an index
+                    /* Binary-safe: use the zend_string, not the NUL-terminated C string */
+                    zend_symtable_update(Z_ARRVAL_P(output), Z_STR(key), &value);
+                    zval_ptr_dtor(&key);  // Clean up the key since we're using it as an index
                 } else {
                     // Add the key as a separate array element (original behavior)
                     add_next_index_zval(output, &key);
@@ -739,16 +742,29 @@ char* long_to_string(long value, size_t* len) {
     return str;
 }
 
-/* Convert a double value to a string */
+/* Convert a double that a command takes as a number (an increment, a score, a coordinate) to the
+ * shortest string that reads back as the same double, with the digits var_export() prints,
+ * independent of the locale: 0.1 -> "0.1", 0.1 + 0.2 -> "0.30000000000000004", 1e20 ->
+ * "1.0e+20", INF -> "INF".
+ *
+ * Difference from PHPRedis: PHPRedis sends these with 17 significant digits ("2.8599999999999999"
+ * for 2.86). Both read back as the same double, but the server adds INCRBYFLOAT and HINCRBYFLOAT
+ * in long double, where 17 digits show: '3.14' + 2.86 stores "5.9999999999999999" with PHPRedis
+ * and "6" here */
 char* double_to_string(double value, size_t* len) {
     char buffer[64];
-    /* Use %.6g format to get a more user-friendly representation */
-    *len      = snprintf(buffer, sizeof(buffer), "%.6g", value);
-    char* str = (char*) emalloc(*len + 1);
-    if (str) {
-        memcpy(str, buffer, *len);
-        str[*len] = '\0';
-    }
+    zend_gcvt(value, -1, '.', 'e', buffer);
+    *len = strlen(buffer);
+    return estrndup(buffer, *len);
+}
+
+/* Convert a double that a command takes as a value, member or field to a string as PHP does
+ * ((string) $float, which follows the precision INI setting): 1.23456789 -> "1.23456789" */
+char* double_to_php_string(double value, size_t* len) {
+    zend_string* zstr = zend_double_to_str(value);
+    char*        str  = estrndup(ZSTR_VAL(zstr), ZSTR_LEN(zstr));
+    *len              = ZSTR_LEN(zstr);
+    zend_string_release(zstr);
     return str;
 }
 /* Helper function to convert a CommandResponse to a PHP stream format
@@ -799,34 +815,33 @@ int command_response_to_stream_zval(CommandResponse* response, zval* output) {
                 if (element->map_value->response_type == Array) {
                     zval field_array;
                     array_init(&field_array);
-                    /* Safe version that checks array bounds */
-                    if (element->map_value->array_value_len > 0) {
-                        // printf("%s:%d - DEBUG: Processing Array response for stream ID: %.*s,
-                        // array_value_len = %ld\n", __FILE__, __LINE__, (int)stream_id_len,
-                        // stream_id, element->map_value->array_value_len);
-                        CommandResponse* field_resp1 = &element->map_value->array_value[0];
+                    /* Each element is a [field, value] pair; add every one */
+                    for (int64_t field_idx = 0; field_idx < element->map_value->array_value_len;
+                         field_idx++) {
+                        CommandResponse* field_resp = &element->map_value->array_value[field_idx];
 
-                        if (field_resp1->response_type == Array &&
-                            field_resp1->array_value_len == 2) {
-                            zval field, value;
-                            command_response_to_zval(&field_resp1->array_value[0],
-                                                     &field,
-                                                     COMMAND_RESPONSE_NOT_ASSOSIATIVE,
-                                                     false);
-                            command_response_to_zval(&field_resp1->array_value[1],
-                                                     &value,
-                                                     COMMAND_RESPONSE_NOT_ASSOSIATIVE,
-                                                     false);
+                        if (field_resp->response_type != Array ||
+                            field_resp->array_value_len != 2) {
+                            continue;
+                        }
 
-                            if (Z_TYPE(field) == IS_STRING) {
-                                // printf("%s:%d - DEBUG: Adding field %s with value %s\n",
-                                // __FILE__, __LINE__, Z_STRVAL(field), Z_STRVAL(value));
-                                add_assoc_zval(&field_array, Z_STRVAL(field), &value);
-                                zval_dtor(&field);
-                            } else {
-                                zval_dtor(&field);
-                                zval_dtor(&value);
-                            }
+                        zval field, value;
+                        command_response_to_zval(&field_resp->array_value[0],
+                                                 &field,
+                                                 COMMAND_RESPONSE_NOT_ASSOSIATIVE,
+                                                 false);
+                        command_response_to_zval(&field_resp->array_value[1],
+                                                 &value,
+                                                 COMMAND_RESPONSE_NOT_ASSOSIATIVE,
+                                                 false);
+
+                        if (Z_TYPE(field) == IS_STRING) {
+                            /* Binary-safe key; numeric field names become integer keys */
+                            zend_symtable_update(Z_ARRVAL(field_array), Z_STR(field), &value);
+                            zval_ptr_dtor(&field);
+                        } else {
+                            zval_ptr_dtor(&field);
+                            zval_ptr_dtor(&value);
                         }
                     }
                     /* Add the stream entry to the output array */
@@ -886,7 +901,7 @@ char* zval_to_string_safe(zval* z, size_t* len, int* need_free) {
             break;
 
         case IS_DOUBLE:
-            str        = double_to_string(Z_DVAL_P(z), len);
+            str        = double_to_php_string(Z_DVAL_P(z), len);
             *need_free = 1;
             break;
 

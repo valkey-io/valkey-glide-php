@@ -970,7 +970,7 @@ class ValkeyGlideCluster
       /**
      * @see https://valkey.io/commands/hrandfield
      */
-    public function hRandField(string $key, ?array $options = null): ValkeyGlideCluster|string|array;
+    public function hRandField(string $key, ?array $options = null): ValkeyGlideCluster|string|array|false;
 
     /**
      * @see ValkeyGlide::hset

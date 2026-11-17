@@ -794,16 +794,19 @@ int prepare_h_randfield_args(h_command_args_t* args,
     unsigned long arg_count      = 1; /* key */
     int           need_count_str = 0;
 
-    if (args->count != 1) {
+    /* A count of 0 means none was given, as in PHPRedis: any other count is sent, so the
+     * reply is an array even for a count of 1. WITHVALUES needs a count; like PHPRedis, use 1
+     * when none was given */
+    long count = args->count;
+    if (args->withvalues && count == 0) {
+        count = 1;
+    }
+    if (count != 0) {
         arg_count++; /* count */
         need_count_str = 1;
     }
     if (args->withvalues) {
         arg_count++; /* WITHVALUES */
-        if (need_count_str == 0) {
-            arg_count++; /* count (required with WITHVALUES) */
-            need_count_str = 1;
-        }
     }
 
     *args_out          = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
@@ -819,7 +822,7 @@ int prepare_h_randfield_args(h_command_args_t* args,
 
     /* Add count if needed */
     if (need_count_str) {
-        char* count_str = long_to_string(args->count, &(*args_len_out)[arg_idx]);
+        char* count_str = long_to_string(count, &(*args_len_out)[arg_idx]);
 
         (*allocated_strings)[0] = count_str;
         *allocated_count        = 1;
@@ -1095,10 +1098,10 @@ static int process_h_getex_result(CommandResponse* response, void* output, zval*
     int               ret  = 0;
 
     if (response) {
-        // First get the array of values
+        // First get the array of values; a missing field is false, as in hMget() and hGetDel()
         zval temp_array;
         if (!command_response_to_zval(
-                response, &temp_array, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false)) {
+                response, &temp_array, COMMAND_RESPONSE_NOT_ASSOSIATIVE, true)) {
             ZVAL_FALSE(return_value);
         } else {
             // Create associative array mapping fields to values
@@ -1184,6 +1187,18 @@ z_result_processor_t get_processor_for_response_type(int response_type) {
  * ==================================================================== */
 
 /**
+ * Free a heap h_command_args_t that owns its copied field zvals (HMGET, HGETDEL)
+ */
+static void free_h_fields_args(void* output) {
+    h_command_args_t* args = (h_command_args_t*) output;
+    for (int j = 0; j < args->field_count; j++) {
+        zval_ptr_dtor(&args->fields[j]);
+    }
+    efree(args->fields);
+    efree(args);
+}
+
+/**
  * Process results for HMGET (associative field mapping) - legacy version
  */
 int process_h_mget_result(CommandResponse* response, void* output, zval* return_value) {
@@ -1264,17 +1279,13 @@ int process_h_randfield_result(CommandResponse* response, void* output, zval* re
     }
     bool* withvalues_ptr = output;
 
+    /* A missing key gives a nil without a count (false) and an empty array with one ([]), as in
+     * PHPRedis */
     int ret_val = command_response_to_zval(
         response,
         return_value,
         *withvalues_ptr ? COMMAND_RESPONSE_ARRAY_ASSOCIATIVE : COMMAND_RESPONSE_NOT_ASSOSIATIVE,
-        false);
-
-    if (ret_val && Z_TYPE_P(return_value) == IS_ARRAY &&
-        zend_hash_num_elements(Z_ARRVAL_P(return_value)) == 0) {
-        zval_dtor(return_value);  /* clean up the array */
-        ZVAL_FALSE(return_value); /* set to boolean false */
-    }
+        true);
     efree(output);
     return ret_val;
 }
@@ -1574,8 +1585,12 @@ int execute_h_mget_command(valkey_glide_object* valkey_glide,
     args->fields           = fields;
     args->field_count      = fields_count;
 
-    return execute_h_generic_command(
+    int status = execute_h_generic_command(
         valkey_glide, HMGet, args, args, process_h_mget_result, return_value);
+    if (status && valkey_glide->is_in_batch_mode) {
+        valkey_glide_batch_own_result(valkey_glide, args, free_h_fields_args);
+    }
+    return status;
 }
 
 
@@ -1598,8 +1613,13 @@ int execute_h_randfield_command(valkey_glide_object* valkey_glide,
     bool* withvalues_ptr = emalloc(sizeof(bool));
     *withvalues_ptr      = withvalues ? true : false;
 
-    return execute_h_generic_command(
+    int status = execute_h_generic_command(
         valkey_glide, HRandField, &args, withvalues_ptr, process_h_randfield_result, return_value);
+    if (status && valkey_glide->is_in_batch_mode) {
+        valkey_glide_batch_own_result(
+            valkey_glide, withvalues_ptr, valkey_glide_batch_efree_result);
+    }
+    return status;
 }
 
 /* ====================================================================
@@ -2263,7 +2283,7 @@ int execute_hrandfield_command(zval* object, int argc, zval* return_value, zend_
     char*                key = NULL;
     size_t               key_len;
     zval*                z_opts     = NULL;
-    zend_long            count      = 1;
+    zend_long            count      = 0; /* none given */
     zend_bool            withvalues = 0;
 
     /* Parse parameters */
@@ -2278,19 +2298,25 @@ int execute_hrandfield_command(zval* object, int argc, zval* return_value, zend_
         return 0;
     }
 
-    /* Process options if provided */
+    /* Process options as PHPRedis does: the keys are case-insensitive, and WITHVALUES can also
+     * be given as a plain value (['WITHVALUES']) */
     if (z_opts) {
-        HashTable* htopts  = Z_ARRVAL_P(z_opts);
-        zval*      z_count = zend_hash_str_find(htopts, "count", sizeof("count") - 1);
-        zval* z_withvalues = zend_hash_str_find(htopts, "withvalues", sizeof("withvalues") - 1);
-
-        if (z_count) {
-            count = zval_get_long(z_count);
+        zend_string* zkey;
+        zval*        z_ele;
+        ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARRVAL_P(z_opts), zkey, z_ele) {
+            ZVAL_DEREF(z_ele);
+            if (zkey) {
+                if (zend_string_equals_literal_ci(zkey, "count")) {
+                    count = zval_get_long(z_ele);
+                } else if (zend_string_equals_literal_ci(zkey, "withvalues")) {
+                    withvalues = zval_is_true(z_ele);
+                }
+            } else if (Z_TYPE_P(z_ele) == IS_STRING &&
+                       zend_string_equals_literal_ci(Z_STR_P(z_ele), "withvalues")) {
+                withvalues = 1;
+            }
         }
-
-        if (z_withvalues) {
-            withvalues = zval_is_true(z_withvalues);
-        }
+        ZEND_HASH_FOREACH_END();
     }
 
 
@@ -2350,8 +2376,10 @@ static int execute_hash_expiry_command(zval*             object,
     // Validate field count based on command type
     if (cmd_type == HSetEx && (num_args < 2 || num_args % 2 != 0)) {
         return 0;  // HSetEx needs field-value pairs
-    } else if (cmd_type == HExpire && num_args < 1) {
-        return 0;  // HExpire needs at least one field
+    } else if ((cmd_type == HExpire || cmd_type == HPExpire || cmd_type == HExpireAt ||
+                cmd_type == HPExpireAt) &&
+               num_args < 1) {
+        return 0;  // The HEXPIRE family needs at least one field
     }
 
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
@@ -2398,8 +2426,21 @@ static int execute_hexpire_with_condition(zval*             object,
                                           zend_class_entry* ce,
                                           const char*       expiry_type,
                                           const char*       condition) {
+    /* expiry_type selects the command: NULL = HEXPIRE (relative seconds), "PX" = HPEXPIRE
+     * (relative ms), "EXAT" = HEXPIREAT (unix seconds), "PXAT" = HPEXPIREAT (unix ms) */
+    enum RequestType cmd_type = HExpire;
+    if (expiry_type) {
+        if (strcmp(expiry_type, "PX") == 0) {
+            cmd_type = HPExpire;
+        } else if (strcmp(expiry_type, "EXAT") == 0) {
+            cmd_type = HExpireAt;
+        } else if (strcmp(expiry_type, "PXAT") == 0) {
+            cmd_type = HPExpireAt;
+        }
+    }
+
     return execute_hash_expiry_command(
-        object, argc, return_value, ce, HExpire, expiry_type, condition, H_RESPONSE_ARRAY, 1);
+        object, argc, return_value, ce, cmd_type, expiry_type, condition, H_RESPONSE_ARRAY, 1);
 }
 
 // Unified hash field expiration command execution
@@ -3206,6 +3247,7 @@ int execute_hgetex_command(zval* object, int argc, zval* return_value, zend_clas
 
     if (result) {
         if (valkey_glide->is_in_batch_mode) {
+            valkey_glide_batch_own_result(valkey_glide, args, free_h_fields_args);
             ZVAL_COPY(return_value, object);
             return 1;
         }
@@ -3316,6 +3358,7 @@ int execute_hgetdel_command(zval* object, int argc, zval* return_value, zend_cla
 
     /* Handle batch mode */
     if (result && valkey_glide->is_in_batch_mode) {
+        valkey_glide_batch_own_result(valkey_glide, args, free_h_fields_args);
         /* In batch mode, return $this for method chaining */
         ZVAL_COPY(return_value, object);
     }
