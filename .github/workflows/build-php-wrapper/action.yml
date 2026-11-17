@@ -37,7 +37,7 @@ runs:
         extensions: tokenizer, json, ctype, iconv, mbstring, simplexml
         tools: none
       env:
-        runner: ${{ inputs.os == 'ubuntu' && '' || 'self-hosted' }}
+        runner: ${{ inputs.os != 'ubuntu' && 'self-hosted' || '' }}
     - name: Setup PHP (retry)
       if: ${{ steps.setup-php.outcome == 'failure' }}
       uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2.40.0
@@ -46,7 +46,7 @@ runs:
         extensions: tokenizer, json, ctype, iconv, mbstring, simplexml
         tools: none
       env:
-        runner: ${{ inputs.os == 'ubuntu' && '' || 'self-hosted' }}
+        runner: ${{ inputs.os != 'ubuntu' && 'self-hosted' || '' }}
 
     # phpize and php-config come from the php<version>-dev package, so it is installed explicitly
     # to make sure they match the PHP version selected above.
