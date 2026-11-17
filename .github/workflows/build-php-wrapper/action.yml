@@ -84,7 +84,7 @@ runs:
         # An extension only loads into a PHP with the same module API it was built against.
         # Check that php and phpize both match the requested version before building.
         php_actual="$(php -r 'echo PHP_MAJOR_VERSION . "." . PHP_MINOR_VERSION;')"
-        php_api="$(php -r 'echo PHP_ZEND_MODULE_API;')"
+        php_api="$(php -i | sed -n 's/^PHP API => *//p' | head -n 1)"
         phpize_api="$(phpize --version | sed -n 's/^PHP Api Version: *//p')"
         echo "php: $(command -v php) -> $php_actual (module API $php_api)"
         echo "phpize: $(command -v phpize) (PHP Api Version $phpize_api)"
