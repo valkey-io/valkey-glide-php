@@ -11592,4 +11592,344 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         $client->close();
         $raw->del('ppkey', "{$p}ppkey", 'other:ppkey');
     }
+
+    public function testBlockingPopWithIntegerKeys()
+    {
+        $this->valkey_glide->del('{blpop}1', '{blpop}2');
+        $this->valkey_glide->rPush('{blpop}1', 'one');
+        $this->valkey_glide->rPush('{blpop}2', 'two');
+
+        /* Integer keys are sent as strings, as PHPRedis does. Before, the call failed and freed
+         * its argument buffers twice, so the next command crashed */
+        $this->valkey_glide->rPush('5', 'five');
+        $this->assertEquals(['5', 'five'], $this->valkey_glide->blPop([5], 0.1));
+        $this->valkey_glide->rPush('6', 'six');
+        $this->assertEquals(['6', 'six'], $this->valkey_glide->brPop([6], 0.1));
+
+        $this->assertEquals(['{blpop}1', 'one'], $this->valkey_glide->blPop(['{blpop}1', '{blpop}2'], 0.1));
+        $this->assertEquals(1, $this->valkey_glide->lLen('{blpop}2'));
+
+        /* Other scalars are converted the same way */
+        $this->valkey_glide->rPush('1.5', 'float');
+        $this->assertEquals(['1.5', 'float'], $this->valkey_glide->blPop([1.5], 0.1));
+
+        /* A key that cannot be converted throws, sends nothing and leaves the client usable */
+        $this->assertThrows(Error::class, fn () => $this->valkey_glide->brPop(['{blpop}2', new stdClass()], 0.1));
+        $this->assertEquals(1, $this->valkey_glide->lLen('{blpop}2'));
+        $this->assertTrue($this->valkey_glide->set('{blpop}ok', '1'));
+
+        if (version_compare($this->version, '7.0.0') >= 0) {
+            $this->valkey_glide->rPush('7', 'seven');
+            $this->assertEquals(['7', ['seven']], $this->valkey_glide->lmpop([7], 'LEFT'));
+            $this->assertThrows(Error::class, fn () => $this->valkey_glide->lmpop(['{blpop}2', new stdClass()], 'LEFT'));
+            $this->assertEquals(1, $this->valkey_glide->lLen('{blpop}2'));
+        }
+
+        $this->valkey_glide->del('{blpop}1', '{blpop}2', '{blpop}ok', '5', '6', '7', '1.5');
+    }
+
+    public function testZRandMemberMissingKey()
+    {
+        if (version_compare($this->version, '6.2.0') < 0) {
+            $this->markTestSkipped();
+            return;
+        }
+        $this->valkey_glide->del('{zrand}missing', '{zrand}key');
+
+        /* The reply for a missing key used to be freed by both the processor and the caller */
+        for ($attempt = 0; $attempt < 3; $attempt++) {
+            $this->assertFalse($this->valkey_glide->zRandMember('{zrand}missing'));
+            $this->assertTrue($this->valkey_glide->set('{zrand}ok', '1'));
+            $this->assertEquals('1', $this->valkey_glide->get('{zrand}ok'));
+        }
+
+        $this->valkey_glide->zAdd('{zrand}key', 1, 'a');
+        $this->assertEquals(['a'], $this->valkey_glide->zRandMember('{zrand}key'));
+
+        /* The same command queued in a batch, with and without a reply */
+        $result = $this->valkey_glide->multi()
+            ->zRandMember('{zrand}key')
+            ->zRandMember('{zrand}missing')
+            ->exec();
+        $this->assertEquals([['a'], false], $result);
+
+        $this->valkey_glide->del('{zrand}key', '{zrand}ok');
+    }
+
+    public function testZAddIntegerMemberAndManyScores()
+    {
+        $this->valkey_glide->del('{zadd}z', '{zadd}many');
+
+        /* An integer member is sent as a string; before, the call freed its buffers twice */
+        $this->assertEquals(1, $this->valkey_glide->zAdd('{zadd}z', 1, 42));
+        $this->assertTrue($this->valkey_glide->set('{zadd}ok', '1'));
+        $this->assertEquals(['42'], $this->valkey_glide->zRange('{zadd}z', 0, -1));
+
+        /* More numeric score/member pairs than the old fixed 20-slot buffer held */
+        $args = [];
+        for ($i = 0; $i < 40; $i++) {
+            $args[] = $i;
+            $args[] = "m$i";
+        }
+        $this->assertEquals(40, $this->valkey_glide->zAdd('{zadd}many', ...$args));
+        $this->assertEquals(40, $this->valkey_glide->zCard('{zadd}many'));
+
+        /* Same for the weights of the store commands */
+        $keys = [];
+        for ($i = 0; $i < 25; $i++) {
+            $keys[] = "{zadd}src$i";
+            $this->valkey_glide->zAdd("{zadd}src$i", $i, 'member');
+        }
+        $this->assertEquals(1, $this->valkey_glide->zUnionStore('{zadd}dst', $keys, array_fill(0, 25, 1)));
+        $this->assertEquals(300.0, $this->valkey_glide->zScore('{zadd}dst', 'member'));
+
+        $this->valkey_glide->del('{zadd}z', '{zadd}many', '{zadd}ok', '{zadd}dst', ...$keys);
+    }
+
+    public function testDelUnlinkLiteralArrayWithOpcache()
+    {
+        if ($this->getTLS() || $this->getAuth()) {
+            $this->markTestSkipped('The helper script connects without TLS or auth');
+        }
+        if (!function_exists('proc_open') || !function_exists('opcache_get_status')) {
+            $this->markTestSkipped('proc_open or opcache is not available');
+        }
+
+        /* With opcache an array literal is immutable and shared, and cannot be refcounted or
+         * destroyed. file_update_protection=0 caches the script on its first run */
+        $cmd = $this->phpSubprocessCommand(
+            __DIR__ . '/scripts/del_literal_array_opcache.php',
+            $this->valkey_glide instanceof ValkeyGlideCluster ? '1' : '0',
+            $this->getHost(),
+            (string) $this->getPort()
+        );
+        $opcache = ['-d', 'opcache.enable_cli=1', '-d', 'opcache.file_update_protection=0',
+                    '-d', 'opcache.protect_memory=1'];
+        /* -n skips the INI files, so load opcache when it is a shared extension (PHP < 8.5) */
+        $shared = ini_get('extension_dir') . '/opcache.' . PHP_SHLIB_SUFFIX;
+        if (file_exists($shared)) {
+            array_unshift($opcache, '-d', "zend_extension=$shared");
+        }
+        array_splice($cmd, 1, 0, $opcache);
+        $proc = proc_open($cmd, [1 => ['pipe', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes);
+        $this->assertTrue(is_resource($proc));
+        $out = stream_get_contents($pipes[1]);
+        fclose($pipes[1]);
+        proc_close($proc);
+
+        /* String-key del and unlink, then integer-key del and unlink (one key left), three times */
+        $this->assertEquals(array_merge(...array_fill(0, 3, [2, 2, 2, 1])), json_decode($out, true));
+    }
+
+    public function testDelUnlinkUnconvertibleKey()
+    {
+        $this->valkey_glide->set('{delobj}k', '1');
+
+        /* Nothing is sent: before, the object became an empty key and the command still ran */
+        $this->assertThrows(Error::class, fn () => $this->valkey_glide->del(['{delobj}k', new stdClass()]));
+        $this->assertThrows(Error::class, fn () => $this->valkey_glide->unlink(['{delobj}k', new stdClass()]));
+        $this->assertEquals('1', $this->valkey_glide->get('{delobj}k'));
+
+        $this->assertEquals(1, $this->valkey_glide->del(['{delobj}k']));
+    }
+
+    public function testSubscribeEmptyChannelsMessage()
+    {
+        /* The exception message used to be read from the freed command result */
+        foreach (['subscribe', 'psubscribe'] as $method) {
+            try {
+                $this->valkey_glide->$method([], fn() => null);
+                $this->fail("$method([]) did not throw");
+            } catch (ValkeyGlideException $exception) {
+                $message = $exception->getMessage();
+                $this->assertTrue($message !== '' && mb_check_encoding($message, 'UTF-8'));
+                $this->assertTrue(stripos($message, 'channel') !== false || stripos($message, 'pattern') !== false);
+            }
+        }
+    }
+
+    public function testStreamEntriesReturnAllFields()
+    {
+        $key = '{xfields}s';
+        $this->valkey_glide->del($key);
+
+        $this->valkey_glide->xAdd($key, '1-1', ['a' => '1', 'b' => '2', 'c' => '3']);
+        $this->valkey_glide->xAdd($key, '2-1', ['d' => '4', 'e' => '5']);
+
+        $expected = ['1-1' => ['a' => '1', 'b' => '2', 'c' => '3'], '2-1' => ['d' => '4', 'e' => '5']];
+        $this->assertEquals($expected, $this->valkey_glide->xRange($key, '-', '+'));
+        $this->assertEquals(array_reverse($expected, true), $this->valkey_glide->xRevRange($key, '+', '-'));
+
+        $this->valkey_glide->xGroup('CREATE', $key, 'group', '0');
+        $this->valkey_glide->xReadGroup('group', 'consumer', [$key => '>']);
+        $claimed = $this->valkey_glide->xClaim($key, 'group', 'other', 0, ['1-1']);
+        $this->assertEquals(['1-1' => ['a' => '1', 'b' => '2', 'c' => '3']], $claimed);
+
+        $this->valkey_glide->del($key);
+    }
+
+    public function testStreamAddMaxlenZeroDoesNotTrim()
+    {
+        $key = '{xmaxlen}s';
+        $this->valkey_glide->del($key);
+
+        $this->valkey_glide->xAdd($key, '*', ['a' => '1']);
+        $this->valkey_glide->xAdd($key, '*', ['a' => '1']);
+        /* PHPRedis only sends MAXLEN when it is positive */
+        $this->valkey_glide->xAdd($key, '*', ['a' => '1'], 0);
+        $this->assertEquals(3, $this->valkey_glide->xLen($key));
+
+        $this->valkey_glide->xAdd($key, '*', ['a' => '1'], 2);
+        $this->assertEquals(2, $this->valkey_glide->xLen($key));
+
+        $this->valkey_glide->del($key);
+    }
+
+    public function testStreamAddIntegerFieldNames()
+    {
+        $key = '{xint}s';
+        $this->valkey_glide->del($key);
+
+        $id = $this->valkey_glide->xAdd($key, '1-1', ['7' => 'seven', 'a' => 'x']);
+        $this->assertEquals('1-1', $id);
+        $this->assertEquals(['1-1' => [7 => 'seven', 'a' => 'x']], $this->valkey_glide->xRange($key, '-', '+'));
+
+        /* A list is stored with its positions as the field names */
+        $this->assertEquals('2-1', $this->valkey_glide->xAdd($key, '2-1', ['x', 'y']));
+        $this->assertEquals([0 => 'x', 1 => 'y'], $this->valkey_glide->xRange($key, '2-1', '2-1')['2-1']);
+
+        /* A value that cannot be converted to a string throws, and nothing is added */
+        $this->assertThrows(Error::class, fn () => $this->valkey_glide->xAdd($key, '3-1', [7 => new stdClass()]));
+        $this->assertThrows(Error::class, fn () => $this->valkey_glide->xAdd($key, '3-1', ['a' => new stdClass()]));
+        $this->assertEquals(2, $this->valkey_glide->xLen($key));
+
+        $this->valkey_glide->del($key);
+    }
+
+    public function testBinaryAndNumericFieldNamesInReplies()
+    {
+        $this->valkey_glide->del('{bin}h', '{bin}z', '{bin}s');
+        $binary = "a\0b";
+
+        $this->valkey_glide->hSet('{bin}h', $binary, '1');
+        $this->valkey_glide->hSet('{bin}h', 'a', '2');
+        $this->valkey_glide->hSet('{bin}h', '7', 'seven');
+        $this->assertEquals(3, $this->valkey_glide->hLen('{bin}h'));
+
+        $expected = [$binary => '1', 'a' => '2', 7 => 'seven'];
+        $this->assertEquals($expected, $this->valkey_glide->hGetAll('{bin}h'));
+
+        $cursor = null;
+        $this->assertEquals($expected, $this->valkey_glide->hScan('{bin}h', $cursor));
+
+        $this->valkey_glide->zAdd('{bin}z', 1, $binary);
+        $this->valkey_glide->zAdd('{bin}z', 2, 'a');
+        $this->valkey_glide->zAdd('{bin}z', 3, '7');
+        $scores = [$binary => 1.0, 'a' => 2.0, 7 => 3.0];
+        $this->assertEquals($scores, $this->valkey_glide->zRange('{bin}z', 0, -1, true));
+
+        $cursor = null;
+        $this->assertEquals($scores, array_map('floatval', $this->valkey_glide->zScan('{bin}z', $cursor)));
+
+        $this->valkey_glide->xAdd('{bin}s', '1-1', [$binary => 'x', 'a' => 'y']);
+        $this->assertEquals(['1-1' => [$binary => 'x', 'a' => 'y']], $this->valkey_glide->xRange('{bin}s', '-', '+'));
+
+        $this->valkey_glide->del('{bin}h', '{bin}z', '{bin}s');
+    }
+
+    public function testHashFieldExpireWithModeKeepsUnit()
+    {
+        if (!$this->compare_major_version_number(9)) {
+            $this->markTestSkipped('Hash expiration commands require Valkey 9.0.0+ (current: ' . $this->version . ')');
+        }
+
+        $key = $this->createRandomString(10);
+        $this->valkey_glide->hSet($key, 'seconds', 'v');
+        $this->valkey_glide->hSet($key, 'millis', 'v');
+        $this->valkey_glide->hSet($key, 'at', 'v');
+        $this->valkey_glide->hSet($key, 'millisat', 'v');
+
+        $now = time();
+        $this->assertEquals([1], $this->valkey_glide->hExpire($key, 100, 'NX', 'seconds'));
+        $this->assertEquals([1], $this->valkey_glide->hPExpire($key, 100000, 'NX', 'millis'));
+        $this->assertEquals([1], $this->valkey_glide->hExpireAt($key, $now + 100, 'NX', 'at'));
+        $this->assertEquals([1], $this->valkey_glide->hPExpireAt($key, ($now + 100) * 1000, 'NX', 'millisat'));
+
+        /* Each unit is applied: all four fields end up with about 100 seconds, not 100000 or
+         * decades. TTL is seconds; the "At" variants also report the same absolute time */
+        foreach (['seconds', 'millis', 'at', 'millisat'] as $field) {
+            $ttl = $this->valkey_glide->hTtl($key, $field)[0];
+            $this->assertTrue($ttl > 90 && $ttl <= 101, "$field TTL was $ttl");
+        }
+
+        $this->valkey_glide->del($key);
+    }
+
+    public function testFloatArgumentsKeepFullPrecision()
+    {
+        $this->valkey_glide->del('{float}z', '{float}l', '{float}g');
+
+        $this->valkey_glide->zAdd('{float}z', 1234567.891, 'm');
+        $this->assertEquals(1234567.891, $this->valkey_glide->zScore('{float}z', 'm'));
+        $this->assertEquals(1234568.0144567, $this->valkey_glide->zIncrBy('{float}z', 0.1234567, 'm'));
+
+        $this->valkey_glide->rPush('{float}l', 1e-7, 0.1, -INF, 5.0);
+        $this->assertEquals(['1.0E-7', '0.1', '-INF', '5'], $this->valkey_glide->lRange('{float}l', 0, -1));
+
+        $this->valkey_glide->geoAdd('{float}g', 13.361389338970184, 38.115556395496299, 'P', 15.087269, 37.502669, 'C');
+        $distance = $this->valkey_glide->geoDist('{float}g', 'P', 'C', 'km');
+        $this->assertTrue(abs($distance - 166.2742) < 0.0001, "distance was $distance");
+
+        $this->valkey_glide->del('{float}z', '{float}l', '{float}g');
+    }
+
+    public function testRawCommandIsQueuedInBatch()
+    {
+        $key = '{rawbatch}k';
+        $counter = '{rawbatch}n';
+        $this->valkey_glide->del($key, $counter);
+
+        /* A cluster client takes the route first; a batch ignores it */
+        $raw = fn (...$args) => $this->valkey_glide instanceof ValkeyGlideCluster
+            ? $this->valkey_glide->rawcommand($key, ...$args)
+            : $this->valkey_glide->rawcommand(...$args);
+
+        /* Discarded with the transaction, not run immediately */
+        $this->valkey_glide->multi();
+        $raw('SET', $key, 'raw');
+        $this->valkey_glide->discard();
+        $this->assertFalse($this->valkey_glide->get($key));
+
+        $this->valkey_glide->multi();
+        $raw('SET', $key, 'raw');
+        $raw('GET', $key);
+        $this->assertEquals([true, 'raw'], $this->valkey_glide->exec());
+
+        $this->valkey_glide->pipeline();
+        $raw('INCR', $counter);
+        $raw('INCR', $counter);
+        $this->assertEquals([1, 2], $this->valkey_glide->exec());
+
+        $this->valkey_glide->del($key, $counter);
+    }
+
+    public function testObjectRejectsUnknownSubcommand()
+    {
+        $this->valkey_glide->set('{object}k', '1');
+        $this->valkey_glide->set('{object}marker', '1');
+
+        /* Nothing is sent for an unknown subcommand. Before, the key became the command name.
+         * As in PHPRedis, it warns and returns false */
+        foreach (['HELP', 'REF', '', 'FLUSHALL'] as $subcommand) {
+            error_clear_last();
+            $this->assertFalse(@$this->valkey_glide->object($subcommand, '{object}k'));
+            $this->assertStringContains('Invalid subcommand sent to OBJECT', error_get_last()['message'] ?? '');
+        }
+        $this->assertEquals('1', $this->valkey_glide->get('{object}marker'));
+
+        $this->assertEquals(1, $this->valkey_glide->object('refcount', '{object}k'));
+        $this->assertEquals('int', $this->valkey_glide->object('ENCODING', '{object}k'));
+
+        $this->valkey_glide->del('{object}k', '{object}marker');
+    }
 }
