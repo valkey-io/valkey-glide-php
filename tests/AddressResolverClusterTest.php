@@ -207,6 +207,57 @@ class AddressResolverClusterTest extends ValkeyGlideClusterBaseTest
     }
 
     /**
+     * A lazy client runs its resolver during its first command, so the resolver can start a
+     * batch while a SCAN_RETRY scan is fetching its first page. The scan must stop there rather
+     * than queue the next page with a pointer to the iterator (#414).
+     */
+    public function testScanRetryStopsWhenResolverStartsBatch()
+    {
+        $this->skipIfTlsEnabled();
+
+        $realHost = $this->getHost();
+        $realPort = $this->getPort();
+        $key = '{resolverscan}' . uniqid();
+
+        /* Enough members that a page with a pattern matching none of them is empty and not the
+         * last one */
+        $setup = $this->newInstance();
+        $setup->sAdd($key, ...array_map(fn($i) => "m$i", range(1, 500)));
+
+        $client = null;
+        $started = false;
+        $resolver = function (string $host, int $port) use ($realHost, $realPort, &$client, &$started): array {
+            if ($client !== null && !$started) {
+                $started = true;
+                $client->multi(ValkeyGlide::PIPELINE);
+            }
+            /* Map only the fake seed: the other nodes must keep their own addresses */
+            return $host === 'fake-scan.nonexistent'
+                ? ['host' => $realHost, 'port' => $realPort]
+                : ['host' => $host, 'port' => $port];
+        };
+        $client = new ValkeyGlideCluster(
+            addresses: [['host' => 'fake-scan.nonexistent', 'port' => 9997]],
+            credentials: $this->getAuth(),
+            lazy_connect: true,
+            address_resolver: $resolver,
+        );
+
+        try {
+            $this->assertTrue($client->setOption(ValkeyGlide::OPT_SCAN, ValkeyGlide::SCAN_RETRY));
+            $it = null;
+            $this->assertEquals([], $client->sScan($key, $it, 'nomatch*', 10));
+            $this->assertTrue($started, 'The resolver must run during the first command');
+            /* The scan returned its first page; nothing was queued */
+            $this->assertEquals([], $client->exec());
+        } finally {
+            $client->close();
+            $setup->del($key);
+            $setup->close();
+        }
+    }
+
+    /**
      * The core does not wait for a client's threads when it is dropped inside a
      * resolver callable, so a client closed there is closed once the callable
      * has returned, here when the constructor that called it returns.

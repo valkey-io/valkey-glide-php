@@ -586,7 +586,7 @@ int process_s_mixed_result_async(CommandResponse* response, void* output, zval* 
 }
 
 /**
- * Batch-compatible async result processor for scan responses
+ * Result processor for scan responses
  */
 
 typedef struct {
@@ -866,7 +866,7 @@ int execute_s_generic_command(valkey_glide_object* valkey_glide,
 
 
     /* Check for batch mode. SCAN commands never get here: scan_rejected_in_batch() refuses them
-     * first, so scan_data is NULL */
+     * before the first page and scan_retry_needed() before any later one, so scan_data is NULL */
     if (valkey_glide && valkey_glide->is_in_batch_mode) {
         /* Buffer command for batch execution */
         status = buffer_command_for_batch(
@@ -2002,12 +2002,16 @@ int execute_cluster_scan_command(const void* glide_client,
 
 /**
  * OPT_SCAN SCAN_RETRY: whether to fetch another page because this one was
- * empty and the scan is not finished, as PHPRedis does
+ * empty and the scan is not finished, as PHPRedis does. A SCAN in multi()/pipeline() is refused
+ * before the first page, but user code can still start a batch while a page is fetched (a lazy
+ * client's address resolver runs during its first command), so stop there: another page would
+ * be queued with a pointer to the caller's iterator.
  */
 static bool scan_retry_needed(valkey_glide_object* valkey_glide,
                               zval*                return_value,
                               const char*          cursor) {
-    return valkey_glide->scan_retry && Z_TYPE_P(return_value) == IS_ARRAY &&
+    return valkey_glide->scan_retry && !valkey_glide->is_in_batch_mode &&
+           Z_TYPE_P(return_value) == IS_ARRAY &&
            zend_hash_num_elements(Z_ARRVAL_P(return_value)) == 0 && cursor &&
            strcmp(cursor, "0") != 0;
 }
