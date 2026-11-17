@@ -88,9 +88,20 @@ runs:
         phpize_api="$(phpize --version | sed -n 's/^PHP Api Version: *//p')"
         echo "php: $(command -v php) -> $php_actual (module API $php_api)"
         echo "phpize: $(command -v phpize) (PHP Api Version $phpize_api)"
-        echo "php-config: $(command -v php-config) -> $(php-config --version)"
+        php_config_version="$(php-config --version)"
+        php_config_actual="$(echo "$php_config_version" | cut -d. -f1,2)"
+        php_config_api="$(php-config --phpapi)"
+        echo "php-config: $(command -v php-config) -> $php_config_version (module API $php_config_api)"
         if [ "$php_actual" != "$PHP_VERSION" ]; then
           echo "::error::php on PATH is $php_actual, expected $PHP_VERSION"
+          exit 1
+        fi
+        if [ "$php_config_actual" != "$PHP_VERSION" ]; then
+          echo "::error::php-config on PATH is $php_config_actual, expected $PHP_VERSION"
+          exit 1
+        fi
+        if [ "$php_config_api" != "$php_api" ]; then
+          echo "::error::php-config API $php_config_api does not match php module API $php_api"
           exit 1
         fi
         if [ "$phpize_api" != "$php_api" ]; then
