@@ -263,6 +263,52 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         return array_merge($cmd, [$script], $args);
     }
 
+    /* Run a PHP helper process and return [exit status, stdout, stderr]. A helper that does not
+     * exit within $timeout seconds is killed and fails the test, so a hang cannot stall the job;
+     * the status is then null and the caller stops */
+    private function runHelperProcess(array $cmd, string $case, int $timeout = 30): array
+    {
+        $err_file = tempnam(sys_get_temp_dir(), 'glide_helper');
+        $proc     = proc_open($cmd, [1 => ['pipe', 'w'], 2 => ['file', $err_file, 'w']], $pipes);
+        $this->assertTrue(is_resource($proc));
+        stream_set_blocking($pipes[1], false);
+
+        $out      = '';
+        $deadline = microtime(true) + $timeout;
+        while (true) {
+            $out .= stream_get_contents($pipes[1]);
+            $status = proc_get_status($proc);
+            if (!$status['running']) {
+                break;
+            }
+            $left = $deadline - microtime(true);
+            if ($left <= 0) {
+                proc_terminate($proc, 9);
+                $out .= stream_get_contents($pipes[1]);
+                fclose($pipes[1]);
+                proc_close($proc);
+                $err = file_get_contents($err_file);
+                unlink($err_file);
+                $this->assert("%s: helper did not exit within %d seconds\nstdout: %s\nstderr: %s", $case, $timeout, $out, $err);
+                return [null, $out, $err];
+            }
+            /* Wakes on output or EOF; the timeout re-checks proc_get_status() when the helper
+             * exits without closing stdout (a grandchild may still hold it) */
+            $read = [$pipes[1]];
+            $none = null;
+            $wait = min($left, 0.1);
+            stream_select($read, $none, $none, (int) $wait, (int) (fmod($wait, 1) * 1e6));
+        }
+        $out .= stream_get_contents($pipes[1]);
+        fclose($pipes[1]);
+        proc_close($proc);
+        $err = file_get_contents($err_file);
+        unlink($err_file);
+
+        /* proc_close() cannot report the status once proc_get_status() has seen the exit */
+        return [$status['exitcode'], $out, $err];
+    }
+
     /* A forked child cannot use, and does not close, a client it inherited */
     public function testClientInheritedThroughFork()
     {
@@ -279,16 +325,51 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             $this->getHost(),
             (string) $this->getPort()
         );
-        $proc = proc_open($cmd, [1 => ['pipe', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes);
-        $this->assertTrue(is_resource($proc));
-        $out = stream_get_contents($pipes[1]);
-        fclose($pipes[1]);
-        proc_close($proc);
+        [$status, $out] = $this->runHelperProcess($cmd, __FUNCTION__);
+        if ($status === null) {
+            return;
+        }
 
         if (str_contains($out, 'pcntl_fork')) {
             $this->markTestSkipped('pcntl is not available');
         }
         $this->assertEquals(['child' => 'ok', 'parent_works' => true], json_decode($out, true));
+    }
+
+    /* A forked child can create and use a new client after the parent used one */
+    public function testNewClientInChildAfterFork()
+    {
+        if ($this->getTLS() || $this->getAuth()) {
+            $this->markTestSkipped('The fork helper connects without TLS or auth');
+        }
+        if (!function_exists('proc_open')) {
+            $this->markTestSkipped('proc_open is not available');
+        }
+
+        foreach (['new_client', 'persistent', 'parent_closed'] as $case) {
+            $cmd = $this->phpSubprocessCommand(
+                __DIR__ . '/scripts/fork_new_client.php',
+                $this->valkey_glide instanceof ValkeyGlideCluster ? '1' : '0',
+                $this->getHost(),
+                (string) $this->getPort(),
+                $case
+            );
+            [$status, $out, $err] = $this->runHelperProcess($cmd, $case);
+            if ($status === null) {
+                return;
+            }
+
+            if (str_contains($out, 'pcntl_fork')) {
+                $this->markTestSkipped('pcntl is not available');
+            }
+            if ($status !== 0) {
+                $this->assert("%s: helper exited with %d\nstdout: %s\nstderr: %s", $case, $status, $out, $err);
+            }
+            $this->assertEquals(
+                [$case => ['child' => 'ok', 'parent_works' => true]],
+                [$case => json_decode($out, true)]
+            );
+        }
     }
 
     public function testPing()
@@ -10713,11 +10794,10 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
             $this->getHost(),
             (string) $this->getPort()
         );
-        $proc = proc_open($cmd, [1 => ['pipe', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes);
-        $this->assertTrue(is_resource($proc));
-        $out = stream_get_contents($pipes[1]);
-        fclose($pipes[1]);
-        proc_close($proc);
+        [$status, $out] = $this->runHelperProcess($cmd, __FUNCTION__);
+        if ($status === null) {
+            return;
+        }
 
         if (str_contains($out, 'pcntl_fork')) {
             $this->markTestSkipped('pcntl is not available');
