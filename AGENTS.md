@@ -149,6 +149,8 @@ Use conventional commit format:
 
 **Example:** `feat(php): implement cluster scan with routing options`
 
+The PR title uses the same format with a lowercase type; it is checked and becomes the release notes entry. A backport keeps the original PR's type, e.g. `fix(php): ... (backport #123)`; porting already-released fixes to `main` is `chore:`.
+
 ### Code Quality Requirements
 
 #### Running Linters
@@ -184,7 +186,7 @@ See the .gitignore
 - [ ] Linting passes: `./lint.sh` does not report warnings (runs the C, PHP, and Markdown linters)
 - [ ] No generated outputs committed (check `.gitignore`)
 - [ ] DCO signoff present: `git log --format="%B" -n 1 | grep "Signed-off-by"`
-- [ ] Conventional commit format used
+- [ ] Conventional commit format used for commits and the PR title
 
 ## Quick Facts for Reasoners
 
