@@ -394,7 +394,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
         $user  = 'glide_phpredis_auth_list_' . uniqid();
         $admin = $this->newInstance();
-        $seeds = [['host' => $this->getHost(), 'port' => $this->getPort()]];
+        $seeds = $this->getClusterAddresses();
 
         try {
             $admin->rawcommand('allNodes', 'ACL', 'SETUSER', $user, 'on', '>user_pass', '~*', '&*', '+@all');
@@ -413,8 +413,12 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
                 new ValkeyGlideCluster(null, $seeds, auth: [$user, 'wrong_pass']);
             });
         } finally {
-            $admin->rawcommand('allNodes', 'ACL', 'DELUSER', $user);
-            $admin->close();
+            try {
+                // DELUSER on every node fails if any node fails, else returns one node's count
+                $this->assertEquals(1, $admin->rawcommand('allNodes', 'ACL', 'DELUSER', $user));
+            } finally {
+                $admin->close();
+            }
         }
     }
 
