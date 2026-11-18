@@ -325,14 +325,18 @@ class ValkeyGlideCluster
      * PHPRedis RedisCluster-style parameters (positions 0-6):
      * @param string|null $name                 Cluster name (not used, for compatibility only).
      * @param array|null $seeds                 Seed nodes array [['host' => 'x', 'port' => y], ...].
-     * @param float|null $timeout               Connection timeout in seconds.
-     * @param float|null $read_timeout          Read timeout in seconds.
+     * @param float|null $timeout               Connection timeout in seconds, in place of
+     *                                          $advanced_config['connection_timeout']. 0 keeps the
+     *                                          default connection timeout.
+     * @param float|null $read_timeout          Read timeout in seconds, in place of $request_timeout.
      * @param bool|null $persistent             Keep the client open after the request ends and reuse
      *                                          it in later requests of the same worker process (e.g.
      *                                          PHP-FPM) that use the same configuration. See
      *                                          "Persistent Clients" in the README for when a kept
      *                                          client is reused or closed.
-     * @param mixed $auth                       Authentication - string (password) or array ['user', 'pass'].
+     * @param mixed $auth                       Authentication, in place of $credentials: a password,
+     *                                          [password], [user, password] (a null user means none),
+     *                                          ['user' => ..., 'pass' => ...], or a $credentials array.
      * @param resource|array|null $context      Stream context resource or array. Supports 'verify_peer'
      *                                          and 'cafile' SSL options. Note: mutual TLS (client
      *                                          certificate/key) is not supported here; use $advanced_config's
@@ -425,7 +429,9 @@ class ValkeyGlideCluster
      *                                          value must contain only printable ASCII, excluding space, '('
      *                                          and ')' (^[\x21-\x27\x2A-\x7E]+$).
      *
-     * Note: Cannot mix PHPRedis-style and ValkeyGlide-style parameters.
+     * Note: Cannot mix PHPRedis-style parameters with $addresses, or with the ValkeyGlide-style
+     * parameter they stand in for ($timeout with $advanced_config['connection_timeout'],
+     * $read_timeout with $request_timeout, $auth with $credentials).
      */
     public function __construct(
         ?string $name = null,

@@ -202,6 +202,96 @@ class ConnectionRequestTest extends \TestSuite
         $this->assertEquals('pass', $authentication_info->getPassword());
     }
 
+    /* PHPRedis RedisCluster-style $auth: a password, [password], [user, password] or
+     * ['user' => ..., 'pass' => ...], and GLIDE's own credentials array (#454) */
+    public function testClusterPhpRedisStyleAuth()
+    {
+        $cases = [
+            ['pass', '', 'pass'],
+            [['pass'], '', 'pass'],
+            [['user', 'pass'], 'user', 'pass'],
+            [['user' => 'user', 'pass' => 'pass'], 'user', 'pass'],
+            [['username' => 'user', 'password' => 'pass'], 'user', 'pass'],
+            [['password' => 'pass'], '', 'pass'],
+            /* As in PHPRedis, a null or false user means none, and scalars are converted */
+            [[null, 'pass'], '', 'pass'],
+            [[false, 'pass'], '', 'pass'],
+            [12345, '', '12345'],
+            [['user', 12345], 'user', '12345'],
+        ];
+        foreach ($cases as [$auth, $user, $pass]) {
+            $request = ClientConstructorMock::simulate_cluster_phpredis_constructor(auth: $auth);
+            $info = $request->getAuthenticationInfo();
+            $this->assertNotNull($info, 'auth ' . json_encode($auth));
+            $this->assertEquals($user, $info->getUsername());
+            $this->assertEquals($pass, $info->getPassword());
+        }
+
+        $this->assertNull(ClientConstructorMock::simulate_cluster_phpredis_constructor(seeds: [['host' => 'localhost', 'port' => 7001]])->getAuthenticationInfo());
+    }
+
+    public function testClusterPhpRedisStyleAuthInvalid()
+    {
+        $invalid = [
+            [], ['a', 'b', 'c'], [['nested']], ['user', ['nested']], [null], [false],
+            /* GLIDE and PHPRedis keys mixed */
+            ['user' => 'user', 'password' => 'pass'],
+        ];
+        foreach ($invalid as $auth) {
+            $this->assertThrowsMatch($auth, function ($auth) {
+                ClientConstructorMock::simulate_cluster_phpredis_constructor(auth: $auth);
+            }, '/\$auth must be/');
+        }
+    }
+
+    /* PHPRedis-style $timeout is the connection timeout and $read_timeout the request
+     * timeout, both in seconds (#455) */
+    public function testClusterPhpRedisStyleTimeouts()
+    {
+        $request = ClientConstructorMock::simulate_cluster_phpredis_constructor(timeout: 1.5, read_timeout: 0.25);
+        $this->assertEquals(1500, $request->getConnectionTimeout());
+        $this->assertEquals(250, $request->getRequestTimeout());
+
+        /* A $timeout of 0 keeps the default connection timeout */
+        $default = ClientConstructorMock::simulate_cluster_phpredis_constructor(seeds: [['host' => 'localhost', 'port' => 7001]])->getConnectionTimeout();
+        $request = ClientConstructorMock::simulate_cluster_phpredis_constructor(timeout: 0.0);
+        $this->assertEquals($default, $request->getConnectionTimeout());
+
+        /* Under 1 ms still sets a timeout */
+        $request = ClientConstructorMock::simulate_cluster_phpredis_constructor(timeout: 0.0004);
+        $this->assertEquals(1, $request->getConnectionTimeout());
+
+        foreach ([-1.0, INF, NAN, 3000000.0] as $timeout) {
+            $this->assertThrowsMatch($timeout, function ($timeout) {
+                ClientConstructorMock::simulate_cluster_phpredis_constructor(timeout: $timeout);
+            }, '/\$timeout must be/');
+        }
+    }
+
+    /* A PHPRedis-style parameter conflicts with the ValkeyGlide-style parameter it maps to */
+    public function testClusterPhpRedisStyleConflicts()
+    {
+        $seeds = [['host' => 'localhost', 'port' => 7001]];
+        $conflicts = [
+            '/PHPRedis-style and ValkeyGlide-style/' => fn() => ClientConstructorMock::simulate_cluster_phpredis_constructor(seeds: $seeds, addresses: $seeds),
+            "/'read_timeout' and 'request_timeout'/" => fn() => ClientConstructorMock::simulate_cluster_phpredis_constructor(read_timeout: 1.0, request_timeout: 500),
+            "/'timeout' and advanced_config/"        => fn() => ClientConstructorMock::simulate_cluster_phpredis_constructor(timeout: 1.0, advanced_config: ['connection_timeout' => 500]),
+            "/'auth' and 'credentials'/"             => fn() => ClientConstructorMock::simulate_cluster_phpredis_constructor(auth: 'pass', credentials: ['password' => 'pass']),
+        ];
+        foreach ($conflicts as $regex => $construct) {
+            $this->assertThrowsMatch(null, fn() => $construct(), $regex);
+        }
+
+        /* A $timeout of 0 has no effect, so it doesn't conflict */
+        $request = ClientConstructorMock::simulate_cluster_phpredis_constructor(timeout: 0.0, advanced_config: ['connection_timeout' => 500]);
+        $this->assertEquals(500, $request->getConnectionTimeout());
+
+        /* $timeout and $request_timeout set different timeouts, so they combine */
+        $request = ClientConstructorMock::simulate_cluster_phpredis_constructor(timeout: 1.0, request_timeout: 500);
+        $this->assertEquals(1000, $request->getConnectionTimeout());
+        $this->assertEquals(500, $request->getRequestTimeout());
+    }
+
     public function testStandaloneReadFrom()
     {
         $request = ClientConstructorMock::simulate_standalone_constructor(
