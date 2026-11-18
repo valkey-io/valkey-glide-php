@@ -475,6 +475,17 @@ class ValkeyGlideClusterTest extends ValkeyGlideTest
         $this->assertEquals(' 0123 ', $this->valkey_glide->echo('echo3', " 0123 "));
     }
 
+    /* Valkey 7.2 rejects every SORT GET and BY-with-pattern in cluster mode, even
+     * when the pattern shares a hash tag with the key. Valkey 8.0 allows it. */
+    public function testSortManyGetPatterns()
+    {
+        if (!$this->minVersionCheck('8.0.0')) {
+            $this->markTestSkipped();
+            return;
+        }
+        parent::testSortManyGetPatterns();
+    }
+
     public function testSortPrefix()
     {
         $this->valkey_glide->del('some-prefix:some-item');

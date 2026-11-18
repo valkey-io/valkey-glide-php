@@ -11915,7 +11915,9 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
 
     public function testObjectRejectsUnknownSubcommand()
     {
-        $this->valkey_glide->set('{object}k', '1');
+        /* Integers below 10000 come from the server's shared integer pool, where OBJECT REFCOUNT
+         * reports INT_MAX (or 1 when a maxmemory LRU/LFU policy is active). Use a value outside it. */
+        $this->valkey_glide->set('{object}k', '123456');
         $this->valkey_glide->set('{object}marker', '1');
 
         /* Nothing is sent for an unknown subcommand. Before, the key became the command name.
