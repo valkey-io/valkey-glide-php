@@ -40,6 +40,10 @@ class FtSearchBuilder
     private bool $someShards = false;
     private bool $consistent = false;
     private bool $inconsistent = false;
+    private ?array $inKeys = null;
+    private bool $count = false;
+    private bool $withScores = false;
+    private ?string $scorer = null;
 
     /** Set the index name. */
     public function index(string $name): self
@@ -183,6 +187,58 @@ class FtSearchBuilder
     }
 
     /**
+     * Restrict the search to this set of keys (valkey-search 1.3.0).
+     *
+     * Any matching result whose key is not in the list is filtered out,
+     * and the result count reflects the filtered set. Passing an empty
+     * array sends `INKEYS 0` (excludes every result); to omit INKEYS
+     * entirely, don't call this method at all.
+     *
+     * @param array $keys Key names.
+     */
+    public function inKeys(array $keys): self
+    {
+        $this->inKeys = $keys;
+        return $this;
+    }
+
+    /**
+     * Return only the total match count, with no document rows at all
+     * (valkey-search 1.3.0). Maps to `LIMIT 0 0` on the wire. Mutually
+     * exclusive with limit().
+     */
+    public function count(bool $count = true): self
+    {
+        $this->count = $count;
+        return $this;
+    }
+
+    /**
+     * Augment each result with its relevance score (valkey-search 1.3.0).
+     *
+     * Changes the result shape: each document value becomes
+     * `[score, field_map]` instead of just `field_map`. Combined with
+     * withSortKeys(), each row becomes `[score, sort_key, field_map]`.
+     */
+    public function withScores(bool $withScores = true): self
+    {
+        $this->withScores = $withScores;
+        return $this;
+    }
+
+    /**
+     * Set the scoring function used to rank results (valkey-search 1.3.0).
+     *
+     * `'BM25STD'` is the only value currently registered by the server.
+     * Has no visible effect unless combined with withScores() or sortBy().
+     */
+    public function scorer(string $scorer): self
+    {
+        $this->scorer = $scorer;
+        return $this;
+    }
+
+    /**
      * Convert the builder state into the arguments for ftSearch().
      *
      * Returns ['index' => string, 'query' => string, 'options' => array|null].
@@ -208,6 +264,17 @@ class FtSearchBuilder
         if ($this->consistent && $this->inconsistent) {
             throw new \ValkeyGlideException(
                 'FtSearchBuilder: CONSISTENT and INCONSISTENT are mutually exclusive'
+            );
+        }
+        if ($this->count && $this->limit !== null) {
+            throw new \ValkeyGlideException(
+                'FtSearchBuilder: count() and limit() are mutually exclusive -- '
+                . 'count maps to LIMIT 0 0 internally'
+            );
+        }
+        if ($this->withSortKeys && $this->sortBy === null) {
+            throw new \ValkeyGlideException(
+                'FtSearchBuilder: withSortKeys() requires sortBy() to be set'
             );
         }
 
@@ -268,6 +335,18 @@ class FtSearchBuilder
         }
         if ($this->inconsistent) {
             $options['INCONSISTENT'] = true;
+        }
+        if ($this->inKeys !== null) {
+            $options['INKEYS'] = $this->inKeys;
+        }
+        if ($this->count) {
+            $options['COUNT'] = true;
+        }
+        if ($this->withScores) {
+            $options['WITHSCORES'] = true;
+        }
+        if ($this->scorer !== null) {
+            $options['SCORER'] = $this->scorer;
         }
         return $options;
     }
