@@ -192,6 +192,73 @@ PHP_METHOD(ClientConstructorMock, simulate_standalone_constructor) {
     RETURN_ZVAL(php_request, 1, 1);
 }
 
+/* Builds the connection request a ValkeyGlideCluster constructor would send for params and
+ * returns it as a ConnectionRequest */
+static void simulate_cluster_request(valkey_glide_php_common_constructor_params_t* params,
+                                     zend_long                                     periodic_checks,
+                                     zend_bool periodic_checks_is_null,
+                                     zval*     return_value) {
+    bool addresses_allocated = _populate_addresses(&params->addresses);
+
+    /* Build cluster client configuration from individual parameters */
+    valkey_glide_cluster_client_configuration_t client_config;
+    memset(&client_config, 0, sizeof(client_config));
+
+    /* Set periodic checks */
+    client_config.periodic_checks_status =
+        periodic_checks_is_null ? VALKEY_GLIDE_PERIODIC_CHECKS_ENABLED_DEFAULT : periodic_checks;
+    client_config.periodic_checks_manual = NULL;
+
+    /* Populate configuration parameters shared between client and cluster connections. */
+    if (valkey_glide_build_client_config_base(params, &client_config.base, true) == FAILURE) {
+        if (addresses_allocated) {
+            zval_ptr_dtor(params->addresses);
+            efree(params->addresses);
+        }
+        return;
+    }
+
+    /* Parse cluster-specific advanced config options */
+    client_config.refresh_topology_from_initial_nodes = false; /* Default value */
+    if (params->advanced_config && Z_TYPE_P(params->advanced_config) == IS_ARRAY) {
+        HashTable* advanced_ht = Z_ARRVAL_P(params->advanced_config);
+        const char key_name[]  = "refresh_topology_from_initial_nodes";
+        zval*      refresh_topology_val =
+            zend_hash_str_find(advanced_ht, key_name, sizeof(key_name) - 1);
+        if (refresh_topology_val && Z_TYPE_P(refresh_topology_val) == IS_TRUE) {
+            client_config.refresh_topology_from_initial_nodes = true;
+        }
+    }
+
+    /* Build the connection request. */
+    size_t   protobuf_message_len;
+    uint8_t* request_bytes =
+        create_connection_request(&protobuf_message_len,
+                                  &client_config.base,
+                                  client_config.periodic_checks_status,
+                                  true,
+                                  client_config.refresh_topology_from_initial_nodes);
+
+    zval* php_request =
+        build_php_connection_request(request_bytes, protobuf_message_len, &client_config.base);
+
+    /* Clean up allocated addresses */
+    if (addresses_allocated) {
+        zval_ptr_dtor(params->addresses);
+        efree(params->addresses);
+    }
+
+    /* M-4(b) / R2-M-1: build_php_connection_request returns NULL on its allocation
+     * guard, on a failed call, and when the callable threw. It guarantees an
+     * exception is pending on every NULL return, so surfacing it here is safe and
+     * never dereferences NULL. */
+    if (!php_request) {
+        RETURN_THROWS();
+    }
+
+    RETURN_ZVAL(php_request, 1, 1);
+}
+
 /* Simulates a ValkeyGlideCluster constructor */
 PHP_METHOD(ClientConstructorMock, simulate_cluster_constructor) {
     zend_long                                    periodic_checks         = 0;
@@ -247,66 +314,57 @@ PHP_METHOD(ClientConstructorMock, simulate_cluster_constructor) {
             return;
         }
     }
-    bool addresses_allocated = _populate_addresses(&common_params.addresses);
+    simulate_cluster_request(
+        &common_params, periodic_checks, periodic_checks_is_null, return_value);
+}
 
-    /* Build cluster client configuration from individual parameters */
-    valkey_glide_cluster_client_configuration_t client_config;
-    memset(&client_config, 0, sizeof(client_config));
+/* Simulates a ValkeyGlideCluster constructor called with PHPRedis RedisCluster-style
+ * parameters, mapped as the real constructor maps them */
+PHP_METHOD(ClientConstructorMock, simulate_cluster_phpredis_constructor) {
+    char*                                        name                 = NULL;
+    size_t                                       name_len             = 0;
+    zval*                                        seeds                = NULL;
+    double                                       timeout              = 0.0;
+    zend_bool                                    timeout_is_null      = 1;
+    double                                       read_timeout         = 0.0;
+    zend_bool                                    read_timeout_is_null = 1;
+    zval*                                        auth                 = NULL;
+    valkey_glide_php_common_constructor_params_t common_params;
+    valkey_glide_init_common_constructor_params(&common_params);
 
-    /* Set periodic checks */
-    client_config.periodic_checks_status =
-        periodic_checks_is_null ? VALKEY_GLIDE_PERIODIC_CHECKS_ENABLED_DEFAULT : periodic_checks;
-    client_config.periodic_checks_manual = NULL;
+    ZEND_PARSE_PARAMETERS_START(0, 9)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_STRING_OR_NULL(name, name_len)
+    Z_PARAM_ARRAY_OR_NULL(seeds)
+    Z_PARAM_DOUBLE_OR_NULL(timeout, timeout_is_null)
+    Z_PARAM_DOUBLE_OR_NULL(read_timeout, read_timeout_is_null)
+    Z_PARAM_ZVAL_OR_NULL(auth)
+    Z_PARAM_ARRAY_OR_NULL(common_params.addresses)
+    Z_PARAM_ARRAY_OR_NULL(common_params.credentials)
+    Z_PARAM_LONG_OR_NULL(common_params.request_timeout, common_params.request_timeout_is_null)
+    Z_PARAM_ARRAY_OR_NULL(common_params.advanced_config)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_THROWS());
 
-    /* Populate configuration parameters shared between client and cluster connections. */
-    if (valkey_glide_build_client_config_base(&common_params, &client_config.base, true) ==
-        FAILURE) {
-        if (addresses_allocated) {
-            zval_ptr_dtor(common_params.addresses);
-            efree(common_params.addresses);
-        }
+    zend_bool using_phpredis_style = (name != NULL || seeds != NULL || !timeout_is_null ||
+                                      !read_timeout_is_null || auth != NULL);
+
+    zval auth_storage;
+    ZVAL_UNDEF(&auth_storage);
+    if (using_phpredis_style &&
+        valkey_glide_cluster_map_phpredis_params(&common_params,
+                                                 seeds,
+                                                 timeout,
+                                                 timeout_is_null,
+                                                 read_timeout,
+                                                 read_timeout_is_null,
+                                                 auth,
+                                                 &auth_storage) == FAILURE) {
+        zval_ptr_dtor(&auth_storage);
         return;
     }
 
-    /* Parse cluster-specific advanced config options */
-    client_config.refresh_topology_from_initial_nodes = false; /* Default value */
-    if (common_params.advanced_config && Z_TYPE_P(common_params.advanced_config) == IS_ARRAY) {
-        HashTable* advanced_ht = Z_ARRVAL_P(common_params.advanced_config);
-        const char key_name[]  = "refresh_topology_from_initial_nodes";
-        zval*      refresh_topology_val =
-            zend_hash_str_find(advanced_ht, key_name, sizeof(key_name) - 1);
-        if (refresh_topology_val && Z_TYPE_P(refresh_topology_val) == IS_TRUE) {
-            client_config.refresh_topology_from_initial_nodes = true;
-        }
-    }
-
-    /* Build the connection request. */
-    size_t   protobuf_message_len;
-    uint8_t* request_bytes =
-        create_connection_request(&protobuf_message_len,
-                                  &client_config.base,
-                                  client_config.periodic_checks_status,
-                                  true,
-                                  client_config.refresh_topology_from_initial_nodes);
-
-    zval* php_request =
-        build_php_connection_request(request_bytes, protobuf_message_len, &client_config.base);
-
-    /* Clean up allocated addresses */
-    if (addresses_allocated) {
-        zval_ptr_dtor(common_params.addresses);
-        efree(common_params.addresses);
-    }
-
-    /* M-4(b) / R2-M-1: build_php_connection_request returns NULL on its allocation
-     * guard, on a failed call, and when the callable threw. It guarantees an
-     * exception is pending on every NULL return, so surfacing it here is safe and
-     * never dereferences NULL. */
-    if (!php_request) {
-        RETURN_THROWS();
-    }
-
-    RETURN_ZVAL(php_request, 1, 1);
+    simulate_cluster_request(&common_params, 0, 1, return_value);
+    zval_ptr_dtor(&auth_storage);
 }
 
 /**

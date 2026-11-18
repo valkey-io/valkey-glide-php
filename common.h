@@ -379,10 +379,22 @@ typedef struct {
     zend_bool lazy_connect_is_null;
     zend_bool database_id_is_null;
     zval*     address_resolver; /* PHP callable or NULL */
+    /* Connection timeout in milliseconds from PHPRedis-style $timeout; it takes the place of
+     * advanced_config['connection_timeout'] */
+    zend_long connection_timeout;
+    zend_bool connection_timeout_is_null;
 } valkey_glide_php_common_constructor_params_t;
 
 void valkey_glide_init_common_constructor_params(
     valkey_glide_php_common_constructor_params_t* params);
+int  valkey_glide_cluster_map_phpredis_params(valkey_glide_php_common_constructor_params_t* params,
+                                              zval*                                         seeds,
+                                              double                                        timeout,
+                                              zend_bool timeout_is_null,
+                                              double    read_timeout,
+                                              zend_bool read_timeout_is_null,
+                                              zval*     auth,
+                                              zval*     auth_storage);
 int  valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_params_t* params,
                                            valkey_glide_base_client_configuration_t*     config,
                                            bool                                          is_cluster);

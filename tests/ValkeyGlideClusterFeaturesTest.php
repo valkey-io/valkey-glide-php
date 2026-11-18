@@ -386,6 +386,38 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         $valkey_glide->close();
     }
 
+    /* A PHPRedis-style [user, password] or [user =>, pass =>] $auth authenticates (#454) */
+    public function testPhpRedisStyleAuthList()
+    {
+        // The PHPRedis-style constructor connects without TLS
+        $this->skipIfTlsEnabled();
+
+        $user  = 'glide_phpredis_auth_list_' . uniqid();
+        $admin = $this->newInstance();
+        $seeds = [['host' => $this->getHost(), 'port' => $this->getPort()]];
+
+        try {
+            $admin->rawcommand('allNodes', 'ACL', 'SETUSER', $user, 'on', '>user_pass', '~*', '&*', '+@all');
+
+            foreach ([[$user, 'user_pass'], ['user' => $user, 'pass' => 'user_pass']] as $auth) {
+                $client = new ValkeyGlideCluster(null, $seeds, auth: $auth);
+                try {
+                    $this->assertEquals($user, $client->rawcommand('test', 'ACL', 'WHOAMI'));
+                } finally {
+                    $client->close();
+                }
+            }
+
+            // A wrong password is sent, not dropped, so the connection is refused
+            $this->assertThrowsMatch($seeds, function ($seeds) use ($user) {
+                new ValkeyGlideCluster(null, $seeds, auth: [$user, 'wrong_pass']);
+            });
+        } finally {
+            $admin->rawcommand('allNodes', 'ACL', 'DELUSER', $user);
+            $admin->close();
+        }
+    }
+
     // ==============================================
     // RECONNECTION STRATEGY PARAMETER TESTS
     // ==============================================

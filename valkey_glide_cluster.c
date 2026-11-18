@@ -184,35 +184,182 @@ static int valkey_glide_cluster_create_connection(
     return SUCCESS;
 }
 
-/**
- * Maps PHPRedis-style constructor parameters to ValkeyGlide-style parameters.
- * Modifies the provided parameters in place.
- */
-static void map_phpredis_to_valkey_params(zval**     addresses,
-                                          zval*      seeds,
-                                          zend_long* request_timeout,
-                                          zend_bool* request_timeout_is_null,
-                                          double     read_timeout,
-                                          zend_bool  read_timeout_is_null,
-                                          zval**     credentials,
-                                          zval*      auth) {
-    /* Map seeds to addresses */
+/* An element of a PHPRedis $auth as a string, as PHPRedis converts it: NULL for null or false
+ * (no value), and an exception for an array or an object without __toString() */
+static zend_string* phpredis_auth_value(zval* zv, bool* invalid) {
+    ZVAL_DEREF(zv);
+    if (Z_TYPE_P(zv) == IS_NULL || Z_TYPE_P(zv) == IS_FALSE) {
+        return NULL;
+    }
+    if (Z_TYPE_P(zv) == IS_ARRAY) {
+        *invalid = true;
+        return NULL;
+    }
+    zend_string* str = zval_try_get_string(zv);
+    if (!str) {
+        *invalid = true;
+    }
+    return str;
+}
+
+/* Converts a PHPRedis $auth to a GLIDE credentials array in *out, as PHPRedis RedisCluster reads
+ * it: a scalar is the password, and an array is [pass], [user, pass] or
+ * ['user' => ..., 'pass' => ...], where a null or false user means none. An array with GLIDE's
+ * own keys ('username', 'password', 'iamConfig') is copied unchanged. Returns FAILURE, with an
+ * exception thrown, if $auth is none of these. */
+static int phpredis_auth_to_credentials(zval* auth, zval* out) {
+    zend_string* user    = NULL;
+    zend_string* pass    = NULL;
+    bool         invalid = false;
+
+    if (Z_TYPE_P(auth) == IS_ARRAY) {
+        HashTable* ht = Z_ARRVAL_P(auth);
+        bool       glide_keys =
+            zend_hash_str_exists(
+                ht, VALKEY_GLIDE_AUTH_USERNAME, sizeof(VALKEY_GLIDE_AUTH_USERNAME) - 1) ||
+            zend_hash_str_exists(
+                ht, VALKEY_GLIDE_AUTH_PASSWORD, sizeof(VALKEY_GLIDE_AUTH_PASSWORD) - 1) ||
+            zend_hash_str_exists(
+                ht, VALKEY_GLIDE_AUTH_IAM_CONFIG, sizeof(VALKEY_GLIDE_AUTH_IAM_CONFIG) - 1);
+        bool phpredis_keys = zend_hash_str_exists(ht, "user", sizeof("user") - 1) ||
+                             zend_hash_str_exists(ht, "pass", sizeof("pass") - 1);
+        if (glide_keys && !phpredis_keys) {
+            ZVAL_COPY(out, auth);
+            return SUCCESS;
+        }
+
+        uint32_t count = zend_hash_num_elements(ht);
+        zval*    zuser = NULL;
+        zval*    zpass = NULL;
+        if (!glide_keys && count == 2) {
+            zuser = zend_hash_index_find(ht, 0);
+            if (!zuser) {
+                zuser = zend_hash_str_find(ht, "user", sizeof("user") - 1);
+            }
+        }
+        if (!glide_keys && (count == 1 || count == 2)) {
+            zpass = zend_hash_index_find(ht, count - 1);
+            if (!zpass) {
+                zpass = zend_hash_str_find(ht, "pass", sizeof("pass") - 1);
+            }
+        }
+        if (zpass && (count == 1 || zuser)) {
+            pass = phpredis_auth_value(zpass, &invalid);
+            if (zuser && !invalid) {
+                user = phpredis_auth_value(zuser, &invalid);
+            }
+        }
+        if (!pass || invalid) {
+            if (pass) {
+                zend_string_release(pass);
+            }
+            if (user) {
+                zend_string_release(user);
+            }
+            if (!EG(exception)) {
+                zend_throw_exception(get_valkey_glide_exception_ce(),
+                                     "$auth must be a password, [password], [user, password] or "
+                                     "['user' => ..., 'pass' => ...]",
+                                     0);
+            }
+            return FAILURE;
+        }
+    } else {
+        pass = phpredis_auth_value(auth, &invalid);
+        if (!pass) {
+            if (!EG(exception)) {
+                zend_throw_exception(
+                    get_valkey_glide_exception_ce(), "$auth must be a string or an array", 0);
+            }
+            return FAILURE;
+        }
+    }
+
+    array_init(out);
+    if (user) {
+        add_assoc_str(out, VALKEY_GLIDE_AUTH_USERNAME, user);
+    }
+    add_assoc_str(out, VALKEY_GLIDE_AUTH_PASSWORD, pass);
+    return SUCCESS;
+}
+
+/* Maps the PHPRedis RedisCluster-style constructor parameters onto params: $seeds are the
+ * addresses, $timeout the connection timeout, $read_timeout the request timeout (both in seconds)
+ * and $auth the credentials. A PHPRedis-style parameter conflicts with the GLIDE-style parameter
+ * it maps to. *auth_storage receives a converted $auth, which params->credentials then points
+ * to; the caller destroys it with zval_ptr_dtor() once the client is created. Returns FAILURE,
+ * with an exception thrown, on a conflict or an invalid $auth. */
+int valkey_glide_cluster_map_phpredis_params(valkey_glide_php_common_constructor_params_t* params,
+                                             zval*                                         seeds,
+                                             double                                        timeout,
+                                             zend_bool timeout_is_null,
+                                             double    read_timeout,
+                                             zend_bool read_timeout_is_null,
+                                             zval*     auth,
+                                             zval*     auth_storage) {
+    ZVAL_UNDEF(auth_storage);
+
+    if (params->addresses != NULL) {
+        zend_throw_exception(get_valkey_glide_exception_ce(),
+                             "Cannot specify both PHPRedis-style and ValkeyGlide-style parameters",
+                             0);
+        return FAILURE;
+    }
+    if (!read_timeout_is_null && !params->request_timeout_is_null) {
+        zend_throw_exception(get_valkey_glide_exception_ce(),
+                             "Cannot specify both 'read_timeout' and 'request_timeout'",
+                             0);
+        return FAILURE;
+    }
+    if (!timeout_is_null && (timeout < 0.0 || !zend_finite(timeout) || timeout * 1000 > INT_MAX)) {
+        zend_throw_exception(get_valkey_glide_exception_ce(),
+                             "$timeout must be a number of seconds from 0 to 2147483",
+                             0);
+        return FAILURE;
+    }
+    if (!timeout_is_null && timeout > 0.0 && params->advanced_config &&
+        Z_TYPE_P(params->advanced_config) == IS_ARRAY &&
+        zend_hash_str_exists(Z_ARRVAL_P(params->advanced_config),
+                             VALKEY_GLIDE_CONNECTION_TIMEOUT,
+                             sizeof(VALKEY_GLIDE_CONNECTION_TIMEOUT) - 1)) {
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(),
+            "Cannot specify both 'timeout' and advanced_config['connection_timeout']",
+            0);
+        return FAILURE;
+    }
+    if (auth != NULL && params->credentials != NULL) {
+        zend_throw_exception(
+            get_valkey_glide_exception_ce(), "Cannot specify both 'auth' and 'credentials'", 0);
+        return FAILURE;
+    }
+
     if (seeds != NULL) {
-        *addresses = seeds;
+        params->addresses = seeds;
     }
 
-    /* Map read_timeout to request_timeout (convert seconds to milliseconds) */
+    /* As in PHPRedis, a $timeout of 0 means no limit, so it keeps the default */
+    if (!timeout_is_null && timeout > 0.0) {
+        /* A timeout under 1 ms still sets one, rather than 0 */
+        zend_long ms                       = (zend_long) (timeout * 1000);
+        params->connection_timeout         = ms > 0 ? ms : 1;
+        params->connection_timeout_is_null = 0;
+    }
+
     if (!read_timeout_is_null) {
-        *request_timeout         = (zend_long) (read_timeout * 1000);
-        *request_timeout_is_null = 0;
+        params->request_timeout         = (zend_long) (read_timeout * 1000);
+        params->request_timeout_is_null = 0;
     }
 
-    /* Map auth to credentials */
     if (auth != NULL) {
-        *credentials = auth;
+        if (phpredis_auth_to_credentials(auth, auth_storage) == FAILURE) {
+            return FAILURE;
+        }
+        params->credentials = auth_storage;
     }
 
     /* read_from is left at PRIMARY, matching the PHPRedis FAILOVER_NONE default */
+    return SUCCESS;
 }
 
 PHP_METHOD(ValkeyGlideCluster, __construct) {
@@ -296,32 +443,6 @@ PHP_METHOD(ValkeyGlideCluster, __construct) {
     zend_bool using_phpredis_style = (name != NULL || seeds != NULL || !timeout_is_null ||
                                       !read_timeout_is_null || auth != NULL);
 
-    /* Detect conflicting parameters */
-    if (using_phpredis_style && addresses != NULL) {
-        zend_throw_exception(get_valkey_glide_exception_ce(),
-                             "Cannot specify both PHPRedis-style and ValkeyGlide-style parameters",
-                             0);
-        return;
-    }
-    if (!timeout_is_null && !request_timeout_is_null) {
-        zend_throw_exception(get_valkey_glide_exception_ce(),
-                             "Cannot specify both 'timeout' and 'request_timeout'",
-                             0);
-        return;
-    }
-
-    /* Map PHPRedis parameters to ValkeyGlide parameters */
-    if (using_phpredis_style) {
-        map_phpredis_to_valkey_params(&addresses,
-                                      seeds,
-                                      &request_timeout,
-                                      &request_timeout_is_null,
-                                      read_timeout,
-                                      read_timeout_is_null,
-                                      &credentials,
-                                      auth);
-    }
-
     /* Handle context (shared between PHPRedis and ValkeyGlide) */
     if (phpredis_context != NULL) {
         common_params.context = phpredis_context;
@@ -362,12 +483,29 @@ PHP_METHOD(ValkeyGlideCluster, __construct) {
     common_params.address_resolver        = address_resolver;
     common_params.circuit_breaker         = circuit_breaker;
 
+    /* Map PHPRedis parameters to ValkeyGlide parameters */
+    zval auth_storage;
+    ZVAL_UNDEF(&auth_storage);
+    if (using_phpredis_style &&
+        valkey_glide_cluster_map_phpredis_params(&common_params,
+                                                 seeds,
+                                                 timeout,
+                                                 timeout_is_null,
+                                                 read_timeout,
+                                                 read_timeout_is_null,
+                                                 auth,
+                                                 &auth_storage) == FAILURE) {
+        zval_ptr_dtor(&auth_storage);
+        return;
+    }
+
     /* Call helper function to create cluster connection */
     valkey_glide_cluster_create_connection(valkey_glide,
                                            common_params,
                                            periodic_checks,
                                            periodic_checks_is_null,
                                            !persistent_is_null && persistent);
+    zval_ptr_dtor(&auth_storage);
 }
 
 static zend_function_entry valkey_glide_cluster_methods[] = {
