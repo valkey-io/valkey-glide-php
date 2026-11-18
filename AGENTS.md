@@ -186,7 +186,7 @@ See the .gitignore
 - [ ] Linting passes: `./lint.sh` does not report warnings (runs the C, PHP, and Markdown linters)
 - [ ] No generated outputs committed (check `.gitignore`)
 - [ ] DCO signoff present: `git log --format="%B" -n 1 | grep "Signed-off-by"`
-- [ ] Conventional commit format used
+- [ ] Conventional commit format used for commits and the PR title
 
 ## Quick Facts for Reasoners
 
