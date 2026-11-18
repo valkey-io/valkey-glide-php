@@ -786,6 +786,26 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
         }
     }
 
+    public function testPHPRedisStyleConnectTwiceThrows()
+    {
+        // PHPRedis-style connections are not support with TLS.
+        $this->skipIfTlsEnabled();
+
+        // A second connect() on a connected client throws and keeps the first connection (#177)
+        $client = new ValkeyGlide();
+        $this->assertTrue($client->connect($this->getHost(), $this->getPort()));
+
+        try {
+            $id = $client->rawcommand('CLIENT', 'ID');
+            $this->assertThrowsMatch($client, function ($c) {
+                $c->connect($this->getHost(), $this->getPort());
+            }, '/already connected/');
+            $this->assertEquals($id, $client->rawcommand('CLIENT', 'ID'));
+        } finally {
+            $client->close();
+        }
+    }
+
     // ===================================================================
     // LOGGER TESTS - Multi-level logging system integration tests
     // ===================================================================
