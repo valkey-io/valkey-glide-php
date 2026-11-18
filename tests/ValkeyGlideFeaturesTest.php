@@ -790,6 +790,9 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
     {
         // PHPRedis-style connections are not support with TLS.
         $this->skipIfTlsEnabled();
+        if ($this->getAuth()) {
+            $this->markTestSkipped('This test connects without credentials');
+        }
 
         // A second connect() on a connected client throws and keeps the first connection (#177)
         $client = new ValkeyGlide();
@@ -797,6 +800,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
 
         try {
             $id = $client->rawcommand('CLIENT', 'ID');
+            $this->assertIsInt($id);
             $this->assertThrowsMatch($client, function ($c) {
                 $c->connect($this->getHost(), $this->getPort());
             }, '/already connected/');

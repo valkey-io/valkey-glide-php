@@ -1824,7 +1824,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         // The PHPRedis-style constructor connects without TLS
         $this->skipIfTlsEnabled();
 
-        $seeds  = [['host' => $this->getHost(), 'port' => $this->getPort()]];
+        $seeds  = $this->getClusterAddresses();
         $key    = 'test_phpredis_style_seeds_' . uniqid();
         $client = new ValkeyGlideCluster('any-cluster-name', $seeds, auth: $this->getAuth());
 
@@ -1843,7 +1843,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         // The PHPRedis-style constructor connects without TLS
         $this->skipIfTlsEnabled();
 
-        $seeds = [['host' => $this->getHost(), 'port' => $this->getPort()]];
+        $seeds = $this->getClusterAddresses();
 
         // Without $read_timeout, a 150 ms DEBUG SLEEP succeeds
         $control = new ValkeyGlideCluster(null, $seeds, auth: $this->getAuth());
@@ -1857,6 +1857,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         $client = new ValkeyGlideCluster(null, $seeds, null, 0.05, auth: $this->getAuth());
         try {
             $this->assertFalse($client->rawcommand('test', 'DEBUG', 'SLEEP', '0.15'));
+            $this->assertStringContains('timed out', (string) $client->getLastError());
         } finally {
             $client->close();
             // Let the server finish sleeping before the next test
@@ -1876,7 +1877,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         try {
             $admin->rawcommand('allNodes', 'ACL', 'SETUSER', $user, 'on', '>user_pass', '~*', '&*', '+@all');
 
-            $seeds  = [['host' => $this->getHost(), 'port' => $this->getPort()]];
+            $seeds  = $this->getClusterAddresses();
             $client = new ValkeyGlideCluster(null, $seeds, auth: ['username' => $user, 'password' => 'user_pass']);
             try {
                 $this->assertEquals($user, $client->rawcommand('test', 'ACL', 'WHOAMI'));
@@ -1884,15 +1885,19 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
                 $client->close();
             }
         } finally {
-            $admin->rawcommand('allNodes', 'ACL', 'DELUSER', $user);
-            $admin->close();
+            try {
+                // DELUSER on every node fails if any node fails, else returns one node's count
+                $this->assertEquals(1, $admin->rawcommand('allNodes', 'ACL', 'DELUSER', $user));
+            } finally {
+                $admin->close();
+            }
         }
     }
 
     /* PHPRedis-style parameters can't be combined with $addresses (#177) */
     public function testPhpRedisStyleConstructorConflicts()
     {
-        $seeds = [['host' => $this->getHost(), 'port' => $this->getPort()]];
+        $seeds = $this->getClusterAddresses();
 
         $conflicts = [
             '$seeds'        => fn() => new ValkeyGlideCluster(null, $seeds, addresses: $seeds),
