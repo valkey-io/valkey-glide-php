@@ -25,7 +25,7 @@
     "ARCH": "arm64",
     "TARGET": "aarch64-apple-darwin",
     "languages": ["php"],
-    "profiles": []
+    "profiles": ["full"]
   },
   {
     "OS": "macos",
