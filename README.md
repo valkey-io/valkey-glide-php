@@ -27,10 +27,10 @@ GLIDE is the official open-source Valkey client library, proudly part of the Val
 
 Valkey GLIDE is API-compatible with the following engine versions:
 
-| Engine Type           |  6.2  |  7.0  |   7.1  |  7.2  |  8.0  |  8.1  |  9.0  |
-|-----------------------|-------|-------|--------|-------|-------|-------|-------|
-| Valkey                |   -   |   -   |   -    |   V   |   V   |   V   |   V   |
-| Redis                 |   V   |   V   |   V    |   V   |   -   |   -   |   -   |
+| Engine Type           |  6.2  |  7.0  |   7.1  |  7.2  |  8.0  |  8.1  |  9.0  |  9.1  |  9.2  |
+|-----------------------|-------|-------|--------|-------|-------|-------|-------|-------|-------|
+| Valkey                |   -   |   -   |   -    |   V   |   V   |   V   |   V   |   V   |   V   |
+| Redis                 |   V   |   V   |   V    |   V   |   -   |   -   |   -   |   -   |   -   |
 
 ## Getting Started - PHP Wrapper
 
