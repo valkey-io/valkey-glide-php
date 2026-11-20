@@ -16,6 +16,7 @@
 
 ### Fixes
 
+* `set()` with the `IFEQ` option is now rejected when compression is enabled: it returns `false`, sets the error reported by `getLastError()` and leaves the key unchanged. The server compared the uncompressed comparison value against the compressed stored value, so the condition never matched and the write was silently skipped ([#458](https://github.com/valkey-io/valkey-glide-php/issues/458))
 * `sScan()`, `hScan()`, `zScan()` or standalone `scan()` getting an error reply no longer leaks the previous cursor string of its iterator ([#414](https://github.com/valkey-io/valkey-glide-php/issues/414))
 * `valkey_glide_logger_set_config()` and `valkey_glide_logger_init()` now return `false` when the log file cannot be created (for example, a parent path component is a regular file, the directory or the current hour's log file is read-only, or the name is empty or ends in `/`). They returned `true`, and the core then panicked on the first log line and aborted PHP with SIGABRT. The path is checked up front, creating the missing directories as the core does, and a failed `valkey_glide_logger_set_config()` leaves the previous logger configuration in place ([#444](https://github.com/valkey-io/valkey-glide-php/issues/444))
 * `zAdd()` with more than 20 numeric scores, and `zUnionStore()`, `zInterStore()`, `zDiffStore()`, `zUnion()` and `zInter()` with more than 19 numeric weights (18 with an aggregate), no longer write past a fixed 20-entry buffer and corrupt the heap ([#379](https://github.com/valkey-io/valkey-glide-php/issues/379))
