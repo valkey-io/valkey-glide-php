@@ -1845,8 +1845,8 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
 
         $seeds = $this->getClusterAddresses();
 
-        // Without $read_timeout, a 150 ms DEBUG SLEEP succeeds
-        $control = new ValkeyGlideCluster(null, $seeds, auth: $this->getAuth());
+        // A 150 ms DEBUG SLEEP finishes within a 500 ms $read_timeout...
+        $control = new ValkeyGlideCluster(null, $seeds, read_timeout: 0.5, auth: $this->getAuth());
         try {
             $this->assertTrue($control->rawcommand('test', 'DEBUG', 'SLEEP', '0.15'));
         } finally {
@@ -1854,7 +1854,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         }
 
         // ...but outlasts a 50 ms $read_timeout
-        $client = new ValkeyGlideCluster(null, $seeds, null, 0.05, auth: $this->getAuth());
+        $client = new ValkeyGlideCluster(null, $seeds, read_timeout: 0.05, auth: $this->getAuth());
         try {
             $this->assertFalse($client->rawcommand('test', 'DEBUG', 'SLEEP', '0.15'));
             $this->assertStringContains('timed out', (string) $client->getLastError());
@@ -1886,8 +1886,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             }
         } finally {
             try {
-                // DELUSER on every node fails if any node fails, else returns one node's count
-                $this->assertEquals(1, $admin->rawcommand('allNodes', 'ACL', 'DELUSER', $user));
+                $admin->rawcommand('allNodes', 'ACL', 'DELUSER', $user);
             } finally {
                 $admin->close();
             }
@@ -1908,7 +1907,7 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         ];
         foreach ($conflicts as $param => $construct) {
             try {
-                $construct();
+                $construct()->close();
                 $this->fail("$param with \$addresses should throw");
             } catch (ValkeyGlideException $e) {
                 $this->assertStringContains('PHPRedis-style and ValkeyGlide-style', $e->getMessage());

@@ -727,7 +727,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
 
     public function testPHPRedisStyleHostPort()
     {
-        // PHPRedis-style connections are not support with TLS.
+        // PHPRedis-style connections are not supported with TLS.
         $this->skipIfTlsEnabled();
 
         // Test PHPRedis-compatible connection with host and port
@@ -748,7 +748,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
 
     public function testPHPRedisStyleWithTimeout()
     {
-        // PHPRedis-style connections are not support with TLS.
+        // PHPRedis-style connections are not supported with TLS.
         $this->skipIfTlsEnabled();
 
         // Test PHPRedis-compatible connection with timeout parameter
@@ -768,7 +768,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
 
     public function testPHPRedisStyleConflictDetection()
     {
-        // PHPRedis-style connections are not support with TLS.
+        // PHPRedis-style connections are not supported with TLS.
         $this->skipIfTlsEnabled();
 
         // Test that mixing PHPRedis and ValkeyGlide parameters is detected
@@ -788,7 +788,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
 
     public function testPHPRedisStyleConnectTwiceThrows()
     {
-        // PHPRedis-style connections are not support with TLS.
+        // PHPRedis-style connections are not supported with TLS.
         $this->skipIfTlsEnabled();
         if ($this->getAuth()) {
             $this->markTestSkipped('This test connects without credentials');
@@ -807,6 +807,40 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             $this->assertEquals($id, $client->rawcommand('CLIENT', 'ID'));
         } finally {
             $client->close();
+        }
+    }
+
+    public function testPHPRedisStyleConnectFailureThrows()
+    {
+        // A PHPRedis-style connect() to an unreachable host throws (#177)
+        $client = new ValkeyGlide();
+        try {
+            $client->connect('nonexistent-host', 9999, 1.0);
+            $this->fail('connect() to an unreachable host should throw');
+        } catch (ValkeyGlideException $e) {
+            $this->assertStringContains('nonexistent-host:9999', $e->getMessage());
+        }
+    }
+
+    public function testPHPRedisStyleConnectFailureThrowsRedisException()
+    {
+        if (!class_exists('Redis', false)) {
+            if (PHP_VERSION_ID < 80300) {
+                $this->markTestSkipped('PHPRedis aliases require PHP 8.3+');
+            }
+            ValkeyGlide::registerPHPRedisAliases();
+        }
+        if (!is_a('Redis', ValkeyGlide::class, true)) {
+            $this->markTestSkipped('PHPRedis extension is loaded, so Redis is not an alias');
+        }
+
+        // The same failure through the PHPRedis aliases is a RedisException (#177)
+        $client = new Redis();
+        try {
+            $client->connect('nonexistent-host', 9999, 1.0);
+            $this->fail('connect() to an unreachable host should throw');
+        } catch (RedisException $e) {
+            $this->assertStringContains('nonexistent-host:9999', $e->getMessage());
         }
     }
 
