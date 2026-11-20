@@ -58,6 +58,7 @@ macOS:
 | 8.3         |
 | 8.4         |
 | 8.5         |
+| 8.6         |
 
 ### Installation and Setup
 

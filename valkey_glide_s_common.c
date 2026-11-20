@@ -84,7 +84,7 @@ int convert_zval_to_string_args(zval*           input,
 
             (*args_out)[offset + i]     = (uintptr_t) str_copy;
             (*args_len_out)[offset + i] = str_len;
-            zval_dtor(&temp);
+            zval_ptr_dtor_nogc(&temp);
 
             /* Track the allocated string */
             if (allocated_strings && allocated_count) {
@@ -1414,7 +1414,7 @@ int execute_sinter_command(zval* object, int argc, zval* return_value, zend_clas
         /* Clean up if we allocated memory for the array keys */
         if (z_extracted_keys) {
             for (int i = 0; i < keys_count; i++) {
-                zval_dtor(&z_extracted_keys[i]);
+                zval_ptr_dtor_nogc(&z_extracted_keys[i]);
             }
             efree(z_extracted_keys);
         }
@@ -1497,7 +1497,7 @@ int execute_sintercard_command(zval* object, int argc, zval* return_value, zend_
 
         /* Clean up allocated array */
         for (int i = 0; i < keys_count; i++) {
-            zval_dtor(&z_args[i]);
+            zval_ptr_dtor_nogc(&z_args[i]);
         }
         efree(z_args);
 
@@ -1506,7 +1506,7 @@ int execute_sintercard_command(zval* object, int argc, zval* return_value, zend_
 
     /* Clean up allocated array */
     for (int i = 0; i < keys_count; i++) {
-        zval_dtor(&z_args[i]);
+        zval_ptr_dtor_nogc(&z_args[i]);
     }
     efree(z_args);
 
@@ -1621,7 +1621,7 @@ int execute_sinterstore_command(zval* object, int argc, zval* return_value, zend
         /* Clean up if we allocated memory for the array keys */
         if (z_extracted_keys) {
             for (int i = 0; i < keys_count; i++) {
-                zval_dtor(&z_extracted_keys[i]);
+                zval_ptr_dtor_nogc(&z_extracted_keys[i]);
             }
             efree(z_extracted_keys);
         }
@@ -1675,7 +1675,7 @@ int execute_sunion_command(zval* object, int argc, zval* return_value, zend_clas
         /* Clean up if we allocated memory for the array keys */
         if (z_extracted_keys) {
             for (int i = 0; i < keys_count; i++) {
-                zval_dtor(&z_extracted_keys[i]);
+                zval_ptr_dtor_nogc(&z_extracted_keys[i]);
             }
             efree(z_extracted_keys);
         }
@@ -1737,7 +1737,7 @@ int execute_sunionstore_command(zval* object, int argc, zval* return_value, zend
         /* Clean up if we allocated memory for the array keys */
         if (z_extracted_keys) {
             for (int i = 0; i < keys_count; i++) {
-                zval_dtor(&z_extracted_keys[i]);
+                zval_ptr_dtor_nogc(&z_extracted_keys[i]);
             }
             efree(z_extracted_keys);
         }
@@ -1790,7 +1790,7 @@ int execute_sdiff_command(zval* object, int argc, zval* return_value, zend_class
         /* Clean up if we allocated memory for the array keys */
         if (z_extracted_keys) {
             for (int i = 0; i < keys_count; i++) {
-                zval_dtor(&z_extracted_keys[i]);
+                zval_ptr_dtor_nogc(&z_extracted_keys[i]);
             }
             efree(z_extracted_keys);
         }
@@ -1861,7 +1861,7 @@ int execute_sdiffstore_command(zval* object, int argc, zval* return_value, zend_
         /* Clean up if we allocated memory for the array keys */
         if (z_extracted_keys) {
             for (int i = 0; i < keys_count; i++) {
-                zval_dtor(&z_extracted_keys[i]);
+                zval_ptr_dtor_nogc(&z_extracted_keys[i]);
             }
             efree(z_extracted_keys);
         }
@@ -2100,19 +2100,19 @@ int execute_scan_command(zval* object, int argc, zval* return_value, zend_class_
         zval cursor_result;
         if (call_user_function(NULL, z_iter, &cursor_method_name, &cursor_result, 0, NULL) !=
             SUCCESS) {
-            zval_dtor(&cursor_method_name);
+            zval_ptr_dtor_nogc(&cursor_method_name);
             return 0;
         }
-        zval_dtor(&cursor_method_name);
+        zval_ptr_dtor_nogc(&cursor_method_name);
 
         if (Z_TYPE(cursor_result) != IS_STRING) {
-            zval_dtor(&cursor_result);
+            zval_ptr_dtor_nogc(&cursor_result);
             return 0;
         }
 
         /* Create a copy of cursor for passing to functions */
         char* cursor_ptr = estrdup(Z_STRVAL(cursor_result));
-        zval_dtor(&cursor_result);
+        zval_ptr_dtor_nogc(&cursor_result);
 
         /* Use empty pattern if not specified */
         const char* scan_pattern     = has_pattern ? pattern : "";

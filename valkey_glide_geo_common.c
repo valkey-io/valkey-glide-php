@@ -737,7 +737,7 @@ int parse_geosearch_parameters(int                  argc,
         /* STOREDIST option (GEOSEARCHSTORE only) */
         if (is_store_variant) {
             if ((opt_val = zend_hash_str_find(ht, "storedist", sizeof("storedist") - 1)) != NULL) {
-                params->options.store_dist = zval_is_true(opt_val);
+                params->options.store_dist = zend_is_true(opt_val);
             }
         }
     }

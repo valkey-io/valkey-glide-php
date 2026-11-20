@@ -168,7 +168,7 @@ static bool call_method(zval* obj, const char* method_name, zval* retval) {
     zval method_name_zval;
     ZVAL_STRING(&method_name_zval, method_name);
     bool success = call_user_function(NULL, obj, &method_name_zval, retval, 0, NULL) == SUCCESS;
-    zval_dtor(&method_name_zval);
+    zval_ptr_dtor_nogc(&method_name_zval);
     return success;
 }
 
@@ -197,11 +197,11 @@ static struct OpenTelemetryConfig* parse_otel_config(zval* config_obj) {
             traces_obj    = &retval;
             traces_config = parse_traces_config_object(traces_obj);
             if (!traces_config) {
-                zval_dtor(&retval);
+                zval_ptr_dtor_nogc(&retval);
                 return NULL;
             }
         }
-        zval_dtor(&retval);
+        zval_ptr_dtor_nogc(&retval);
     }
 
     // Get metrics configuration
@@ -216,11 +216,11 @@ static struct OpenTelemetryConfig* parse_otel_config(zval* config_obj) {
                     }
                     pefree(traces_config, 1);
                 }
-                zval_dtor(&retval);
+                zval_ptr_dtor_nogc(&retval);
                 return NULL;
             }
         }
-        zval_dtor(&retval);
+        zval_ptr_dtor_nogc(&retval);
     }
 
     // Get flush interval
@@ -229,7 +229,7 @@ static struct OpenTelemetryConfig* parse_otel_config(zval* config_obj) {
             flush_interval_ms  = Z_LVAL(retval);
             has_flush_interval = true;
         }
-        zval_dtor(&retval);
+        zval_ptr_dtor_nogc(&retval);
     }
 
     // Validate at least one config is provided
@@ -265,7 +265,7 @@ static struct OpenTelemetryTracesConfig* parse_traces_config_object(zval* traces
         if (Z_TYPE(retval) == IS_STRING) {
             endpoint = pestrdup(Z_STRVAL(retval), 1);
         }
-        zval_dtor(&retval);
+        zval_ptr_dtor_nogc(&retval);
     }
 
     // Get sample percentage
@@ -274,7 +274,7 @@ static struct OpenTelemetryTracesConfig* parse_traces_config_object(zval* traces
             sample_percentage     = (int) Z_LVAL(retval);
             has_sample_percentage = true;
         }
-        zval_dtor(&retval);
+        zval_ptr_dtor_nogc(&retval);
     }
 
     if (!endpoint) {
@@ -304,7 +304,7 @@ static struct OpenTelemetryMetricsConfig* parse_metrics_config_object(zval* metr
         if (Z_TYPE(retval) == IS_STRING) {
             endpoint = pestrdup(Z_STRVAL(retval), 1);
         }
-        zval_dtor(&retval);
+        zval_ptr_dtor_nogc(&retval);
     }
 
     if (!endpoint) {

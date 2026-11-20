@@ -205,7 +205,9 @@ static bool persistent_evict_idle_client(void) {
 void valkey_glide_persistent_store(valkey_glide_object* valkey_glide,
                                    zend_string*         key,
                                    int                  database_id) {
-    zend_long max_clients = INI_INT("valkey_glide.max_persistent_clients");
+    zend_long max_clients = zend_ini_long("valkey_glide.max_persistent_clients",
+                                          sizeof("valkey_glide.max_persistent_clients") - 1,
+                                          0);
     if (max_clients <= 0) {
         /* Persistence disabled */
         zend_string_release(key);

@@ -823,7 +823,7 @@ int execute_zinterstore_command(zval* object, int argc, zval* return_value, zend
     keys_hash = Z_ARRVAL_P(z_keys);
     if (zend_hash_num_elements(keys_hash) == 0) {
         if (free_options) {
-            zval_dtor(&z_aggregate_option);
+            zval_ptr_dtor_nogc(&z_aggregate_option);
         }
         return 0;
     }
@@ -831,7 +831,7 @@ int execute_zinterstore_command(zval* object, int argc, zval* return_value, zend
     /* Check if we have a valid glide client */
     if (!glide_client) {
         if (free_options) {
-            zval_dtor(&z_aggregate_option);
+            zval_ptr_dtor_nogc(&z_aggregate_option);
         }
         return 0;
     }
@@ -855,7 +855,7 @@ int execute_zinterstore_command(zval* object, int argc, zval* return_value, zend
 
     /* Free the temporary options array if we created one */
     if (free_options) {
-        zval_dtor(&z_aggregate_option);
+        zval_ptr_dtor_nogc(&z_aggregate_option);
     }
 
 
@@ -902,7 +902,7 @@ int execute_zunionstore_command(zval* object, int argc, zval* return_value, zend
     keys_hash = Z_ARRVAL_P(z_keys);
     if (zend_hash_num_elements(keys_hash) == 0) {
         if (free_options) {
-            zval_dtor(&z_aggregate_option);
+            zval_ptr_dtor_nogc(&z_aggregate_option);
         }
         return 0;
     }
@@ -910,7 +910,7 @@ int execute_zunionstore_command(zval* object, int argc, zval* return_value, zend
     /* Check if we have a valid glide client */
     if (!glide_client) {
         if (free_options) {
-            zval_dtor(&z_aggregate_option);
+            zval_ptr_dtor_nogc(&z_aggregate_option);
         }
         return 0;
     }
@@ -934,7 +934,7 @@ int execute_zunionstore_command(zval* object, int argc, zval* return_value, zend
 
     /* Free the temporary options array if we created one */
     if (free_options) {
-        zval_dtor(&z_aggregate_option);
+        zval_ptr_dtor_nogc(&z_aggregate_option);
     }
 
 
@@ -1130,7 +1130,7 @@ int execute_zrangebylex_command(zval* object, int argc, zval* return_value, zend
 
     /* Free the temporary options array if we created one */
     if (offset >= 0 && count >= 0) {
-        zval_dtor(&new_options);
+        zval_ptr_dtor_nogc(&new_options);
     }
 
     if (valkey_glide->is_in_batch_mode) {
@@ -1180,7 +1180,7 @@ int execute_zintercard_command(zval* object, int argc, zval* return_value, zend_
     keys_hash = Z_ARRVAL_P(z_keys);
     if (zend_hash_num_elements(keys_hash) == 0) {
         if (free_options) {
-            zval_dtor(&z_temp_options);
+            zval_ptr_dtor_nogc(&z_temp_options);
         }
         return 0;
     }
@@ -1188,7 +1188,7 @@ int execute_zintercard_command(zval* object, int argc, zval* return_value, zend_
     /* Check if we have a valid glide client */
     if (!glide_client) {
         if (free_options) {
-            zval_dtor(&z_temp_options);
+            zval_ptr_dtor_nogc(&z_temp_options);
         }
         return 0;
     }
@@ -1204,7 +1204,7 @@ int execute_zintercard_command(zval* object, int argc, zval* return_value, zend_
 
     /* If we created a temporary options array, free it */
     if (free_options) {
-        zval_dtor(&z_temp_options);
+        zval_ptr_dtor_nogc(&z_temp_options);
     }
 
 
@@ -1491,7 +1491,7 @@ int execute_zdiff_command(zval* object, int argc, zval* return_value, zend_class
     }
 
     /* If the command failed, clean up and return FALSE */
-    zval_dtor(return_value);
+    zval_ptr_dtor_nogc(return_value);
     return 0;
 }
 
