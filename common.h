@@ -98,7 +98,7 @@ static inline const char* client_metadata_validation_error(const char* lib_name,
 #define VALKEY_GLIDE_PHP_VERSION "1.1.2"
 
 #define VALKEY_GLIDE_PHP_GET_OBJECT(class_entry, o) \
-    (class_entry*) ((char*) o - XtOffsetOf(class_entry, std))
+    (class_entry*) ((char*) o - offsetof(class_entry, std))
 #define VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(class_entry, z) \
     VALKEY_GLIDE_PHP_GET_OBJECT(class_entry, Z_OBJ_P(z))
 

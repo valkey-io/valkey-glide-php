@@ -222,7 +222,7 @@ int execute_geo_generic_command(valkey_glide_object*   valkey_glide,
                                         : get_valkey_glide_ce())) {                \
             return;                                                                \
         }                                                                          \
-        zval_dtor(return_value);                                                   \
+        zval_ptr_dtor_nogc(return_value);                                          \
         RETURN_FALSE;                                                              \
     }
 
@@ -237,7 +237,7 @@ int execute_geo_generic_command(valkey_glide_object*   valkey_glide,
                                        : get_valkey_glide_ce())) {                \
             return;                                                               \
         }                                                                         \
-        zval_dtor(return_value);                                                  \
+        zval_ptr_dtor_nogc(return_value);                                         \
         RETURN_FALSE;                                                             \
     }
 
@@ -252,7 +252,7 @@ int execute_geo_generic_command(valkey_glide_object*   valkey_glide,
                                                   : get_valkey_glide_ce())) {                \
             return;                                                                          \
         }                                                                                    \
-        zval_dtor(return_value);                                                             \
+        zval_ptr_dtor_nogc(return_value);                                                    \
         RETURN_FALSE;                                                                        \
     }
 
@@ -267,7 +267,7 @@ int execute_geo_generic_command(valkey_glide_object*   valkey_glide,
                                                      : get_valkey_glide_ce())) {                \
             return;                                                                             \
         }                                                                                       \
-        zval_dtor(return_value);                                                                \
+        zval_ptr_dtor_nogc(return_value);                                                       \
         RETURN_FALSE;                                                                           \
     }
 
@@ -282,7 +282,7 @@ int execute_geo_generic_command(valkey_glide_object*   valkey_glide,
                                           : get_valkey_glide_ce())) {                \
             return;                                                                  \
         }                                                                            \
-        zval_dtor(return_value);                                                     \
+        zval_ptr_dtor_nogc(return_value);                                            \
         RETURN_FALSE;                                                                \
     }
 

@@ -1329,7 +1329,7 @@ int parse_core_options(zval* options, core_options_t* opts) {
 
     /* Parse PERSIST option - associative format ['PERSIST' => true] */
     if ((entry = zend_hash_str_find(ht, "PERSIST", 7)) != NULL) {
-        opts->persist = zval_is_true(entry);
+        opts->persist = zend_is_true(entry);
     }
 
     /* Parse indexed array format ['PERSIST'] */
@@ -1347,19 +1347,19 @@ int parse_core_options(zval* options, core_options_t* opts) {
 
     /* Parse conditional options */
     if ((entry = zend_hash_str_find(ht, "NX", 2)) != NULL) {
-        opts->nx = zval_is_true(entry);
+        opts->nx = zend_is_true(entry);
     }
 
     if ((entry = zend_hash_str_find(ht, "XX", 2)) != NULL) {
-        opts->xx = zval_is_true(entry);
+        opts->xx = zend_is_true(entry);
     }
 
     if ((entry = zend_hash_str_find(ht, "CH", 2)) != NULL) {
-        opts->ch = zval_is_true(entry);
+        opts->ch = zend_is_true(entry);
     }
 
     if ((entry = zend_hash_str_find(ht, "GET", 3)) != NULL) {
-        opts->get_old_value = zval_is_true(entry);
+        opts->get_old_value = zend_is_true(entry);
     }
 
     /* Parse range options */
@@ -1384,11 +1384,11 @@ int parse_core_options(zval* options, core_options_t* opts) {
 
     /* Parse special flags */
     if ((entry = zend_hash_str_find(ht, "BYBIT", 5)) != NULL) {
-        opts->bybit = zval_is_true(entry);
+        opts->bybit = zend_is_true(entry);
     }
 
     if ((entry = zend_hash_str_find(ht, "APPROXIMATE", 11)) != NULL) {
-        opts->approximate = zval_is_true(entry);
+        opts->approximate = zend_is_true(entry);
     }
 
     return 1;

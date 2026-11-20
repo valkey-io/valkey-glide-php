@@ -33,8 +33,8 @@ int execute_ft_create_command(zval* object, int argc, zval* return_value, zend_c
     ZVAL_STRING(&method_name, "toArray");
     if (call_user_function(NULL, builder_zval, &method_name, &builder_result, 0, NULL) != SUCCESS ||
         Z_TYPE(builder_result) != IS_ARRAY) {
-        zval_dtor(&method_name);
-        zval_dtor(&builder_result);
+        zval_ptr_dtor_nogc(&method_name);
+        zval_ptr_dtor_nogc(&builder_result);
         if (!EG(exception)) {
             zend_throw_exception(
                 get_valkey_glide_exception_ce(),
@@ -43,14 +43,14 @@ int execute_ft_create_command(zval* object, int argc, zval* return_value, zend_c
         }
         return 0;
     }
-    zval_dtor(&method_name);
+    zval_ptr_dtor_nogc(&method_name);
 
     /* Extract index, schema, options from the result array */
     HashTable* result_ht = Z_ARRVAL(builder_result);
 
     zval* z_index = zend_hash_str_find(result_ht, "index", sizeof("index") - 1);
     if (!z_index || Z_TYPE_P(z_index) != IS_STRING) {
-        zval_dtor(&builder_result);
+        zval_ptr_dtor_nogc(&builder_result);
         zend_throw_exception(get_valkey_glide_exception_ce(),
                              "ftCreate: builder toArray() must return an 'index' string",
                              0);
@@ -59,7 +59,7 @@ int execute_ft_create_command(zval* object, int argc, zval* return_value, zend_c
 
     zval* z_schema = zend_hash_str_find(result_ht, "schema", sizeof("schema") - 1);
     if (!z_schema || Z_TYPE_P(z_schema) != IS_ARRAY) {
-        zval_dtor(&builder_result);
+        zval_ptr_dtor_nogc(&builder_result);
         zend_throw_exception(get_valkey_glide_exception_ce(),
                              "ftCreate: builder toArray() must return a 'schema' array",
                              0);
@@ -85,7 +85,7 @@ int execute_ft_create_command(zval* object, int argc, zval* return_value, zend_c
                               &count,
                               &allocated,
                               &alloc_n)) {
-        zval_dtor(&builder_result);
+        zval_ptr_dtor_nogc(&builder_result);
         return 0;
     }
 
@@ -98,7 +98,7 @@ int execute_ft_create_command(zval* object, int argc, zval* return_value, zend_c
                                              COMMAND_RESPONSE_NOT_ASSOSIATIVE);
 
     free_ft_collected(args, lens, allocated, alloc_n);
-    zval_dtor(&builder_result);
+    zval_ptr_dtor_nogc(&builder_result);
     return status;
 }
 
@@ -176,8 +176,8 @@ int execute_ft_search_command(zval* object, int argc, zval* return_value, zend_c
     ZVAL_STRING(&method_name, "toArray");
     if (call_user_function(NULL, builder_zval, &method_name, &builder_result, 0, NULL) != SUCCESS ||
         Z_TYPE(builder_result) != IS_ARRAY) {
-        zval_dtor(&method_name);
-        zval_dtor(&builder_result);
+        zval_ptr_dtor_nogc(&method_name);
+        zval_ptr_dtor_nogc(&builder_result);
         if (!EG(exception)) {
             zend_throw_exception(
                 get_valkey_glide_exception_ce(),
@@ -186,13 +186,13 @@ int execute_ft_search_command(zval* object, int argc, zval* return_value, zend_c
         }
         return 0;
     }
-    zval_dtor(&method_name);
+    zval_ptr_dtor_nogc(&method_name);
 
     HashTable* result_ht = Z_ARRVAL(builder_result);
 
     zval* z_index = zend_hash_str_find(result_ht, "index", sizeof("index") - 1);
     if (!z_index || Z_TYPE_P(z_index) != IS_STRING) {
-        zval_dtor(&builder_result);
+        zval_ptr_dtor_nogc(&builder_result);
         zend_throw_exception(get_valkey_glide_exception_ce(),
                              "ftSearch: builder toArray() must return an 'index' string",
                              0);
@@ -201,7 +201,7 @@ int execute_ft_search_command(zval* object, int argc, zval* return_value, zend_c
 
     zval* z_query = zend_hash_str_find(result_ht, "query", sizeof("query") - 1);
     if (!z_query || Z_TYPE_P(z_query) != IS_STRING) {
-        zval_dtor(&builder_result);
+        zval_ptr_dtor_nogc(&builder_result);
         zend_throw_exception(get_valkey_glide_exception_ce(),
                              "ftSearch: builder toArray() must return a 'query' string",
                              0);
@@ -228,7 +228,7 @@ int execute_ft_search_command(zval* object, int argc, zval* return_value, zend_c
                               &count,
                               &allocated,
                               &alloc_n)) {
-        zval_dtor(&builder_result);
+        zval_ptr_dtor_nogc(&builder_result);
         return 0;
     }
 
@@ -241,7 +241,7 @@ int execute_ft_search_command(zval* object, int argc, zval* return_value, zend_c
                                              COMMAND_RESPONSE_NOT_ASSOSIATIVE);
 
     free_ft_collected(args, lens, allocated, alloc_n);
-    zval_dtor(&builder_result);
+    zval_ptr_dtor_nogc(&builder_result);
     return status;
 }
 
@@ -267,8 +267,8 @@ int execute_ft_aggregate_command(zval* object, int argc, zval* return_value, zen
     ZVAL_STRING(&method_name, "toArray");
     if (call_user_function(NULL, builder_zval, &method_name, &builder_result, 0, NULL) != SUCCESS ||
         Z_TYPE(builder_result) != IS_ARRAY) {
-        zval_dtor(&method_name);
-        zval_dtor(&builder_result);
+        zval_ptr_dtor_nogc(&method_name);
+        zval_ptr_dtor_nogc(&builder_result);
         if (!EG(exception)) {
             zend_throw_exception(
                 get_valkey_glide_exception_ce(),
@@ -277,13 +277,13 @@ int execute_ft_aggregate_command(zval* object, int argc, zval* return_value, zen
         }
         return 0;
     }
-    zval_dtor(&method_name);
+    zval_ptr_dtor_nogc(&method_name);
 
     HashTable* result_ht = Z_ARRVAL(builder_result);
 
     zval* z_index = zend_hash_str_find(result_ht, "index", sizeof("index") - 1);
     if (!z_index || Z_TYPE_P(z_index) != IS_STRING) {
-        zval_dtor(&builder_result);
+        zval_ptr_dtor_nogc(&builder_result);
         zend_throw_exception(get_valkey_glide_exception_ce(),
                              "ftAggregate: builder toArray() must return an 'index' string",
                              0);
@@ -292,7 +292,7 @@ int execute_ft_aggregate_command(zval* object, int argc, zval* return_value, zen
 
     zval* z_query = zend_hash_str_find(result_ht, "query", sizeof("query") - 1);
     if (!z_query || Z_TYPE_P(z_query) != IS_STRING) {
-        zval_dtor(&builder_result);
+        zval_ptr_dtor_nogc(&builder_result);
         zend_throw_exception(get_valkey_glide_exception_ce(),
                              "ftAggregate: builder toArray() must return a 'query' string",
                              0);
@@ -319,7 +319,7 @@ int execute_ft_aggregate_command(zval* object, int argc, zval* return_value, zen
                                  &count,
                                  &allocated,
                                  &alloc_n)) {
-        zval_dtor(&builder_result);
+        zval_ptr_dtor_nogc(&builder_result);
         return 0;
     }
 
@@ -332,7 +332,7 @@ int execute_ft_aggregate_command(zval* object, int argc, zval* return_value, zen
                                              COMMAND_RESPONSE_NOT_ASSOSIATIVE);
 
     free_ft_collected(args, lens, allocated, alloc_n);
-    zval_dtor(&builder_result);
+    zval_ptr_dtor_nogc(&builder_result);
     return status;
 }
 

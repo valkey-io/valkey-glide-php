@@ -160,7 +160,7 @@ int execute_ft_aliaslist_command(zval* object, int argc, zval* return_value, zen
             APPLY_REPLY_LITERAL(return_value);                                       \
             return;                                                                  \
         }                                                                            \
-        zval_dtor(return_value);                                                     \
+        zval_ptr_dtor_nogc(return_value);                                            \
         RETURN_FALSE;                                                                \
     }
 
@@ -175,7 +175,7 @@ int execute_ft_aliaslist_command(zval* object, int argc, zval* return_value, zen
             APPLY_REPLY_LITERAL(return_value);                                          \
             return;                                                                     \
         }                                                                               \
-        zval_dtor(return_value);                                                        \
+        zval_ptr_dtor_nogc(return_value);                                               \
         RETURN_FALSE;                                                                   \
     }
 
@@ -189,7 +189,7 @@ int execute_ft_aliaslist_command(zval* object, int argc, zval* return_value, zen
                                         : get_valkey_glide_ce())) {                \
             return;                                                                \
         }                                                                          \
-        zval_dtor(return_value);                                                   \
+        zval_ptr_dtor_nogc(return_value);                                          \
         RETURN_FALSE;                                                              \
     }
 
@@ -203,7 +203,7 @@ int execute_ft_aliaslist_command(zval* object, int argc, zval* return_value, zen
                                           : get_valkey_glide_ce())) {                \
             return;                                                                  \
         }                                                                            \
-        zval_dtor(return_value);                                                     \
+        zval_ptr_dtor_nogc(return_value);                                            \
         RETURN_FALSE;                                                                \
     }
 
@@ -217,7 +217,7 @@ int execute_ft_aliaslist_command(zval* object, int argc, zval* return_value, zen
                                              : get_valkey_glide_ce())) {                \
             return;                                                                     \
         }                                                                               \
-        zval_dtor(return_value);                                                        \
+        zval_ptr_dtor_nogc(return_value);                                               \
         RETURN_FALSE;                                                                   \
     }
 
@@ -231,7 +231,7 @@ int execute_ft_aliaslist_command(zval* object, int argc, zval* return_value, zen
                                         : get_valkey_glide_ce())) {                \
             return;                                                                \
         }                                                                          \
-        zval_dtor(return_value);                                                   \
+        zval_ptr_dtor_nogc(return_value);                                          \
         RETURN_FALSE;                                                              \
     }
 
@@ -246,7 +246,7 @@ int execute_ft_aliaslist_command(zval* object, int argc, zval* return_value, zen
             APPLY_REPLY_LITERAL(return_value);                                         \
             return;                                                                    \
         }                                                                              \
-        zval_dtor(return_value);                                                       \
+        zval_ptr_dtor_nogc(return_value);                                              \
         RETURN_FALSE;                                                                  \
     }
 
@@ -261,7 +261,7 @@ int execute_ft_aliaslist_command(zval* object, int argc, zval* return_value, zen
             APPLY_REPLY_LITERAL(return_value);                                         \
             return;                                                                    \
         }                                                                              \
-        zval_dtor(return_value);                                                       \
+        zval_ptr_dtor_nogc(return_value);                                              \
         RETURN_FALSE;                                                                  \
     }
 
@@ -276,7 +276,7 @@ int execute_ft_aliaslist_command(zval* object, int argc, zval* return_value, zen
             APPLY_REPLY_LITERAL(return_value);                                            \
             return;                                                                       \
         }                                                                                 \
-        zval_dtor(return_value);                                                          \
+        zval_ptr_dtor_nogc(return_value);                                                 \
         RETURN_FALSE;                                                                     \
     }
 
@@ -290,7 +290,7 @@ int execute_ft_aliaslist_command(zval* object, int argc, zval* return_value, zen
                                              : get_valkey_glide_ce())) {                \
             return;                                                                     \
         }                                                                               \
-        zval_dtor(return_value);                                                        \
+        zval_ptr_dtor_nogc(return_value);                                               \
         RETURN_FALSE;                                                                   \
     }
 

@@ -384,7 +384,7 @@ int process_h_ok_result_async(CommandResponse* response, void* output, zval* ret
                                      : get_valkey_glide_ce())) {                \
             return;                                                             \
         }                                                                       \
-        zval_dtor(return_value);                                                \
+        zval_ptr_dtor_nogc(return_value);                                       \
         RETURN_FALSE;                                                           \
     }
 
@@ -398,7 +398,7 @@ int process_h_ok_result_async(CommandResponse* response, void* output, zval* ret
                                      : get_valkey_glide_ce())) {                \
             return;                                                             \
         }                                                                       \
-        zval_dtor(return_value);                                                \
+        zval_ptr_dtor_nogc(return_value);                                       \
         RETURN_FALSE;                                                           \
     }
 
@@ -412,7 +412,7 @@ int process_h_ok_result_async(CommandResponse* response, void* output, zval* ret
                                         : get_valkey_glide_ce())) {                \
             return;                                                                \
         }                                                                          \
-        zval_dtor(return_value);                                                   \
+        zval_ptr_dtor_nogc(return_value);                                          \
         RETURN_FALSE;                                                              \
     }
 
@@ -426,7 +426,7 @@ int process_h_ok_result_async(CommandResponse* response, void* output, zval* ret
                                      : get_valkey_glide_ce())) {                \
             return;                                                             \
         }                                                                       \
-        zval_dtor(return_value);                                                \
+        zval_ptr_dtor_nogc(return_value);                                       \
         RETURN_FALSE;                                                           \
     }
 
@@ -440,7 +440,7 @@ int process_h_ok_result_async(CommandResponse* response, void* output, zval* ret
                                      : get_valkey_glide_ce())) {                \
             return;                                                             \
         }                                                                       \
-        zval_dtor(return_value);                                                \
+        zval_ptr_dtor_nogc(return_value);                                       \
         RETURN_FALSE;                                                           \
     }
 
@@ -454,7 +454,7 @@ int process_h_ok_result_async(CommandResponse* response, void* output, zval* ret
                                        : get_valkey_glide_ce())) {                \
             return;                                                               \
         }                                                                         \
-        zval_dtor(return_value);                                                  \
+        zval_ptr_dtor_nogc(return_value);                                         \
         RETURN_FALSE;                                                             \
     }
 
@@ -469,7 +469,7 @@ int process_h_ok_result_async(CommandResponse* response, void* output, zval* ret
             APPLY_REPLY_LITERAL(return_value);                                   \
             return;                                                              \
         }                                                                        \
-        zval_dtor(return_value);                                                 \
+        zval_ptr_dtor_nogc(return_value);                                        \
         RETURN_FALSE;                                                            \
     }
 
@@ -483,7 +483,7 @@ int process_h_ok_result_async(CommandResponse* response, void* output, zval* ret
                                         : get_valkey_glide_ce())) {                \
             return;                                                                \
         }                                                                          \
-        zval_dtor(return_value);                                                   \
+        zval_ptr_dtor_nogc(return_value);                                          \
         RETURN_FALSE;                                                              \
     }
 
@@ -497,7 +497,7 @@ int process_h_ok_result_async(CommandResponse* response, void* output, zval* ret
                                              : get_valkey_glide_ce())) {                \
             return;                                                                     \
         }                                                                               \
-        zval_dtor(return_value);                                                        \
+        zval_ptr_dtor_nogc(return_value);                                               \
         RETURN_FALSE;                                                                   \
     }
 
@@ -511,7 +511,7 @@ int process_h_ok_result_async(CommandResponse* response, void* output, zval* ret
                                          : get_valkey_glide_ce())) {                \
             return;                                                                 \
         }                                                                           \
-        zval_dtor(return_value);                                                    \
+        zval_ptr_dtor_nogc(return_value);                                           \
         RETURN_FALSE;                                                               \
     }
 
@@ -525,7 +525,7 @@ int process_h_ok_result_async(CommandResponse* response, void* output, zval* ret
                                            : get_valkey_glide_ce())) {                \
             return;                                                                   \
         }                                                                             \
-        zval_dtor(return_value);                                                      \
+        zval_ptr_dtor_nogc(return_value);                                             \
         RETURN_FALSE;                                                                 \
     }
 
@@ -539,7 +539,7 @@ int process_h_ok_result_async(CommandResponse* response, void* output, zval* ret
                                             : get_valkey_glide_ce())) {                \
             return;                                                                    \
         }                                                                              \
-        zval_dtor(return_value);                                                       \
+        zval_ptr_dtor_nogc(return_value);                                              \
         RETURN_FALSE;                                                                  \
     }
 
@@ -553,7 +553,7 @@ int process_h_ok_result_async(CommandResponse* response, void* output, zval* ret
                                              : get_valkey_glide_ce())) {                \
             return;                                                                     \
         }                                                                               \
-        zval_dtor(return_value);                                                        \
+        zval_ptr_dtor_nogc(return_value);                                               \
         RETURN_FALSE;                                                                   \
     }
 
@@ -567,7 +567,7 @@ int process_h_ok_result_async(CommandResponse* response, void* output, zval* ret
                                       : get_valkey_glide_ce())) {                \
             return;                                                              \
         }                                                                        \
-        zval_dtor(return_value);                                                 \
+        zval_ptr_dtor_nogc(return_value);                                        \
         RETURN_FALSE;                                                            \
     }
 
@@ -581,7 +581,7 @@ int process_h_ok_result_async(CommandResponse* response, void* output, zval* ret
                                       : get_valkey_glide_ce())) {                \
             return;                                                              \
         }                                                                        \
-        zval_dtor(return_value);                                                 \
+        zval_ptr_dtor_nogc(return_value);                                        \
         RETURN_FALSE;                                                            \
     }
 
@@ -595,7 +595,7 @@ int process_h_ok_result_async(CommandResponse* response, void* output, zval* ret
                                       : get_valkey_glide_ce())) {                \
             return;                                                              \
         }                                                                        \
-        zval_dtor(return_value);                                                 \
+        zval_ptr_dtor_nogc(return_value);                                        \
         RETURN_FALSE;                                                            \
     }
 
@@ -609,7 +609,7 @@ int process_h_ok_result_async(CommandResponse* response, void* output, zval* ret
                                         : get_valkey_glide_ce())) {                \
             return;                                                                \
         }                                                                          \
-        zval_dtor(return_value);                                                   \
+        zval_ptr_dtor_nogc(return_value);                                          \
         RETURN_FALSE;                                                              \
     }
 
@@ -623,7 +623,7 @@ int process_h_ok_result_async(CommandResponse* response, void* output, zval* ret
                                         : get_valkey_glide_ce())) {                \
             return;                                                                \
         }                                                                          \
-        zval_dtor(return_value);                                                   \
+        zval_ptr_dtor_nogc(return_value);                                          \
         RETURN_FALSE;                                                              \
     }
 
@@ -637,7 +637,7 @@ int process_h_ok_result_async(CommandResponse* response, void* output, zval* ret
                                            : get_valkey_glide_ce())) {                \
             return;                                                                   \
         }                                                                             \
-        zval_dtor(return_value);                                                      \
+        zval_ptr_dtor_nogc(return_value);                                             \
         RETURN_FALSE;                                                                 \
     }
 
@@ -653,7 +653,7 @@ int process_h_ok_result_async(CommandResponse* response, void* output, zval* ret
         if (execute_func(__VA_ARGS__)) {                             \
             return;                                                  \
         }                                                            \
-        zval_dtor(return_value);                                     \
+        zval_ptr_dtor_nogc(return_value);                            \
         RETURN_FALSE;                                                \
     }
 
@@ -677,7 +677,7 @@ int process_h_ok_result_async(CommandResponse* response, void* output, zval* ret
                              ? get_valkey_glide_cluster_ce()              \
                              : get_valkey_glide_ce()))                    \
             return;                                                       \
-        zval_dtor(return_value);                                          \
+        zval_ptr_dtor_nogc(return_value);                                 \
         RETURN_FALSE;                                                     \
     }
 
@@ -699,7 +699,7 @@ int process_h_ok_result_async(CommandResponse* response, void* output, zval* ret
                                         : get_valkey_glide_ce())) {                \
             return;                                                                \
         }                                                                          \
-        zval_dtor(return_value);                                                   \
+        zval_ptr_dtor_nogc(return_value);                                          \
         RETURN_FALSE;                                                              \
     }
 
@@ -713,7 +713,7 @@ int process_h_ok_result_async(CommandResponse* response, void* output, zval* ret
                                           : get_valkey_glide_ce())) {                \
             return;                                                                  \
         }                                                                            \
-        zval_dtor(return_value);                                                     \
+        zval_ptr_dtor_nogc(return_value);                                            \
         RETURN_FALSE;                                                                \
     }
 
@@ -727,7 +727,7 @@ int process_h_ok_result_async(CommandResponse* response, void* output, zval* ret
                                      : get_valkey_glide_ce())) {                \
             return;                                                             \
         }                                                                       \
-        zval_dtor(return_value);                                                \
+        zval_ptr_dtor_nogc(return_value);                                       \
         RETURN_FALSE;                                                           \
     }
 
@@ -742,7 +742,7 @@ int process_h_ok_result_async(CommandResponse* response, void* output, zval* ret
                                          : get_valkey_glide_ce())) {                \
             return;                                                                 \
         }                                                                           \
-        zval_dtor(return_value);                                                    \
+        zval_ptr_dtor_nogc(return_value);                                           \
         RETURN_FALSE;                                                               \
     }
 
@@ -757,7 +757,7 @@ int process_h_ok_result_async(CommandResponse* response, void* output, zval* ret
                                       : get_valkey_glide_ce())) {                \
             return;                                                              \
         }                                                                        \
-        zval_dtor(return_value);                                                 \
+        zval_ptr_dtor_nogc(return_value);                                        \
         RETURN_FALSE;                                                            \
     }
 
@@ -772,7 +772,7 @@ int process_h_ok_result_async(CommandResponse* response, void* output, zval* ret
                                        : get_valkey_glide_ce())) {                \
             return;                                                               \
         }                                                                         \
-        zval_dtor(return_value);                                                  \
+        zval_ptr_dtor_nogc(return_value);                                         \
         RETURN_FALSE;                                                             \
     }
 
@@ -786,7 +786,7 @@ int process_h_ok_result_async(CommandResponse* response, void* output, zval* ret
                                         : get_valkey_glide_ce())) {                \
             return;                                                                \
         }                                                                          \
-        zval_dtor(return_value);                                                   \
+        zval_ptr_dtor_nogc(return_value);                                          \
         RETURN_FALSE;                                                              \
     }
 

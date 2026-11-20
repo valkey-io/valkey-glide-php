@@ -873,7 +873,7 @@ int populate_field_args(zval*          field_values,
             convert_to_string(&temp);
             field_len = Z_STRLEN(temp);
             field_str = estrndup(Z_STRVAL(temp), field_len);
-            zval_dtor(&temp);
+            zval_ptr_dtor_nogc(&temp);
         }
 
         /* Store copy in allocated_strings for cleanup */
@@ -1132,7 +1132,7 @@ static int process_h_getex_result(CommandResponse* response, void* output, zval*
                 }
             }
 
-            zval_dtor(&temp_array);
+            zval_ptr_dtor_nogc(&temp_array);
             ret = 1;
         }
     }
@@ -1310,15 +1310,15 @@ int process_h_incrbyfloat_result(CommandResponse* response, void* output, zval* 
             /* Convert long to double */
             output_value = (double) Z_LVAL(temp_result);
         } else {
-            zval_dtor(&temp_result);
+            zval_ptr_dtor_nogc(&temp_result);
             return 0;
         }
         ZVAL_DOUBLE(return_value, output_value);
-        zval_dtor(&temp_result);
+        zval_ptr_dtor_nogc(&temp_result);
         return 1;
     }
 
-    zval_dtor(&temp_result);
+    zval_ptr_dtor_nogc(&temp_result);
     return 0;
 }
 
@@ -2309,7 +2309,7 @@ int execute_hrandfield_command(zval* object, int argc, zval* return_value, zend_
                 if (zend_string_equals_literal_ci(zkey, "count")) {
                     count = zval_get_long(z_ele);
                 } else if (zend_string_equals_literal_ci(zkey, "withvalues")) {
-                    withvalues = zval_is_true(z_ele);
+                    withvalues = zend_is_true(z_ele);
                 }
             } else if (Z_TYPE_P(z_ele) == IS_STRING &&
                        zend_string_equals_literal_ci(Z_STR_P(z_ele), "withvalues")) {
@@ -2566,7 +2566,7 @@ int execute_hexpire_command(zval* object, int argc, zval* return_value, zend_cla
             valkey_glide, HExpire, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
         /* Cleanup allocated field array */
         for (int i = 0; i < total_fields; i++) {
-            zval_dtor(&all_fields[i]);
+            zval_ptr_dtor_nogc(&all_fields[i]);
         }
         efree(all_fields);
 
@@ -2579,7 +2579,7 @@ int execute_hexpire_command(zval* object, int argc, zval* return_value, zend_cla
 
     /* Cleanup on failure */
     for (int i = 0; i < total_fields; i++) {
-        zval_dtor(&all_fields[i]);
+        zval_ptr_dtor_nogc(&all_fields[i]);
     }
     efree(all_fields);
     return 0;
@@ -2649,7 +2649,7 @@ int execute_hpexpire_command(zval* object, int argc, zval* return_value, zend_cl
             valkey_glide, HPExpire, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
         /* Cleanup allocated field array */
         for (int i = 0; i < total_fields; i++) {
-            zval_dtor(&all_fields[i]);
+            zval_ptr_dtor_nogc(&all_fields[i]);
         }
         efree(all_fields);
 
@@ -2662,7 +2662,7 @@ int execute_hpexpire_command(zval* object, int argc, zval* return_value, zend_cl
 
     /* Cleanup on failure */
     for (int i = 0; i < total_fields; i++) {
-        zval_dtor(&all_fields[i]);
+        zval_ptr_dtor_nogc(&all_fields[i]);
     }
     efree(all_fields);
     return 0;
@@ -2731,7 +2731,7 @@ int execute_hexpireat_command(zval* object, int argc, zval* return_value, zend_c
             valkey_glide, HExpireAt, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
         /* Cleanup allocated field array */
         for (int i = 0; i < total_fields; i++) {
-            zval_dtor(&all_fields[i]);
+            zval_ptr_dtor_nogc(&all_fields[i]);
         }
         efree(all_fields);
 
@@ -2744,7 +2744,7 @@ int execute_hexpireat_command(zval* object, int argc, zval* return_value, zend_c
 
     /* Cleanup on failure */
     for (int i = 0; i < total_fields; i++) {
-        zval_dtor(&all_fields[i]);
+        zval_ptr_dtor_nogc(&all_fields[i]);
     }
     efree(all_fields);
     return 0;
@@ -2813,7 +2813,7 @@ int execute_hpexpireat_command(zval* object, int argc, zval* return_value, zend_
             valkey_glide, HPExpireAt, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
         /* Cleanup allocated field array */
         for (int i = 0; i < total_fields; i++) {
-            zval_dtor(&all_fields[i]);
+            zval_ptr_dtor_nogc(&all_fields[i]);
         }
         efree(all_fields);
 
@@ -2826,7 +2826,7 @@ int execute_hpexpireat_command(zval* object, int argc, zval* return_value, zend_
 
     /* Cleanup on failure */
     for (int i = 0; i < total_fields; i++) {
-        zval_dtor(&all_fields[i]);
+        zval_ptr_dtor_nogc(&all_fields[i]);
     }
     efree(all_fields);
     return 0;
@@ -2882,7 +2882,7 @@ int execute_httl_command(zval* object, int argc, zval* return_value, zend_class_
     if (execute_h_simple_command(valkey_glide, HTtl, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
         /* Cleanup allocated field array */
         for (int i = 0; i < total_fields; i++) {
-            zval_dtor(&all_fields[i]);
+            zval_ptr_dtor_nogc(&all_fields[i]);
         }
         efree(all_fields);
 
@@ -2895,7 +2895,7 @@ int execute_httl_command(zval* object, int argc, zval* return_value, zend_class_
 
     /* Cleanup on failure */
     for (int i = 0; i < total_fields; i++) {
-        zval_dtor(&all_fields[i]);
+        zval_ptr_dtor_nogc(&all_fields[i]);
     }
     efree(all_fields);
     return 0;
@@ -2952,7 +2952,7 @@ int execute_hpttl_command(zval* object, int argc, zval* return_value, zend_class
             valkey_glide, HPTtl, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
         /* Cleanup allocated field array */
         for (int i = 0; i < total_fields; i++) {
-            zval_dtor(&all_fields[i]);
+            zval_ptr_dtor_nogc(&all_fields[i]);
         }
         efree(all_fields);
 
@@ -2965,7 +2965,7 @@ int execute_hpttl_command(zval* object, int argc, zval* return_value, zend_class
 
     /* Cleanup on failure */
     for (int i = 0; i < total_fields; i++) {
-        zval_dtor(&all_fields[i]);
+        zval_ptr_dtor_nogc(&all_fields[i]);
     }
     efree(all_fields);
     return 0;
@@ -3022,7 +3022,7 @@ int execute_hexpiretime_command(zval* object, int argc, zval* return_value, zend
             valkey_glide, HExpireTime, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
         /* Cleanup allocated field array */
         for (int i = 0; i < total_fields; i++) {
-            zval_dtor(&all_fields[i]);
+            zval_ptr_dtor_nogc(&all_fields[i]);
         }
         efree(all_fields);
 
@@ -3035,7 +3035,7 @@ int execute_hexpiretime_command(zval* object, int argc, zval* return_value, zend
 
     /* Cleanup on failure */
     for (int i = 0; i < total_fields; i++) {
-        zval_dtor(&all_fields[i]);
+        zval_ptr_dtor_nogc(&all_fields[i]);
     }
     efree(all_fields);
     return 0;
@@ -3151,7 +3151,7 @@ int execute_hpersist_command(zval* object, int argc, zval* return_value, zend_cl
             valkey_glide, HPersist, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
         /* Cleanup allocated field array */
         for (int i = 0; i < total_fields; i++) {
-            zval_dtor(&all_fields[i]);
+            zval_ptr_dtor_nogc(&all_fields[i]);
         }
         efree(all_fields);
 
@@ -3164,7 +3164,7 @@ int execute_hpersist_command(zval* object, int argc, zval* return_value, zend_cl
 
     /* Cleanup on failure */
     for (int i = 0; i < total_fields; i++) {
-        zval_dtor(&all_fields[i]);
+        zval_ptr_dtor_nogc(&all_fields[i]);
     }
     efree(all_fields);
     return 0;

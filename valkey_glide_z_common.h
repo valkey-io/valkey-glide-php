@@ -433,7 +433,7 @@ int buffer_command_for_batch(valkey_glide_object* valkey_glide,
 #define CLEANUP_AND_RETURN_FALSE(return_value)                    \
     do {                                                          \
         if (return_value && Z_TYPE_P(return_value) == IS_ARRAY) { \
-            zval_dtor(return_value);                              \
+            zval_ptr_dtor_nogc(return_value);                     \
         }                                                         \
         RETURN_FALSE;                                             \
     } while (0)
@@ -449,7 +449,7 @@ int buffer_command_for_batch(valkey_glide_object* valkey_glide,
                                             : get_valkey_glide_ce())) {                \
             return;                                                                    \
         }                                                                              \
-        zval_dtor(return_value);                                                       \
+        zval_ptr_dtor_nogc(return_value);                                              \
         RETURN_FALSE;                                                                  \
     }
 
@@ -464,7 +464,7 @@ int buffer_command_for_batch(valkey_glide_object* valkey_glide,
                                        : get_valkey_glide_ce())) {                \
             return;                                                               \
         }                                                                         \
-        zval_dtor(return_value);                                                  \
+        zval_ptr_dtor_nogc(return_value);                                         \
         RETURN_FALSE;                                                             \
     }
 
@@ -494,7 +494,7 @@ int buffer_command_for_batch(valkey_glide_object* valkey_glide,
                                               : get_valkey_glide_ce())) {                \
             return;                                                                      \
         }                                                                                \
-        zval_dtor(return_value);                                                         \
+        zval_ptr_dtor_nogc(return_value);                                                \
         RETURN_FALSE;                                                                    \
     }
 
@@ -509,7 +509,7 @@ int buffer_command_for_batch(valkey_glide_object* valkey_glide,
                                                  : get_valkey_glide_ce())) {                \
             return;                                                                         \
         }                                                                                   \
-        zval_dtor(return_value);                                                            \
+        zval_ptr_dtor_nogc(return_value);                                                   \
         RETURN_FALSE;                                                                       \
     }
 
@@ -524,7 +524,7 @@ int buffer_command_for_batch(valkey_glide_object* valkey_glide,
                                             : get_valkey_glide_ce())) {                \
             return;                                                                    \
         }                                                                              \
-        zval_dtor(return_value);                                                       \
+        zval_ptr_dtor_nogc(return_value);                                              \
         RETURN_FALSE;                                                                  \
     }
 
@@ -652,7 +652,7 @@ int buffer_command_for_batch(valkey_glide_object* valkey_glide,
                                         : get_valkey_glide_ce())) {                \
             return;                                                                \
         }                                                                          \
-        zval_dtor(return_value);                                                   \
+        zval_ptr_dtor_nogc(return_value);                                          \
         RETURN_FALSE;                                                              \
     }
 
@@ -695,7 +695,7 @@ int buffer_command_for_batch(valkey_glide_object* valkey_glide,
                                        : get_valkey_glide_ce())) {                \
             return;                                                               \
         }                                                                         \
-        zval_dtor(return_value);                                                  \
+        zval_ptr_dtor_nogc(return_value);                                         \
         RETURN_FALSE;                                                             \
     }
 
@@ -724,7 +724,7 @@ int buffer_command_for_batch(valkey_glide_object* valkey_glide,
                                        : get_valkey_glide_ce())) {                \
             return;                                                               \
         }                                                                         \
-        zval_dtor(return_value);                                                  \
+        zval_ptr_dtor_nogc(return_value);                                         \
         RETURN_FALSE;                                                             \
     }
 
@@ -781,7 +781,7 @@ int buffer_command_for_batch(valkey_glide_object* valkey_glide,
                                         : get_valkey_glide_ce())) {                \
             return;                                                                \
         }                                                                          \
-        zval_dtor(return_value);                                                   \
+        zval_ptr_dtor_nogc(return_value);                                          \
         RETURN_FALSE;                                                              \
     }
 
@@ -796,7 +796,7 @@ int buffer_command_for_batch(valkey_glide_object* valkey_glide,
                                         : get_valkey_glide_ce())) {                \
             return;                                                                \
         }                                                                          \
-        zval_dtor(return_value);                                                   \
+        zval_ptr_dtor_nogc(return_value);                                          \
         RETURN_FALSE;                                                              \
     }
 
@@ -881,7 +881,7 @@ int buffer_command_for_batch(valkey_glide_object* valkey_glide,
                                       : get_valkey_glide_ce())) {                \
             return;                                                              \
         }                                                                        \
-        zval_dtor(return_value);                                                 \
+        zval_ptr_dtor_nogc(return_value);                                        \
         RETURN_FALSE;                                                            \
     }
 

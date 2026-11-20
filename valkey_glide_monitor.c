@@ -458,6 +458,6 @@ void register_valkey_glide_monitor_classes(void) {
     memcpy(&valkey_glide_monitor_object_handlers,
            zend_get_std_object_handlers(),
            sizeof(valkey_glide_monitor_object_handlers));
-    valkey_glide_monitor_object_handlers.offset   = XtOffsetOf(valkey_glide_monitor_object, std);
+    valkey_glide_monitor_object_handlers.offset   = offsetof(valkey_glide_monitor_object, std);
     valkey_glide_monitor_object_handlers.free_obj = free_valkey_glide_monitor_object;
 }

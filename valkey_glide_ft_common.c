@@ -164,7 +164,7 @@ static void ft_buf_add_zval(ft_arg_buf_t* buf, zval* z) {
         ZVAL_DUP(&copy, z);
         convert_to_string(&copy);
         ft_buf_add_copy(buf, Z_STRVAL(copy), Z_STRLEN(copy));
-        zval_dtor(&copy);
+        zval_ptr_dtor_nogc(&copy);
     }
 }
 
