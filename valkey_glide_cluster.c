@@ -204,9 +204,10 @@ static zend_string* phpredis_auth_value(zval* zv, bool* invalid) {
 
 /* Converts a PHPRedis $auth to a GLIDE credentials array in *out, as PHPRedis RedisCluster reads
  * it: a scalar is the password, and an array is [pass], [user, pass] or
- * ['user' => ..., 'pass' => ...], where a null or false user means none. An array with GLIDE's
- * own keys ('username', 'password', 'iamConfig') is copied unchanged. Returns FAILURE, with an
- * exception thrown, if $auth is none of these. */
+ * ['user' => ..., 'pass' => ...], where a null or false user means none. As in PHPRedis, a false
+ * $auth, or a null or false password with no user, means no credentials: *out is left undefined.
+ * An array with GLIDE's own keys ('username', 'password', 'iamConfig') is copied unchanged.
+ * Returns FAILURE, with an exception thrown, if $auth is none of these. */
 static int phpredis_auth_to_credentials(zval* auth, zval* out) {
     zend_string* user    = NULL;
     zend_string* pass    = NULL;
@@ -248,6 +249,9 @@ static int phpredis_auth_to_credentials(zval* auth, zval* out) {
             if (zuser && !invalid) {
                 user = phpredis_auth_value(zuser, &invalid);
             }
+            if (!pass && !user && !invalid) {
+                return SUCCESS;
+            }
         }
         if (!pass || invalid) {
             if (pass) {
@@ -266,6 +270,9 @@ static int phpredis_auth_to_credentials(zval* auth, zval* out) {
         }
     } else {
         pass = phpredis_auth_value(auth, &invalid);
+        if (!pass && !invalid) {
+            return SUCCESS;
+        }
         if (!pass) {
             if (!EG(exception)) {
                 zend_throw_exception(
@@ -355,7 +362,9 @@ int valkey_glide_cluster_map_phpredis_params(valkey_glide_php_common_constructor
         if (phpredis_auth_to_credentials(auth, auth_storage) == FAILURE) {
             return FAILURE;
         }
-        params->credentials = auth_storage;
+        if (!Z_ISUNDEF_P(auth_storage)) {
+            params->credentials = auth_storage;
+        }
     }
 
     /* read_from is left at PRIMARY, matching the PHPRedis FAILOVER_NONE default */

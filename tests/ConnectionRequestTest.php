@@ -228,12 +228,23 @@ class ConnectionRequestTest extends \TestSuite
         }
 
         $this->assertNull(ClientConstructorMock::simulate_cluster_phpredis_constructor(seeds: [['host' => 'localhost', 'port' => 7001]])->getAuthenticationInfo());
+
+        /* As in PHPRedis, false, or a null or false password with no user, means no credentials,
+         * so an unset getenv() password connects without one */
+        foreach ([false, [null], [false], [null, null], ['user' => false, 'pass' => null]] as $auth) {
+            $request = ClientConstructorMock::simulate_cluster_phpredis_constructor(auth: $auth);
+            $this->assertNull($request->getAuthenticationInfo(), 'auth ' . json_encode($auth));
+        }
     }
 
     public function testClusterPhpRedisStyleAuthInvalid()
     {
         $invalid = [
-            [], ['a', 'b', 'c'], [['nested']], ['user', ['nested']], [null], [false],
+            /* PHPRedis connects with a warning; a malformed array is rejected here instead */
+            [], ['a', 'b', 'c'],
+            [['nested']], ['user', ['nested']],
+            /* A user with no password */
+            ['user', null],
             /* GLIDE and PHPRedis keys mixed */
             ['user' => 'user', 'password' => 'pass'],
         ];

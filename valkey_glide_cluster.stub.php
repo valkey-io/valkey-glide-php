@@ -337,6 +337,8 @@ class ValkeyGlideCluster
      * @param mixed $auth                       Authentication, in place of $credentials: a password,
      *                                          [password], [user, password] (a null user means none),
      *                                          ['user' => ..., 'pass' => ...], or a $credentials array.
+     *                                          false, [null] or [false] means no credentials; a user
+     *                                          with no password throws.
      * @param resource|array|null $context      Stream context resource or array. Supports 'verify_peer'
      *                                          and 'cafile' SSL options. Note: mutual TLS (client
      *                                          certificate/key) is not supported here; use $advanced_config's
