@@ -422,7 +422,7 @@ jobs:
       fail-fast: false
       matrix:
         runner: [ubuntu-24.04, ubuntu-26.04, ubuntu-24.04-arm, macos-15]
-        # The oldest and newest PHP versions the latest release supports
+        # Pinned to the oldest and newest PHP versions v1.2.0 supports; update with each release
         php: ["8.2", "8.5"]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
@@ -466,6 +466,9 @@ jobs:
       - name: Install from Packagist
         env:
           VERSION: ${{ steps.get-version.outputs.version }}
+          # pie fetches the release from the GitHub API; authenticate so shared runner IPs don't hit the
+          # anonymous rate limit
+          COMPOSER_AUTH: '{"github-oauth": {"github.com": "${{ secrets.GITHUB_TOKEN }}"}}'
         run: |
           echo "=== Installing valkey-glide-php v${VERSION} from Packagist ==="
           export CARGO_BUILD_JOBS=$(getconf _NPROCESSORS_ONLN)
