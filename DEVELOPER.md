@@ -138,6 +138,22 @@ pip3 install ziglang
 cargo install --locked cargo-zigbuild
 ```
 
+#### Supported platforms
+
+CI checks these platforms. PHP versions are those in `.github/json_matrices/supported-languages-versions.json`
+(currently 8.2 to 8.6).
+
+| Platform                 | Build and tests | PIE and PECL install from source | `pie install` of the latest release |
+| :----------------------- | :-------------: | :------------------------------: | :---------------------------------: |
+| Ubuntu 24.04 x86_64      |   PR, nightly   |           PR, nightly            |               nightly               |
+| Ubuntu 24.04 aarch64     |     nightly     |             nightly              |               nightly               |
+| Ubuntu 26.04 x86_64      |                 |                                  |               nightly               |
+| macOS 15 arm64 (Silicon) |     nightly     |                                  |               nightly               |
+
+The release install runs on the oldest and newest PHP version the release supports. Other Linux distributions may
+work; [validate an install in a container](#validating-an-install-in-a-container)
+before relying on one.
+
 #### Installing from Packagist
 
 You can use pie to install the extension from the Packagist repository.
