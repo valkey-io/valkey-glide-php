@@ -132,7 +132,7 @@ int parse_cluster_route(zval* route_zval, cluster_route_t* route) {
                         ZVAL_COPY(&temp, port_zv);
                         convert_to_long(&temp);
                         route->data.host_port_route.port = Z_LVAL(temp);
-                        zval_dtor(&temp);
+                        zval_ptr_dtor_nogc(&temp);
                     }
                     return 1;
                 }
@@ -868,7 +868,7 @@ int command_response_to_stream_zval(CommandResponse* response, zval* output) {
             break;
 
         default:
-            zval_dtor(output); /* Clean up the initialized array */
+            zval_ptr_dtor_nogc(output); /* Clean up the initialized array */
             ZVAL_NULL(output);
             return 0;
     }
@@ -924,7 +924,7 @@ char* zval_to_string_safe(zval* z, size_t* len, int* need_free) {
             convert_to_string(&copy);
             str  = estrndup(Z_STRVAL(copy), Z_STRLEN(copy));
             *len = Z_STRLEN(copy);
-            zval_dtor(&copy);
+            zval_ptr_dtor_nogc(&copy);
             *need_free = 1;
         } break;
     }

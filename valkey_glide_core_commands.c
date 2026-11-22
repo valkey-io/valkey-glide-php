@@ -1361,7 +1361,7 @@ int execute_psetex_command(zval* object, int argc, zval* return_value, zend_clas
         valkey_glide, key, key_len, val, val_len, 0, &options, NULL, NULL, return_value);
 
     /* Clean up options array */
-    zval_dtor(&options);
+    zval_ptr_dtor_nogc(&options);
 
     if (result == 1) {
         if (valkey_glide->is_in_batch_mode) {
@@ -1407,7 +1407,7 @@ int execute_setnx_command(zval* object, int argc, zval* return_value, zend_class
         valkey_glide, key, key_len, val, val_len, 0, &options, NULL, NULL, return_value);
 
     /* Clean up options array */
-    zval_dtor(&options);
+    zval_ptr_dtor_nogc(&options);
 
     if (result == 1) {
         if (valkey_glide->is_in_batch_mode) {
@@ -2601,7 +2601,7 @@ int execute_getset_command(zval* object, int argc, zval* return_value, zend_clas
                                               return_value);
 
     /* Free the zval array */
-    zval_dtor(&z_opts);
+    zval_ptr_dtor_nogc(&z_opts);
 
     /* Check for batch mode after successful execution */
     if (result && valkey_glide->is_in_batch_mode) {

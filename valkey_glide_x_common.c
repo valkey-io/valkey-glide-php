@@ -89,7 +89,7 @@ int parse_x_read_options(zval* options, x_read_options_t* opts) {
 
     /* Check for NOACK option */
     if ((z_noack = zend_hash_str_find(ht, "NOACK", sizeof("NOACK") - 1)) != NULL) {
-        opts->noack = zval_is_true(z_noack);
+        opts->noack = zend_is_true(z_noack);
     } else {
         /* Legacy: Check if NOACK is specified as an array value */
         zval* z_val;
@@ -184,7 +184,7 @@ int parse_x_trim_options(zval* options, x_trim_options_t* opts) {
 
     /* Check for APPROXIMATE option */
     if ((z_approx = zend_hash_str_find(ht, "APPROXIMATE", sizeof("APPROXIMATE") - 1)) != NULL) {
-        opts->approximate = zval_is_true(z_approx);
+        opts->approximate = zend_is_true(z_approx);
     }
 
     /* Check for LIMIT option */
@@ -228,17 +228,17 @@ int parse_x_add_options(zval* options, x_add_options_t* opts) {
 
     /* Check for APPROXIMATE option */
     if ((z_approx = zend_hash_str_find(ht, "APPROXIMATE", sizeof("APPROXIMATE") - 1)) != NULL) {
-        opts->approximate = zval_is_true(z_approx);
+        opts->approximate = zend_is_true(z_approx);
     }
 
     /* Check for NOMKSTREAM option */
     if ((z_nomkstream = zend_hash_str_find(ht, "NOMKSTREAM", sizeof("NOMKSTREAM") - 1)) != NULL) {
-        opts->nomkstream = zval_is_true(z_nomkstream);
+        opts->nomkstream = zend_is_true(z_nomkstream);
     }
 
     /* Check for MINID strategy option */
     if ((z_minid_strategy = zend_hash_str_find(ht, "MINID", sizeof("MINID") - 1)) != NULL) {
-        opts->minid_strategy = zval_is_true(z_minid_strategy);
+        opts->minid_strategy = zend_is_true(z_minid_strategy);
     }
 
     return 1;
@@ -293,7 +293,7 @@ int parse_x_claim_options(zval* options, x_claim_options_t* opts) {
 
     /* Check for FORCE option - first check associative key */
     if ((z_force = zend_hash_str_find(ht, "FORCE", sizeof("FORCE") - 1)) != NULL) {
-        opts->force = zval_is_true(z_force);
+        opts->force = zend_is_true(z_force);
     } else {
         /* If not found as associative key, check array values */
         zval* z_val;
@@ -309,7 +309,7 @@ int parse_x_claim_options(zval* options, x_claim_options_t* opts) {
 
     /* Check for JUSTID option - first check associative key */
     if ((z_justid = zend_hash_str_find(ht, "JUSTID", sizeof("JUSTID") - 1)) != NULL) {
-        opts->justid = zval_is_true(z_justid);
+        opts->justid = zend_is_true(z_justid);
     } else {
         /* If not found as associative key, check array values */
         zval* z_val;
@@ -605,7 +605,7 @@ int process_x_readgroup_result(CommandResponse* response, void* output, zval* re
 
                 /* Add stream entries to output as an associative array */
                 add_assoc_zval(return_value, Z_STRVAL(stream_name), &stream_entries);
-                zval_dtor(&stream_name);  // Clean up stream name after adding
+                zval_ptr_dtor_nogc(&stream_name);  // Clean up stream name after adding
                 status = 1;
             }
         }
@@ -1221,7 +1221,7 @@ int prepare_x_add_args(x_command_args_t* args,
             (*args_len_out)[arg_idx]                   = Z_STRLEN(temp);
             arg_idx++;
 
-            zval_dtor(&temp);
+            zval_ptr_dtor_nogc(&temp);
         } else {
             (*args_out)[arg_idx]     = (uintptr_t) Z_STRVAL_P(z_value);
             (*args_len_out)[arg_idx] = Z_STRLEN_P(z_value);

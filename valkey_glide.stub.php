@@ -2180,7 +2180,10 @@ class ValkeyGlide
      * @param string|null $pattern An optional glob-style pattern to filter fields with.
      * @param int    $count     An optional hint to ValkeyGlide about how many fields and values to return per HSCAN.
      *
-     * @return ValkeyGlide|array|bool An array with a subset of fields and values.
+     * @throws ValkeyGlideException In multi() or pipeline(), where SCAN commands can't be
+     *                              queued. The batch stays open: call exec() or discard().
+     *
+     * @return array|bool An array with a subset of fields and values.
      *
      * @example
      * $valkey_glide = new ValkeyGlide(['host' => 'localhost']);
@@ -2204,7 +2207,7 @@ class ValkeyGlide
      *     }
      * } while ($it != "0");
      */
-    public function hscan(string $key, null|string &$iterator, ?string $pattern = null, int $count = 0): ValkeyGlide|array|bool;
+    public function hscan(string $key, null|string &$iterator, ?string $pattern = null, int $count = 0): array|bool;
 
     /**
      * Increment a key's value, optionally by a specific amount.
@@ -3336,6 +3339,9 @@ class ValkeyGlide
      * @param string $type     An optional argument to specify which key types to scan (e.g.
      *                         'STRING', 'LIST', 'SET')
      *
+     * @throws ValkeyGlideException In multi() or pipeline(), where SCAN commands can't be
+     *                              queued. The batch stays open: call exec() or discard().
+     *
      * @return array|false     An array of keys, or false if no keys were returned for this
      *                         invocation of scan.  Note that it is possible for ValkeyGlide to return
      *                         zero keys before having scanned the entire key space, so the caller
@@ -3740,6 +3746,9 @@ class ValkeyGlide
      *                          returns the subset of members matching this pattern.
      * @param int    $count     A hint to ValkeyGlide as to how many members it should scan in one command
      *                          before returning members for that iteration.
+     *
+     * @throws ValkeyGlideException In multi() or pipeline(), where SCAN commands can't be
+     *                              queued. The batch stays open: call exec() or discard().
      *
      * @example
      * $valkey_glide->del('myset');
@@ -4992,7 +5001,10 @@ class ValkeyGlide
      *                           from the call.  The higher the more work ValkeyGlide may do in any one given call to
      *                           ZSCAN potentially blocking for longer periods of time.
      *
-     * @return ValkeyGlide|array|false An array of elements or false on failure.
+     * @throws ValkeyGlideException In multi() or pipeline(), where SCAN commands can't be
+     *                              queued. The batch stays open: call exec() or discard().
+     *
+     * @return array|false An array of elements or false on failure.
      *
      * @see https://valkey.io/commands/zscan
      * @see https://valkey.io/commands/scan
@@ -5001,7 +5013,7 @@ class ValkeyGlide
      * NOTE:  See ValkeyGlide::scan() for detailed example code on how to call SCAN like commands.
      *
      */
-    public function zscan(string $key, null|string &$iterator, ?string $pattern = null, int $count = 0): ValkeyGlide|array|false;
+    public function zscan(string $key, null|string &$iterator, ?string $pattern = null, int $count = 0): array|false;
 
     /**
      * Retrieve the union of one or more sorted sets

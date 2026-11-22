@@ -377,7 +377,7 @@ static int convert_zval_args_to_strings(zval*           args,
             /* Track allocated string for cleanup */
             (*allocated_strings)[(*allocated_count)++] = str;
 
-            zval_dtor(&copy);
+            zval_ptr_dtor_nogc(&copy);
         }
     }
 
@@ -1808,7 +1808,7 @@ int execute_config_command(zval* object, int argc, zval* return_value, zend_clas
                     temp_string_count++;
                     i++;
 
-                    zval_dtor(&temp);
+                    zval_ptr_dtor_nogc(&temp);
                 }
                 ZEND_HASH_FOREACH_END();
             } else {
@@ -1845,7 +1845,7 @@ int execute_config_command(zval* object, int argc, zval* return_value, zend_clas
                 args_len[1]       = Z_STRLEN(temp);
                 temp_string_count = 1;
 
-                zval_dtor(&temp);
+                zval_ptr_dtor_nogc(&temp);
             } else if (Z_TYPE_P(key) == IS_ARRAY && value == NULL) {
                 /* CONFIG SET from array */
                 HashTable* ht = Z_ARRVAL_P(key);
@@ -1885,7 +1885,7 @@ int execute_config_command(zval* object, int argc, zval* return_value, zend_clas
                     temp_string_count++;
                     i++;
 
-                    zval_dtor(&temp);
+                    zval_ptr_dtor_nogc(&temp);
                 }
                 ZEND_HASH_FOREACH_END();
             } else {
@@ -2107,7 +2107,7 @@ static int execute_rawcommand_command_internal(valkey_glide_object* valkey_glide
             /* Track allocated string for cleanup */
             allocated[allocated_idx++] = str;
 
-            zval_dtor(&copy);
+            zval_ptr_dtor_nogc(&copy);
         }
     }
 

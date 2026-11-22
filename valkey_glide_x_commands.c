@@ -266,7 +266,7 @@ int execute_xadd_command(zval* object, int argc, zval* return_value, zend_class_
 
         /* Clean up if we created options array */
         if (options_created) {
-            zval_dtor(z_options);
+            zval_ptr_dtor_nogc(z_options);
             efree(z_options);
         }
 
@@ -350,7 +350,7 @@ int execute_xtrim_command(zval* object, int argc, zval* return_value, zend_class
 
         /* Clean up if we created options array */
         if (z_options) {
-            zval_dtor(z_options);
+            zval_ptr_dtor_nogc(z_options);
             efree(z_options);
         }
         if (result && valkey_glide->is_in_batch_mode) {
@@ -423,7 +423,7 @@ int execute_xrange_command(zval* object, int argc, zval* return_value, zend_clas
 
         /* Clean up if we created options array */
         if (options_created) {
-            zval_dtor(z_options);
+            zval_ptr_dtor_nogc(z_options);
             efree(z_options);
         }
         if (result && valkey_glide->is_in_batch_mode) {
@@ -499,7 +499,7 @@ int execute_xrevrange_command(zval* object, int argc, zval* return_value, zend_c
 
         /* Clean up if we created options array */
         if (options_created) {
-            zval_dtor(z_options);
+            zval_ptr_dtor_nogc(z_options);
             efree(z_options);
         }
 
@@ -621,7 +621,7 @@ int execute_xpending_command(zval* object, int argc, zval* return_value, zend_cl
 
         /* Clean up if we created options array */
         if (options_created && z_options) {
-            zval_dtor(z_options);
+            zval_ptr_dtor_nogc(z_options);
             efree(z_options);
         }
 
@@ -698,10 +698,10 @@ int execute_xread_command(zval* object, int argc, zval* return_value, zend_class
             valkey_glide, XRead, &args, NULL, process_x_stream_result, return_value);
 
         /* Clean up */
-        zval_dtor(&z_streams);
-        zval_dtor(&z_ids);
+        zval_ptr_dtor_nogc(&z_streams);
+        zval_ptr_dtor_nogc(&z_ids);
         if (z_options) {
-            zval_dtor(z_options);
+            zval_ptr_dtor_nogc(z_options);
             efree(z_options);
         }
 
@@ -831,12 +831,12 @@ int execute_xreadgroup_command(zval* object, int argc, zval* return_value, zend_
             valkey_glide, XReadGroup, &args, NULL, process_x_readgroup_result, return_value);
 
         /* Clean up temporary arrays */
-        zval_dtor(&z_streams);
-        zval_dtor(&z_ids);
+        zval_ptr_dtor_nogc(&z_streams);
+        zval_ptr_dtor_nogc(&z_ids);
 
         /* Clean up if we created options array */
         if (options_created) {
-            zval_dtor(z_options);
+            zval_ptr_dtor_nogc(z_options);
             efree(z_options);
         }
 
@@ -1004,7 +1004,7 @@ int execute_xautoclaim_command(zval* object, int argc, zval* return_value, zend_
 
         /* Clean up if we created options array */
         if (options_created) {
-            zval_dtor(z_options);
+            zval_ptr_dtor_nogc(z_options);
             efree(z_options);
         }
 
@@ -1283,7 +1283,7 @@ int execute_xgroup_command(zval* object, int argc, zval* return_value, zend_clas
 
         /* Clean up */
         for (int i = 0; i < args_count; i++) {
-            zval_dtor(&z_args[i]);
+            zval_ptr_dtor_nogc(&z_args[i]);
         }
         if (z_args) {
             efree(z_args);

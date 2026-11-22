@@ -263,6 +263,52 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         return array_merge($cmd, [$script], $args);
     }
 
+    /* Run a PHP helper process and return [exit status, stdout, stderr]. A helper that does not
+     * exit within $timeout seconds is killed and fails the test, so a hang cannot stall the job;
+     * the status is then null and the caller stops */
+    private function runHelperProcess(array $cmd, string $case, int $timeout = 30): array
+    {
+        $err_file = tempnam(sys_get_temp_dir(), 'glide_helper');
+        $proc     = proc_open($cmd, [1 => ['pipe', 'w'], 2 => ['file', $err_file, 'w']], $pipes);
+        $this->assertTrue(is_resource($proc));
+        stream_set_blocking($pipes[1], false);
+
+        $out      = '';
+        $deadline = microtime(true) + $timeout;
+        while (true) {
+            $out .= stream_get_contents($pipes[1]);
+            $status = proc_get_status($proc);
+            if (!$status['running']) {
+                break;
+            }
+            $left = $deadline - microtime(true);
+            if ($left <= 0) {
+                proc_terminate($proc, 9);
+                $out .= stream_get_contents($pipes[1]);
+                fclose($pipes[1]);
+                proc_close($proc);
+                $err = file_get_contents($err_file);
+                unlink($err_file);
+                $this->assert("%s: helper did not exit within %d seconds\nstdout: %s\nstderr: %s", $case, $timeout, $out, $err);
+                return [null, $out, $err];
+            }
+            /* Wakes on output or EOF; the timeout re-checks proc_get_status() when the helper
+             * exits without closing stdout (a grandchild may still hold it) */
+            $read = [$pipes[1]];
+            $none = null;
+            $wait = min($left, 0.1);
+            stream_select($read, $none, $none, (int) $wait, (int) (fmod($wait, 1) * 1e6));
+        }
+        $out .= stream_get_contents($pipes[1]);
+        fclose($pipes[1]);
+        proc_close($proc);
+        $err = file_get_contents($err_file);
+        unlink($err_file);
+
+        /* proc_close() cannot report the status once proc_get_status() has seen the exit */
+        return [$status['exitcode'], $out, $err];
+    }
+
     /* A forked child cannot use, and does not close, a client it inherited */
     public function testClientInheritedThroughFork()
     {
@@ -279,16 +325,51 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             $this->getHost(),
             (string) $this->getPort()
         );
-        $proc = proc_open($cmd, [1 => ['pipe', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes);
-        $this->assertTrue(is_resource($proc));
-        $out = stream_get_contents($pipes[1]);
-        fclose($pipes[1]);
-        proc_close($proc);
+        [$status, $out] = $this->runHelperProcess($cmd, __FUNCTION__);
+        if ($status === null) {
+            return;
+        }
 
         if (str_contains($out, 'pcntl_fork')) {
             $this->markTestSkipped('pcntl is not available');
         }
         $this->assertEquals(['child' => 'ok', 'parent_works' => true], json_decode($out, true));
+    }
+
+    /* A forked child can create and use a new client after the parent used one */
+    public function testNewClientInChildAfterFork()
+    {
+        if ($this->getTLS() || $this->getAuth()) {
+            $this->markTestSkipped('The fork helper connects without TLS or auth');
+        }
+        if (!function_exists('proc_open')) {
+            $this->markTestSkipped('proc_open is not available');
+        }
+
+        foreach (['new_client', 'persistent', 'parent_closed'] as $case) {
+            $cmd = $this->phpSubprocessCommand(
+                __DIR__ . '/scripts/fork_new_client.php',
+                $this->valkey_glide instanceof ValkeyGlideCluster ? '1' : '0',
+                $this->getHost(),
+                (string) $this->getPort(),
+                $case
+            );
+            [$status, $out, $err] = $this->runHelperProcess($cmd, $case);
+            if ($status === null) {
+                return;
+            }
+
+            if (str_contains($out, 'pcntl_fork')) {
+                $this->markTestSkipped('pcntl is not available');
+            }
+            if ($status !== 0) {
+                $this->assert("%s: helper exited with %d\nstdout: %s\nstderr: %s", $case, $status, $out, $err);
+            }
+            $this->assertEquals(
+                [$case => ['child' => 'ok', 'parent_works' => true]],
+                [$case => json_decode($out, true)]
+            );
+        }
     }
 
     public function testPing()
@@ -8023,6 +8104,89 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         set_time_limit(0);  // Reset to unlimited (or default) at the end
     }
 
+    /* SCAN commands throw in multi() and pipeline(): a queued one returned corrupted data at
+     * exec() (#414) */
+    public function testScanRefusedInBatch()
+    {
+        $this->valkey_glide->del('{scanbatch}s', '{scanbatch}h', '{scanbatch}z');
+        $this->valkey_glide->sAdd('{scanbatch}s', 'a');
+        $this->valkey_glide->hSet('{scanbatch}h', 'f', 'v');
+        $this->valkey_glide->zAdd('{scanbatch}z', 1, 'm');
+
+        foreach ([ValkeyGlide::MULTI, ValkeyGlide::PIPELINE] as $mode) {
+            $this->valkey_glide->multi($mode);
+
+            /* The closures take the iterator by reference, so a write to it would show */
+            foreach (['sScan' => '{scanbatch}s', 'hScan' => '{scanbatch}h', 'zScan' => '{scanbatch}z'] as $cmd => $key) {
+                $it = null;
+                $this->assertThrows(ValkeyGlideException::class, function () use ($cmd, $key, &$it) {
+                    $this->valkey_glide->$cmd($key, $it);
+                });
+                $this->assertNull($it);
+            }
+            if ($this->valkey_glide instanceof ValkeyGlideCluster) {
+                /* A scan that ran would store the next cursor id */
+                $cursor = new ClusterScanCursor();
+                $this->assertThrows(ValkeyGlideException::class, function () use ($cursor) {
+                    $this->valkey_glide->scan($cursor);
+                });
+                $this->assertEquals('0', $cursor->getNextCursor());
+            } else {
+                $it = null;
+                $this->assertThrows(ValkeyGlideException::class, function () use (&$it) {
+                    $this->valkey_glide->scan($it);
+                });
+                $this->assertNull($it);
+            }
+
+            /* The batch is still usable */
+            $this->valkey_glide->sMembers('{scanbatch}s');
+            $this->assertEquals([['a']], $this->valkey_glide->exec());
+        }
+
+        $this->valkey_glide->del('{scanbatch}s', '{scanbatch}h', '{scanbatch}z');
+    }
+
+    /* A SCAN command that gets an error reply releases its iterator's previous cursor string
+     * when it resets the iterator (#414) */
+    public function testScanErrorDoesNotLeakIterator()
+    {
+        $key = '{scanleak}' . uniqid();
+        $this->valkey_glide->set($key, 'not a collection');
+
+        /* WRONGTYPE on a string key; standalone scan() gets an invalid cursor error instead */
+        $calls = [];
+        foreach (['sScan', 'hScan', 'zScan'] as $cmd) {
+            $calls[$cmd] = function (int $i) use ($cmd, $key) {
+                /* A cursor string built at run time, so it is not interned */
+                $it = (string) (1000 + $i);
+                return [$this->valkey_glide->$cmd($key, $it), $it];
+            };
+        }
+        if (!($this->valkey_glide instanceof ValkeyGlideCluster)) {
+            $calls['scan'] = function (int $i) {
+                $it = 'x' . $i;
+                return [$this->valkey_glide->scan($it), $it];
+            };
+        }
+
+        foreach ($calls as $call) {
+            for ($i = 0; $i < 20; $i++) {
+                $call($i);
+            }
+            /* The error path ran: the call failed and reset the iterator */
+            $this->assertEquals([false, '0'], $call(0));
+
+            $before = memory_get_usage();
+            for ($i = 0; $i < 2000; $i++) {
+                $call($i);
+            }
+            $this->assertLT(4096, memory_get_usage() - $before);
+        }
+
+        $this->valkey_glide->del($key);
+    }
+
     public function testSScan()
     {
         set_time_limit(getenv("VALGRIND_TEST") ? 300 : 10); // Enforce a 10-second limit on this test
@@ -10630,11 +10794,10 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
             $this->getHost(),
             (string) $this->getPort()
         );
-        $proc = proc_open($cmd, [1 => ['pipe', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes);
-        $this->assertTrue(is_resource($proc));
-        $out = stream_get_contents($pipes[1]);
-        fclose($pipes[1]);
-        proc_close($proc);
+        [$status, $out] = $this->runHelperProcess($cmd, __FUNCTION__);
+        if ($status === null) {
+            return;
+        }
 
         if (str_contains($out, 'pcntl_fork')) {
             $this->markTestSkipped('pcntl is not available');

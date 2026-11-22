@@ -15,6 +15,8 @@
 */
 #include "valkey_glide_s_common.h"
 
+#include <zend_exceptions.h>
+
 #include "cluster_scan_cursor.h"
 #include "command_response.h"
 #include "common.h"
@@ -82,7 +84,7 @@ int convert_zval_to_string_args(zval*           input,
 
             (*args_out)[offset + i]     = (uintptr_t) str_copy;
             (*args_len_out)[offset + i] = str_len;
-            zval_dtor(&temp);
+            zval_ptr_dtor_nogc(&temp);
 
             /* Track the allocated string */
             if (allocated_strings && allocated_count) {
@@ -584,7 +586,7 @@ int process_s_mixed_result_async(CommandResponse* response, void* output, zval* 
 }
 
 /**
- * Batch-compatible async result processor for scan responses
+ * Result processor for scan responses
  */
 
 typedef struct {
@@ -592,15 +594,6 @@ typedef struct {
     char*            cursor;
     zval*            scan_iter;
 } scan_data_t;
-/* free_result for a buffered SCAN: the context owns its cursor copy, as the processor does */
-static void free_scan_data(void* output) {
-    scan_data_t* args = (scan_data_t*) output;
-    if (args->cursor) {
-        efree(args->cursor);
-    }
-    efree(args);
-}
-
 /* Replace the caller's cursor with "0" after a failed SCAN. The caller owns
  * and later frees the cursor, so it must stay an allocated string. */
 static void scan_cursor_done(scan_data_t* args) {
@@ -617,6 +610,7 @@ int process_s_scan_result_async(CommandResponse* response, void* output, zval* r
 
     if (!response) {
         if (args->scan_iter) {
+            zval_ptr_dtor(args->scan_iter);
             ZVAL_STRINGL(args->scan_iter, "0", 1);
             efree(args->cursor);
             efree(args);
@@ -632,6 +626,7 @@ int process_s_scan_result_async(CommandResponse* response, void* output, zval* r
 
     if (response->response_type != Array || response->array_value_len < 2) {
         if (args->scan_iter) {
+            zval_ptr_dtor(args->scan_iter);
             ZVAL_STRINGL(args->scan_iter, "0", 1);
             efree(args->cursor);
             efree(args);
@@ -652,6 +647,7 @@ int process_s_scan_result_async(CommandResponse* response, void* output, zval* r
         /* Handle unexpected cursor type */
 
         if (args->scan_iter) {
+            zval_ptr_dtor(args->scan_iter);
             ZVAL_STRINGL(args->scan_iter, "0", 1);
             efree(args->cursor);
             efree(args);
@@ -667,6 +663,7 @@ int process_s_scan_result_async(CommandResponse* response, void* output, zval* r
     if (elements_resp->response_type != Array) {
         array_init(return_value);
         if (args->scan_iter) {
+            zval_ptr_dtor(args->scan_iter);
             ZVAL_STRINGL(args->scan_iter, "0", 1);
             efree(args->cursor);
             efree(args);
@@ -868,14 +865,12 @@ int execute_s_generic_command(valkey_glide_object* valkey_glide,
     }
 
 
-    /* Check for batch mode */
+    /* Check for batch mode. SCAN commands never get here: scan_rejected_in_batch() refuses them
+     * before the first page and scan_retry_needed() before any later one, so scan_data is NULL */
     if (valkey_glide && valkey_glide->is_in_batch_mode) {
         /* Buffer command for batch execution */
         status = buffer_command_for_batch(
             valkey_glide, cmd_type, cmd_args, args_len, arg_count, scan_data, process_result);
-        if (status) {
-            valkey_glide_batch_own_result(valkey_glide, scan_data, free_scan_data);
-        }
 
 
         goto cleanup;
@@ -1419,7 +1414,7 @@ int execute_sinter_command(zval* object, int argc, zval* return_value, zend_clas
         /* Clean up if we allocated memory for the array keys */
         if (z_extracted_keys) {
             for (int i = 0; i < keys_count; i++) {
-                zval_dtor(&z_extracted_keys[i]);
+                zval_ptr_dtor_nogc(&z_extracted_keys[i]);
             }
             efree(z_extracted_keys);
         }
@@ -1502,7 +1497,7 @@ int execute_sintercard_command(zval* object, int argc, zval* return_value, zend_
 
         /* Clean up allocated array */
         for (int i = 0; i < keys_count; i++) {
-            zval_dtor(&z_args[i]);
+            zval_ptr_dtor_nogc(&z_args[i]);
         }
         efree(z_args);
 
@@ -1511,7 +1506,7 @@ int execute_sintercard_command(zval* object, int argc, zval* return_value, zend_
 
     /* Clean up allocated array */
     for (int i = 0; i < keys_count; i++) {
-        zval_dtor(&z_args[i]);
+        zval_ptr_dtor_nogc(&z_args[i]);
     }
     efree(z_args);
 
@@ -1626,7 +1621,7 @@ int execute_sinterstore_command(zval* object, int argc, zval* return_value, zend
         /* Clean up if we allocated memory for the array keys */
         if (z_extracted_keys) {
             for (int i = 0; i < keys_count; i++) {
-                zval_dtor(&z_extracted_keys[i]);
+                zval_ptr_dtor_nogc(&z_extracted_keys[i]);
             }
             efree(z_extracted_keys);
         }
@@ -1680,7 +1675,7 @@ int execute_sunion_command(zval* object, int argc, zval* return_value, zend_clas
         /* Clean up if we allocated memory for the array keys */
         if (z_extracted_keys) {
             for (int i = 0; i < keys_count; i++) {
-                zval_dtor(&z_extracted_keys[i]);
+                zval_ptr_dtor_nogc(&z_extracted_keys[i]);
             }
             efree(z_extracted_keys);
         }
@@ -1742,7 +1737,7 @@ int execute_sunionstore_command(zval* object, int argc, zval* return_value, zend
         /* Clean up if we allocated memory for the array keys */
         if (z_extracted_keys) {
             for (int i = 0; i < keys_count; i++) {
-                zval_dtor(&z_extracted_keys[i]);
+                zval_ptr_dtor_nogc(&z_extracted_keys[i]);
             }
             efree(z_extracted_keys);
         }
@@ -1795,7 +1790,7 @@ int execute_sdiff_command(zval* object, int argc, zval* return_value, zend_class
         /* Clean up if we allocated memory for the array keys */
         if (z_extracted_keys) {
             for (int i = 0; i < keys_count; i++) {
-                zval_dtor(&z_extracted_keys[i]);
+                zval_ptr_dtor_nogc(&z_extracted_keys[i]);
             }
             efree(z_extracted_keys);
         }
@@ -1866,7 +1861,7 @@ int execute_sdiffstore_command(zval* object, int argc, zval* return_value, zend_
         /* Clean up if we allocated memory for the array keys */
         if (z_extracted_keys) {
             for (int i = 0; i < keys_count; i++) {
-                zval_dtor(&z_extracted_keys[i]);
+                zval_ptr_dtor_nogc(&z_extracted_keys[i]);
             }
             efree(z_extracted_keys);
         }
@@ -2007,7 +2002,10 @@ int execute_cluster_scan_command(const void* glide_client,
 
 /**
  * OPT_SCAN SCAN_RETRY: whether to fetch another page because this one was
- * empty and the scan is not finished, as PHPRedis does
+ * empty and the scan is not finished, as PHPRedis does. A SCAN in multi()/pipeline() is refused
+ * before the first page, but user code can still start a batch while a page is fetched (a lazy
+ * client's address resolver runs during its first command), so stop there: another page would
+ * be queued with a pointer to the caller's iterator.
  */
 static bool scan_retry_needed(valkey_glide_object* valkey_glide,
                               zval*                return_value,
@@ -2027,6 +2025,19 @@ static const char* scan_iter_cursor(zval* z_iter) {
 static void scan_discard_page(zval* return_value) {
     zval_ptr_dtor(return_value);
     ZVAL_NULL(return_value);
+}
+
+/* A SCAN command updates its iterator from the reply, which a queued command only gets at exec(),
+ * after the iterator may be gone. Refuse SCAN commands in multi()/pipeline() with an exception, so
+ * the caller cannot miss that the command is not part of the batch. PHPRedis refuses them too
+ * (a fatal error on Redis, a RedisClusterException on RedisCluster) */
+static int scan_rejected_in_batch(valkey_glide_object* valkey_glide) {
+    if (!valkey_glide->is_in_batch_mode) {
+        return 0;
+    }
+    zend_throw_exception(
+        get_valkey_glide_exception_ce(), "Can't call SCAN commands in multi or pipeline mode", 0);
+    return 1;
 }
 
 /**
@@ -2073,6 +2084,9 @@ int execute_scan_command(zval* object, int argc, zval* return_value, zend_class_
                                          &type_len) == FAILURE) {
             return 0;
         }
+        if (scan_rejected_in_batch(valkey_glide)) {
+            return 0;
+        }
 
         /* Determine what was actually provided based on argc */
         has_pattern = (argc >= 2 && pattern != NULL && pattern_len > 0);
@@ -2086,19 +2100,19 @@ int execute_scan_command(zval* object, int argc, zval* return_value, zend_class_
         zval cursor_result;
         if (call_user_function(NULL, z_iter, &cursor_method_name, &cursor_result, 0, NULL) !=
             SUCCESS) {
-            zval_dtor(&cursor_method_name);
+            zval_ptr_dtor_nogc(&cursor_method_name);
             return 0;
         }
-        zval_dtor(&cursor_method_name);
+        zval_ptr_dtor_nogc(&cursor_method_name);
 
         if (Z_TYPE(cursor_result) != IS_STRING) {
-            zval_dtor(&cursor_result);
+            zval_ptr_dtor_nogc(&cursor_result);
             return 0;
         }
 
         /* Create a copy of cursor for passing to functions */
         char* cursor_ptr = estrdup(Z_STRVAL(cursor_result));
-        zval_dtor(&cursor_result);
+        zval_ptr_dtor_nogc(&cursor_result);
 
         /* Use empty pattern if not specified */
         const char* scan_pattern     = has_pattern ? pattern : "";
@@ -2161,6 +2175,9 @@ int execute_scan_command(zval* object, int argc, zval* return_value, zend_class_
                                          &count,
                                          &type,
                                          &type_len) == FAILURE) {
+            return 0;
+        }
+        if (scan_rejected_in_batch(valkey_glide)) {
             return 0;
         }
 
@@ -2227,9 +2244,6 @@ int execute_scan_command(zval* object, int argc, zval* return_value, zend_class_
                  scan_retry_needed(valkey_glide, return_value, scan_iter_cursor(z_iter)));
 
         if (success) {
-            if (valkey_glide->is_in_batch_mode) {
-                ZVAL_COPY(return_value, object);
-            }
             /* Update iterator value */
             return 1;
         }
@@ -2317,6 +2331,9 @@ int execute_scan_command_generic(
     if (!valkey_glide || !valkey_glide->glide_client) {
         return 0;
     }
+    if (scan_rejected_in_batch(valkey_glide)) {
+        return 0;
+    }
 
     /* Dereference if it's a reference */
     ZVAL_DEREF(z_iter);
@@ -2368,10 +2385,6 @@ int execute_scan_command_generic(
     } while (success && scan_retry_needed(valkey_glide, return_value, scan_iter_cursor(z_iter)));
 
     if (success) {
-        if (valkey_glide->is_in_batch_mode) {
-            ZVAL_COPY(return_value, object);
-        }
-
         return 1;
     }
 

@@ -125,7 +125,7 @@ zend_object* create_valkey_glide_object(zend_class_entry* ce) {
     memcpy(&valkey_glide_object_handlers,
            zend_get_std_object_handlers(),
            sizeof(valkey_glide_object_handlers));
-    valkey_glide_object_handlers.offset   = XtOffsetOf(valkey_glide_object, std);
+    valkey_glide_object_handlers.offset   = offsetof(valkey_glide_object, std);
     valkey_glide_object_handlers.free_obj = free_valkey_glide_object;
     /* A copy would share the GLIDE client handle and batch state */
     valkey_glide_object_handlers.clone_obj = NULL;
@@ -145,7 +145,7 @@ zend_object* create_valkey_glide_cluster_object(zend_class_entry* ce)  // TODO c
     memcpy(&valkey_glide_cluster_object_handlers,
            zend_get_std_object_handlers(),
            sizeof(valkey_glide_cluster_object_handlers));
-    valkey_glide_cluster_object_handlers.offset   = XtOffsetOf(valkey_glide_object, std);
+    valkey_glide_cluster_object_handlers.offset   = offsetof(valkey_glide_object, std);
     valkey_glide_cluster_object_handlers.free_obj = free_valkey_glide_object;
     /* A copy would share the GLIDE client handle and batch state */
     valkey_glide_cluster_object_handlers.clone_obj = NULL;
@@ -601,7 +601,7 @@ int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_pa
         zval* enabled_zv                    = zend_hash_str_find(compression_ht,
                                               VALKEY_GLIDE_COMPRESSION_ENABLED,
                                               sizeof(VALKEY_GLIDE_COMPRESSION_ENABLED) - 1);
-        config->compression_config->enabled = enabled_zv ? zval_is_true(enabled_zv) : false;
+        config->compression_config->enabled = enabled_zv ? zend_is_true(enabled_zv) : false;
 
         /* Parse backend (default: ZSTD) */
         zval* backend_zv = zend_hash_str_find(compression_ht,
@@ -711,7 +711,7 @@ int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_pa
         /* Parse enable_metrics (optional, default false) */
         zval* metrics_zv =
             zend_hash_str_find(cache_ht, "enable_metrics", sizeof("enable_metrics") - 1);
-        config->client_side_cache->enable_metrics = metrics_zv ? zval_is_true(metrics_zv) : false;
+        config->client_side_cache->enable_metrics = metrics_zv ? zend_is_true(metrics_zv) : false;
     } else {
         config->client_side_cache = NULL;
     }
@@ -755,7 +755,7 @@ int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_pa
         zval* count_timeouts_zv = zend_hash_str_find(
             cb_ht, VALKEY_GLIDE_CB_COUNT_TIMEOUTS, sizeof(VALKEY_GLIDE_CB_COUNT_TIMEOUTS) - 1);
         config->circuit_breaker->count_timeouts = count_timeouts_zv
-                                                      ? zval_is_true(count_timeouts_zv)
+                                                      ? zend_is_true(count_timeouts_zv)
                                                       : VALKEY_GLIDE_CB_DEFAULT_COUNT_TIMEOUTS;
 
         /* Parse consecutive_successes (optional, default 3) */

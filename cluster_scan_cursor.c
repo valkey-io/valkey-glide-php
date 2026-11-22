@@ -39,7 +39,7 @@ zend_object* create_cluster_scan_cursor_object(zend_class_entry* ce) {
     memcpy(&cluster_scan_cursor_object_handlers,
            zend_get_std_object_handlers(),
            sizeof(cluster_scan_cursor_object_handlers));
-    cluster_scan_cursor_object_handlers.offset   = XtOffsetOf(cluster_scan_cursor_object, std);
+    cluster_scan_cursor_object_handlers.offset   = offsetof(cluster_scan_cursor_object, std);
     cluster_scan_cursor_object_handlers.free_obj = free_cluster_scan_cursor_object;
     cursor_obj->std.handlers                     = &cluster_scan_cursor_object_handlers;
 
