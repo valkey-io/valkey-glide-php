@@ -18,6 +18,10 @@ on:
         description: "Run on every host, with the engines and language versions of a partial matrix"
         type: boolean
         default: false
+      packagist-version:
+        description: "Also install this released version from Packagist on every host; 'latest' for the latest release"
+        type: string
+        default: ""
   workflow_call:
     inputs:
       full-matrix:
@@ -62,6 +66,8 @@ jobs:
           # or for every host only
           run-full-matrix: ${{ inputs.full-matrix == true }}
           run-full-host-matrix: ${{ inputs.full-host-matrix == true }}
+          # The setup actions this workflow uses install packages with apt, so it runs on Ubuntu hosts only
+          host-os: ubuntu
 
   test-pie-install:
     name: PHP Tests - ${{ matrix.php }}, EngineVersion - ${{ matrix.engine.version }}, Target - ${{ matrix.host.TARGET }}
@@ -370,7 +376,8 @@ jobs:
   # See: https://bitquill.atlassian.net/wiki/spaces/AMZ/pages/4428562450/PHP+release+process
   test-pie-install-from-packagist:
     name: PIE Install from Packagist
-    if: github.event_name == 'workflow_dispatch'
+    # A caller that passes packagist-version gets the job below instead
+    if: github.event_name == 'workflow_dispatch' && inputs.packagist-version == ''
     runs-on: ubuntu-26.04
     timeout-minutes: 35
     steps:
@@ -405,3 +412,85 @@ jobs:
             if (!class_exists('ValkeyGlide')) { echo 'FAIL'; exit(1); }
             echo 'SUCCESS: Extension loaded from Packagist install' . PHP_EOL;
           "
+
+  # Installs a released version from Packagist on every supported runner, as users do. The nightly
+  # workflow runs it with the latest release.
+  test-pie-install-from-packagist-all-hosts:
+    name: PIE Install from Packagist - PHP ${{ matrix.php }}, ${{ matrix.runner }}
+    if: inputs.packagist-version != ''
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-26.04, ubuntu-24.04-arm, macos-15]
+        # The oldest and newest PHP versions the latest release supports
+        php: ["8.2", "8.5"]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    steps:
+      - name: Resolve the version to install
+        id: get-version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REQUESTED: ${{ inputs.packagist-version }}
+        run: |
+          if [ "$REQUESTED" = "latest" ]; then
+            VERSION=$(gh api repos/valkey-io/valkey-glide-php/releases/latest --jq .tag_name)
+          else
+            VERSION="$REQUESTED"
+          fi
+          VERSION="${VERSION#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Testing Packagist install for v$VERSION"
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2.40.0
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: none
+          tools: pie
+
+      - name: Install build dependencies (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends autoconf automake libtool pkg-config libssl-dev \
+            protobuf-compiler protobuf-c-compiler libprotobuf-c-dev
+
+      - name: Install build dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: brew install autoconf automake libtool pkg-config protobuf protobuf-c openssl
+
+      - name: Install cbindgen
+        run: cargo install --locked cbindgen
+
+      - name: Install from Packagist
+        env:
+          VERSION: ${{ steps.get-version.outputs.version }}
+        run: |
+          echo "=== Installing valkey-glide-php v${VERSION} from Packagist ==="
+          export CARGO_BUILD_JOBS=$(getconf _NPROCESSORS_ONLN)
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            # setup-php's extension directory is writable by the runner user on macOS
+            pie install "valkey-io/valkey-glide-php:${VERSION}" --force --no-interaction -vvv
+          else
+            # sudo resets HOME, so point root at the runner user's Rust toolchain
+            sudo -E env "PATH=$PATH" "CARGO_BUILD_JOBS=$CARGO_BUILD_JOBS" \
+              "RUSTUP_HOME=${RUSTUP_HOME:-$HOME/.rustup}" "CARGO_HOME=${CARGO_HOME:-$HOME/.cargo}" \
+              pie install "valkey-io/valkey-glide-php:${VERSION}" --force --no-interaction -vvv
+          fi
+
+      - name: Verify the extension loads
+        env:
+          VERSION: ${{ steps.get-version.outputs.version }}
+        run: |
+          # pie enables the extension in php.ini when it can; load it explicitly otherwise
+          if php -m | grep -qx valkey_glide; then PHP="php"; else PHP="php -d extension=valkey_glide"; fi
+          $PHP -r '
+            if (!class_exists("ValkeyGlide")) { echo "FAIL: ValkeyGlide class missing", PHP_EOL; exit(1); }
+            echo "Loaded valkey_glide ", phpversion("valkey_glide"), PHP_EOL;
+          '
+          LOADED=$($PHP -r 'echo phpversion("valkey_glide");')
+          if [ "$LOADED" != "$VERSION" ]; then
+            echo "FAIL: expected version $VERSION, loaded $LOADED"
+            exit 1
+          fi

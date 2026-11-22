@@ -12,6 +12,10 @@ inputs:
     description: "Run on every host for the language, with the engines and language versions of a partial matrix"
     required: false
     default: "false"
+  host-os:
+    description: "Only pick hosts with this OS (for example ubuntu) when picking every host; empty for all"
+    required: false
+    default: ""
   containers:
     description: "Run in containers"
     required: false
@@ -37,12 +41,14 @@ runs:
         EVENT_NAME: ${{ github.event_name }}
         RUN_FULL_MATRIX: ${{ inputs.run-full-matrix }}
         RUN_FULL_HOST_MATRIX: ${{ inputs.run-full-host-matrix }}
+        HOST_OS: ${{ inputs.host-os }}
         CONTAINERS: ${{ inputs.containers }}
         LANGUAGE_NAME: ${{ inputs.language-name }}
       run: |
         echo "EVENT_NAME=$EVENT_NAME" >> $GITHUB_ENV
         echo "RUN_FULL_MATRIX=$RUN_FULL_MATRIX" >> $GITHUB_ENV
         echo "RUN_FULL_HOST_MATRIX=$RUN_FULL_HOST_MATRIX" >> $GITHUB_ENV
+        echo "HOST_OS=$HOST_OS" >> $GITHUB_ENV
         echo "CONTAINERS=$CONTAINERS" >> $GITHUB_ENV
         echo "LANGUAGE_NAME=$LANGUAGE_NAME" >> $GITHUB_ENV
 
@@ -66,6 +72,7 @@ runs:
       run: |
         set -o pipefail
         [[ "$CONTAINERS" == "true" ]] && CONDITION=".IMAGE?" || CONDITION=".IMAGE == null"
+        [[ -n "$HOST_OS" ]] && CONDITION="$CONDITION and .OS == \"$HOST_OS\""
         echo 'Select runners (VMs) to run tests on'
         if [[ "$RUN_FULL_HOST_MATRIX" != "true" && ( "$EVENT_NAME" == "pull_request" || "$EVENT_NAME" == "push" || "$RUN_FULL_MATRIX" == "false" ) ]]; then
             echo 'Pick runners marked as '"run": "always"' only - on PR, push or manually triggered job which does not require full matrix'

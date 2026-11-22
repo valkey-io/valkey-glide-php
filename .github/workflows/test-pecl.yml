@@ -58,6 +58,8 @@ jobs:
           # or for every host only
           run-full-matrix: ${{ inputs.full-matrix == true }}
           run-full-host-matrix: ${{ inputs.full-host-matrix == true }}
+          # The setup actions this workflow uses install packages with apt, so it runs on Ubuntu hosts only
+          host-os: ubuntu
 
   test-pecl-install:
     name: PECL Tests - ${{ matrix.php }}, EngineVersion - ${{ matrix.engine.version }}, Target - ${{ matrix.host.TARGET }}

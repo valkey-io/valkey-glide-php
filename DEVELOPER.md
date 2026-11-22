@@ -29,6 +29,8 @@ Software Dependencies
 - autotools (autoconf, automake, libtool)
 - pkg-config
 - protoc (protobuf compiler) >= v3.20.0
+- protoc-c (`protobuf-c-compiler`) and the protobuf-c library (`libprotobuf-c-dev`)
+- python3
 - openssl
 - openssl-dev
 - rustup
@@ -192,6 +194,32 @@ Verify the installation:
 php -m | grep valkey_glide
 php -r "if (extension_loaded('valkey_glide')) echo 'SUCCESS: Extension loaded!'; else echo 'ERROR: Extension not loaded';"
 ```
+
+#### Validating an install in a container
+
+To check that `pie install` builds and loads the extension on a Linux distribution you don't run, use Docker. This
+installs a released version on Ubuntu 24.04; change the image (for example `ubuntu:26.04`) or `VERSION` as needed:
+
+<!-- validate-pie-install:start -->
+```bash
+docker run --rm -e VERSION=1.2.0 ubuntu:24.04 bash -euxc '
+  export DEBIAN_FRONTEND=noninteractive
+  apt-get update
+  apt-get install -y --no-install-recommends ca-certificates curl git unzip gcc make autoconf automake libtool \
+    pkg-config libssl-dev protobuf-compiler protobuf-c-compiler libprotobuf-c-dev python3 php-cli php-dev
+  curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
+  . "$HOME/.cargo/env"
+  cargo install --locked cbindgen
+  curl -fsSL https://github.com/php/pie/releases/latest/download/pie.phar -o /usr/local/bin/pie
+  chmod +x /usr/local/bin/pie
+  pie install --no-interaction "valkey-io/valkey-glide-php:$VERSION"
+  php -r "exit(extension_loaded(\"valkey_glide\") ? 0 : 1);"
+  php -r "echo phpversion(\"valkey_glide\"), PHP_EOL;"
+'
+```
+<!-- validate-pie-install:end -->
+
+The build compiles the Rust core, so it takes several minutes. On Apple silicon, Docker runs the arm64 image natively.
 
 #### Steps for building and installing from source
 
