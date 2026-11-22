@@ -31,6 +31,7 @@ Software Dependencies
 - protoc (protobuf compiler) >= v3.20.0
 - protoc-c (`protobuf-c-compiler`) and the protobuf-c library (`libprotobuf-c-dev`)
 - python3
+- libffi headers (`libffi-dev` or `libffi-devel`)
 - openssl
 - openssl-dev
 - rustup
@@ -206,7 +207,7 @@ docker run --rm -e VERSION=1.2.0 ubuntu:24.04 bash -euxc '
   export DEBIAN_FRONTEND=noninteractive
   apt-get update
   apt-get install -y --no-install-recommends ca-certificates curl git unzip gcc make autoconf automake libtool \
-    pkg-config libssl-dev protobuf-compiler protobuf-c-compiler libprotobuf-c-dev python3 php-cli php-dev
+    pkg-config libssl-dev libffi-dev protobuf-compiler protobuf-c-compiler libprotobuf-c-dev python3 php-cli php-dev
   curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
   . "$HOME/.cargo/env"
   cargo install --locked cbindgen

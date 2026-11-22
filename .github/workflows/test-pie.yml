@@ -446,7 +446,7 @@ jobs:
         uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2.40.0
         with:
           php-version: ${{ matrix.php }}
-          extensions: none
+          # The default extensions include iconv, which the pie phar needs
           tools: pie
 
       - name: Install build dependencies (Ubuntu)
