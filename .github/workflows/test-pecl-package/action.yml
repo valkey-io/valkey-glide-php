@@ -274,7 +274,8 @@ runs:
           # setup-php leaves PEAR's temp directory unwritable for the runner user, so give pecl its own
           for dir in temp download cache; do
             mkdir -p "$RUNNER_TEMP/pear/$dir"
-            pecl config-set "${dir}_dir" "$RUNNER_TEMP/pear/$dir" >/dev/null
+            # pear, not pecl: pecl applies config-set to its channel, which rejects these settings
+            pear config-set "${dir}_dir" "$RUNNER_TEMP/pear/$dir"
           done
           # setup-php's PHP on macOS is owned by the runner user, and root has no Rust toolchain
           pecl install -f "$PACKAGE_FILE" 2>&1 | tee pecl_install.log
