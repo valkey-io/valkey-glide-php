@@ -66,8 +66,6 @@ jobs:
           # or for every host only
           run-full-matrix: ${{ inputs.full-matrix == true }}
           run-full-host-matrix: ${{ inputs.full-host-matrix == true }}
-          # The setup actions this workflow uses install packages with apt, so it runs on Ubuntu hosts only
-          host-os: ubuntu
 
   test-pie-install:
     name: PHP Tests - ${{ matrix.php }}, EngineVersion - ${{ matrix.engine.version }}, Target - ${{ matrix.host.TARGET }}
@@ -99,6 +97,8 @@ jobs:
           install-composer-deps: "true"
           github-token: ${{ secrets.GITHUB_TOKEN }}
           engine-version: ${{ matrix.engine.version }}
+          os: ${{ matrix.host.OS }}
+          target: ${{ matrix.host.TARGET }}
 
       - name: Create manual Composer repository
         run: |
@@ -184,7 +184,10 @@ jobs:
           export CARGO_BUILD_JOBS=$(nproc)
 
           # Make Rust available to root by preserving environment
-          sudo -E env "PATH=$PATH" "CARGO_BUILD_JOBS=$(nproc)" pie install valkey-io/valkey-glide-php:1.0.0 --force --no-interaction -vvv 2>&1 | tee pie_install.log
+          # Point root at the runner user's Rust toolchain in case sudo resets HOME
+          sudo -E env "PATH=$PATH" "CARGO_BUILD_JOBS=$(nproc)" \
+            "RUSTUP_HOME=${RUSTUP_HOME:-$HOME/.rustup}" "CARGO_HOME=${CARGO_HOME:-$HOME/.cargo}" \
+            pie install valkey-io/valkey-glide-php:1.0.0 --force --no-interaction -vvv 2>&1 | tee pie_install.log
           PIE_EXIT_CODE=$?
           set -e
 
@@ -349,7 +352,9 @@ jobs:
             exit 1
           fi
 
+      # The module servers only serve the JSON and search tests, which run elsewhere; macOS runners have no Docker
       - name: Start Valkey servers via Docker
+        if: runner.os == 'Linux'
         uses: ./valkey-glide/.github/actions/start-valkey-docker
         with:
           engine-version: ${{ matrix.engine.version }}

@@ -29,6 +29,7 @@ runs:
         cat .submodule-commits
 
     - name: Configure APT retries
+      if: runner.os == 'Linux'
       uses: ./.github/actions/configure-apt-retries
 
     - name: Create PECL package

@@ -10,6 +10,14 @@ inputs:
   github-token:
     description: GitHub token for API access
     required: true
+  os:
+    description: "Host OS from the build matrix: ubuntu or macos"
+    required: false
+    default: "ubuntu"
+  target:
+    description: "Rust target from the build matrix, for example aarch64-apple-darwin"
+    required: false
+    default: "x86_64-unknown-linux-gnu"
 
 runs:
   using: composite
@@ -31,10 +39,15 @@ runs:
       id: runner-image
       shell: bash
       run: |
-        . /etc/os-release
-        echo "id=${ID}-${VERSION_ID}" >> "$GITHUB_OUTPUT"
+        if [ "$RUNNER_OS" = "macOS" ]; then
+          echo "id=macos-$(sw_vers -productVersion)-$(uname -m)" >> "$GITHUB_OUTPUT"
+        else
+          . /etc/os-release
+          echo "id=${ID}-${VERSION_ID}" >> "$GITHUB_OUTPUT"
+        fi
 
     - name: Cache APT packages
+      if: inputs.os == 'ubuntu'
       uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: |
@@ -45,12 +58,19 @@ runs:
           apt-${{ runner.os }}-${{ steps.runner-image.outputs.id }}-
 
     - name: Configure APT retries
+      if: inputs.os == 'ubuntu'
       uses: ./.github/actions/configure-apt-retries
 
     - name: Add PHP APT repository
+      if: inputs.os == 'ubuntu'
       uses: ./.github/actions/add-php-apt-repo
 
+    - name: Install build dependencies (macOS)
+      if: inputs.os == 'macos'
+      uses: ./.github/actions/install-macos-build-deps
+
     - name: Install system dependencies (cached)
+      if: inputs.os == 'ubuntu'
       shell: bash
       env:
         PHP_VERSION: ${{ inputs.php-version }}
@@ -125,9 +145,10 @@ runs:
       uses: ./valkey-glide/.github/actions/install-engine
       with:
         engine-version: ${{ inputs.engine-version }}
-        target: x86_64-unknown-linux-gnu
+        target: ${{ inputs.target }}
 
     - name: Install zig
+      if: contains(inputs.target, 'linux-gnu')
       uses: ./valkey-glide/.github/actions/install-zig
 
     - name: Install cbindgen (cached)

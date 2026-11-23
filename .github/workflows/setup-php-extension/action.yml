@@ -16,6 +16,14 @@ inputs:
   engine-version:
     description: Engine version to install
     required: true
+  os:
+    description: "Host OS from the build matrix: ubuntu or macos"
+    required: false
+    default: "ubuntu"
+  target:
+    description: "Rust target from the build matrix, for example aarch64-apple-darwin"
+    required: false
+    default: "x86_64-unknown-linux-gnu"
 
 runs:
   using: composite
@@ -23,8 +31,8 @@ runs:
     - name: Install shared dependencies
       uses: ./.github/actions/install-shared-dependencies
       with:
-        os: ubuntu
-        target: x86_64-unknown-linux-gnu
+        os: ${{ inputs.os }}
+        target: ${{ inputs.target }}
         github-token: ${{ inputs.github-token }}
         engine-version: ${{ inputs.engine-version }}
 
@@ -36,9 +44,15 @@ runs:
         tools: pie, jq
 
     - name: Add PHP APT repository
+      if: inputs.os == 'ubuntu'
       uses: ./.github/actions/add-php-apt-repo
 
+    - name: Install build dependencies (macOS)
+      if: inputs.os == 'macos'
+      uses: ./.github/actions/install-macos-build-deps
+
     - name: Install system dependencies
+      if: inputs.os == 'ubuntu'
       shell: bash
       env:
         PHP_VERSION: ${{ inputs.php-version }}

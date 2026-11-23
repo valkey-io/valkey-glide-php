@@ -18,6 +18,14 @@ inputs:
   github-token:
     description: "GitHub token for API access (optional, uses github.token if not provided)"
     required: false
+  os:
+    description: "Host OS from the build matrix: ubuntu or macos"
+    required: false
+    default: "ubuntu"
+  target:
+    description: "Rust target from the build matrix, for example aarch64-apple-darwin"
+    required: false
+    default: "x86_64-unknown-linux-gnu"
 
 runs:
   using: "composite"
@@ -29,6 +37,8 @@ runs:
         php-version: ${{ inputs.php-version }}
         engine-version: ${{ inputs.engine-version }}
         github-token: ${{ github.token }}
+        os: ${{ inputs.os }}
+        target: ${{ inputs.target }}
 
     - name: Generate PHP protobuf classes for testing
       shell: bash
@@ -106,7 +116,7 @@ runs:
         fi
 
     - name: Configure APT retries
-      if: steps.package-info.outputs.is-rc != 'true'
+      if: steps.package-info.outputs.is-rc != 'true' && inputs.os == 'ubuntu'
       uses: ./.github/actions/configure-apt-retries
 
     - name: Setup PHP
@@ -117,8 +127,12 @@ runs:
         extensions: tokenizer, json, ctype, iconv, mbstring, simplexml
         tools: none
 
+    - name: Install build dependencies (macOS)
+      if: steps.package-info.outputs.is-rc != 'true' && inputs.os == 'macos'
+      uses: ./.github/actions/install-macos-build-deps
+
     - name: Install system dependencies
-      if: steps.package-info.outputs.is-rc != 'true'
+      if: steps.package-info.outputs.is-rc != 'true' && inputs.os == 'ubuntu'
       shell: bash
       run: |
         echo "=== Installing system dependencies for PECL testing ==="
@@ -139,8 +153,8 @@ runs:
       if: steps.package-info.outputs.is-rc != 'true'
       uses: ./.github/actions/install-shared-dependencies
       with:
-        os: ubuntu
-        target: x86_64-unknown-linux-gnu
+        os: ${{ inputs.os }}
+        target: ${{ inputs.target }}
         engine-version: ${{ inputs.engine-version }}
         github-token: ${{ inputs.github-token || github.token }}
 
@@ -156,7 +170,7 @@ runs:
         echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
     - name: Setup sccache for cross-user Rust caching
-      if: steps.package-info.outputs.is-rc != 'true'
+      if: steps.package-info.outputs.is-rc != 'true' && inputs.os == 'ubuntu'
       shell: bash
       run: |
         echo "=== Setting up sccache for cross-user Rust compilation caching ==="
@@ -182,7 +196,7 @@ runs:
         echo "sccache setup complete"
 
     - name: Setup Cargo cache for root user
-      if: steps.package-info.outputs.is-rc != 'true'
+      if: steps.package-info.outputs.is-rc != 'true' && inputs.os == 'ubuntu'
       shell: bash
       run: |
         echo "=== Setting up Cargo cache for root user ==="
@@ -256,7 +270,12 @@ runs:
         export MAKEFLAGS="-j$(nproc)"
         export CARGO_BUILD_JOBS=$(nproc)
 
-        sudo env "MAKEFLAGS=-j$(nproc)" "CARGO_BUILD_JOBS=$(nproc)" pecl install -f "$PACKAGE_FILE" 2>&1 | tee pecl_install.log
+        if [ "$RUNNER_OS" = "macOS" ]; then
+          # setup-php's PHP on macOS is owned by the runner user, and root has no Rust toolchain
+          pecl install -f "$PACKAGE_FILE" 2>&1 | tee pecl_install.log
+        else
+          sudo env "MAKEFLAGS=-j$(nproc)" "CARGO_BUILD_JOBS=$(nproc)" pecl install -f "$PACKAGE_FILE" 2>&1 | tee pecl_install.log
+        fi
         PECL_EXIT_CODE=$?
 
         if [ $PECL_EXIT_CODE -ne 0 ]; then
@@ -310,9 +329,10 @@ runs:
           if [ -f "$SO_FILE" ]; then
             echo "Extension file exists: $SO_FILE"
             echo "All library dependencies:"
-            ldd "$SO_FILE"
+            if command -v ldd >/dev/null; then LIBS="ldd"; else LIBS="otool -L"; fi
+            $LIBS "$SO_FILE"
             echo "Protobuf dependencies:"
-            ldd "$SO_FILE" | grep protobuf || echo "No protobuf dependencies found"
+            $LIBS "$SO_FILE" | grep protobuf || echo "No protobuf dependencies found"
             echo "Checking for protobuf-c library:"
             ldconfig -p | grep protobuf-c || echo "protobuf-c library not found in system"
             echo "Checking if protobuf_c_empty_string symbol exists in system libraries:"
@@ -388,8 +408,9 @@ runs:
         composer install --no-interaction --prefer-dist --optimize-autoloader
         echo "Composer install completed"
 
+    # The module servers only serve the JSON and search tests, which run elsewhere; macOS runners have no Docker
     - name: Start Valkey servers via Docker
-      if: steps.package-info.outputs.is-rc != 'true'
+      if: steps.package-info.outputs.is-rc != 'true' && runner.os == 'Linux'
       uses: ./valkey-glide/.github/actions/start-valkey-docker
       with:
         engine-version: ${{ inputs.engine-version }}
