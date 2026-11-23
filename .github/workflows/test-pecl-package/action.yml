@@ -416,19 +416,18 @@ runs:
         engine-version: ${{ inputs.engine-version }}
         cluster-port-start: "9001"
 
-    # The tests run PHP with -n, which looks in PHP's compiled-in extension directory. Homebrew's PHP on macOS
-    # installs extensions elsewhere, so pass the installed file's full path.
-    - name: Find the installed extension
-      id: installed-extension
-      if: steps.package-info.outputs.is-rc != 'true'
+    # The tests, and the child processes they start, run PHP with -n and load the extension by name, which
+    # looks in PHP's compiled-in extension directory. Homebrew's PHP on macOS installs extensions elsewhere.
+    - name: Make the extension loadable with php -n (macOS)
+      if: steps.package-info.outputs.is-rc != 'true' && runner.os == 'macOS'
       shell: bash
-      run: echo "path=$(php-config --extension-dir)/valkey_glide.so" >> "$GITHUB_OUTPUT"
+      run: ln -sf "$(php-config --extension-dir)/valkey_glide.so" "$(php -n -r 'echo ini_get("extension_dir");')/"
 
     - name: Run PHP Extension Tests
       if: steps.package-info.outputs.is-rc != 'true'
       uses: ./.github/workflows/run-php-tests
       with:
-        extension-path: ${{ steps.installed-extension.outputs.path }}
+        extension-path: valkey_glide
         php-version: ${{ inputs.php-version }}
 
     - name: Stop Valkey Docker containers
