@@ -1,7 +1,7 @@
 name: Install macOS build dependencies
 description: >-
-  Install the Homebrew packages the PHP extension build needs on macOS, and put GNU sed and coreutils
-  first on PATH so the build and test scripts, written for Linux, run unchanged (sed -i, stat -c, nproc).
+  Install the Homebrew packages the PHP extension build needs on macOS. The build keeps macOS's own
+  BSD tools, as a user's machine has.
 
 runs:
   using: composite
@@ -9,6 +9,4 @@ runs:
     - name: Install Homebrew packages
       shell: bash
       run: |
-        brew install autoconf automake libtool pkg-config protobuf-c openssl gnu-sed coreutils
-        echo "$(brew --prefix gnu-sed)/libexec/gnubin" >> "$GITHUB_PATH"
-        echo "$(brew --prefix coreutils)/libexec/gnubin" >> "$GITHUB_PATH"
+        brew install autoconf automake libtool pkg-config protobuf-c openssl

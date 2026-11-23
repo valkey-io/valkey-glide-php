@@ -267,14 +267,14 @@ runs:
 
         # Install the package using PECL (this tests the real user experience)
         # Use all available CPU cores for compilation
-        export MAKEFLAGS="-j$(nproc)"
-        export CARGO_BUILD_JOBS=$(nproc)
+        export MAKEFLAGS="-j$(getconf _NPROCESSORS_ONLN)"
+        export CARGO_BUILD_JOBS=$(getconf _NPROCESSORS_ONLN)
 
         if [ "$RUNNER_OS" = "macOS" ]; then
           # setup-php's PHP on macOS is owned by the runner user, and root has no Rust toolchain
           pecl install -f "$PACKAGE_FILE" 2>&1 | tee pecl_install.log
         else
-          sudo env "MAKEFLAGS=-j$(nproc)" "CARGO_BUILD_JOBS=$(nproc)" pecl install -f "$PACKAGE_FILE" 2>&1 | tee pecl_install.log
+          sudo env "MAKEFLAGS=-j$(getconf _NPROCESSORS_ONLN)" "CARGO_BUILD_JOBS=$(getconf _NPROCESSORS_ONLN)" pecl install -f "$PACKAGE_FILE" 2>&1 | tee pecl_install.log
         fi
         PECL_EXIT_CODE=$?
 
@@ -425,7 +425,8 @@ runs:
         # Homebrew doesn't create the compiled-in directory for every PHP version
         DEFAULT_DIR=$(php -n -r 'echo ini_get("extension_dir");')
         mkdir -p "$DEFAULT_DIR"
-        ln -sf "$(php-config --extension-dir)/valkey_glide.so" "$DEFAULT_DIR/"
+        INSTALLED_DIR=$(php-config --extension-dir)
+        [ "$INSTALLED_DIR" -ef "$DEFAULT_DIR" ] || ln -sf "$INSTALLED_DIR/valkey_glide.so" "$DEFAULT_DIR/"
 
     - name: Run PHP Extension Tests
       if: steps.package-info.outputs.is-rc != 'true'
