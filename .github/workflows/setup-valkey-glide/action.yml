@@ -69,6 +69,14 @@ runs:
       if: inputs.os == 'macos'
       uses: ./.github/actions/install-macos-build-deps
 
+    # On Ubuntu, PHP comes from the PHP APT repository above and the runner image has Composer
+    - name: Setup PHP (macOS)
+      if: inputs.os == 'macos'
+      uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2.40.0
+      with:
+        php-version: ${{ inputs.php-version }}
+        tools: composer, pecl
+
     - name: Install system dependencies (cached)
       if: inputs.os == 'ubuntu'
       shell: bash

@@ -153,19 +153,17 @@ jobs:
 
       - name: Test PIE with manual repository
         run: |
-          # Allow HTTP for localhost for both user and root
+          # Allow HTTP for localhost
           composer config --global secure-http false
-          sudo composer config --global secure-http false
-
-          # Initialize composer config directories and fix permissions
           mkdir -p "$HOME/.config/composer"
-          sudo mkdir -p /root/.config/composer
 
-          # Make sure root can read the user's composer config
-          sudo chmod -R 755 "$HOME/.config/composer"
-          if [[ "${{ matrix.host.OS }}" == "macos" ]]; then
-            sudo chown -R root:wheel "$HOME/.config/composer" || true
-          else
+          # On Linux pie runs as root, so root needs the same Composer config. On macOS setup-php's
+          # PHP belongs to the runner user, so pie runs without sudo.
+          if [[ "${{ matrix.host.OS }}" != "macos" ]]; then
+            sudo composer config --global secure-http false
+            sudo mkdir -p /root/.config/composer
+            # Make sure root can read the user's composer config
+            sudo chmod -R 755 "$HOME/.config/composer"
             sudo chown -R root:root "$HOME/.config/composer" || true
           fi
 
@@ -184,10 +182,15 @@ jobs:
           export CARGO_BUILD_JOBS=$(nproc)
 
           # Make Rust available to root by preserving environment
-          # Point root at the runner user's Rust toolchain in case sudo resets HOME
-          sudo -E env "PATH=$PATH" "CARGO_BUILD_JOBS=$(nproc)" \
-            "RUSTUP_HOME=${RUSTUP_HOME:-$HOME/.rustup}" "CARGO_HOME=${CARGO_HOME:-$HOME/.cargo}" \
-            pie install valkey-io/valkey-glide-php:1.0.0 --force --no-interaction -vvv 2>&1 | tee pie_install.log
+          if [[ "${{ matrix.host.OS }}" == "macos" ]]; then
+            CARGO_BUILD_JOBS=$(nproc) \
+              pie install valkey-io/valkey-glide-php:1.0.0 --force --no-interaction -vvv 2>&1 | tee pie_install.log
+          else
+            # Point root at the runner user's Rust toolchain in case sudo resets HOME
+            sudo -E env "PATH=$PATH" "CARGO_BUILD_JOBS=$(nproc)" \
+              "RUSTUP_HOME=${RUSTUP_HOME:-$HOME/.rustup}" "CARGO_HOME=${CARGO_HOME:-$HOME/.cargo}" \
+              pie install valkey-io/valkey-glide-php:1.0.0 --force --no-interaction -vvv 2>&1 | tee pie_install.log
+          fi
           PIE_EXIT_CODE=$?
           set -e
 
@@ -409,7 +412,9 @@ jobs:
         run: |
           VERSION="${{ steps.get-version.outputs.version }}"
           echo "=== Installing valkey-glide-php v${VERSION} from Packagist ==="
+          # sudo resets HOME, so point root at the runner user's Rust toolchain
           sudo -E env "PATH=$PATH" "CARGO_BUILD_JOBS=$(nproc)" \
+            "RUSTUP_HOME=${RUSTUP_HOME:-$HOME/.rustup}" "CARGO_HOME=${CARGO_HOME:-$HOME/.cargo}" \
             pie install valkey-io/valkey-glide-php:${VERSION} --force --no-interaction -vvv
 
           echo "=== Verifying extension loads ==="
