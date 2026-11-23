@@ -367,7 +367,11 @@ jobs:
       # looks in PHP's compiled-in extension directory. Homebrew's PHP on macOS installs extensions elsewhere.
       - name: Make the extension loadable with php -n (macOS)
         if: runner.os == 'macOS'
-        run: ln -sf "$(php-config --extension-dir)/valkey_glide.so" "$(php -n -r 'echo ini_get("extension_dir");')/"
+        run: |
+          # Homebrew doesn't create the compiled-in directory for every PHP version
+          DEFAULT_DIR=$(php -n -r 'echo ini_get("extension_dir");')
+          mkdir -p "$DEFAULT_DIR"
+          ln -sf "$(php-config --extension-dir)/valkey_glide.so" "$DEFAULT_DIR/"
 
       - name: Run PHP Extension Tests
         uses: ./.github/workflows/run-php-tests
@@ -415,6 +419,10 @@ jobs:
           engine-version: "9.0"
 
       - name: Install from Packagist
+        env:
+          # pie fetches the release from the GitHub API; authenticate so shared runner IPs don't hit the
+          # anonymous rate limit
+          COMPOSER_AUTH: '{"github-oauth": {"github.com": "${{ secrets.GITHUB_TOKEN }}"}}'
         run: |
           VERSION="${{ steps.get-version.outputs.version }}"
           echo "=== Installing valkey-glide-php v${VERSION} from Packagist ==="

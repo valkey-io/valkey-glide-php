@@ -421,7 +421,11 @@ runs:
     - name: Make the extension loadable with php -n (macOS)
       if: steps.package-info.outputs.is-rc != 'true' && runner.os == 'macOS'
       shell: bash
-      run: ln -sf "$(php-config --extension-dir)/valkey_glide.so" "$(php -n -r 'echo ini_get("extension_dir");')/"
+      run: |
+        # Homebrew doesn't create the compiled-in directory for every PHP version
+        DEFAULT_DIR=$(php -n -r 'echo ini_get("extension_dir");')
+        mkdir -p "$DEFAULT_DIR"
+        ln -sf "$(php-config --extension-dir)/valkey_glide.so" "$DEFAULT_DIR/"
 
     - name: Run PHP Extension Tests
       if: steps.package-info.outputs.is-rc != 'true'
