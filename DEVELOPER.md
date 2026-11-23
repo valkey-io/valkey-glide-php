@@ -148,7 +148,7 @@ CI checks these platforms. PHP versions are those in `.github/json_matrices/supp
 | Ubuntu 24.04 x86_64      |   PR, nightly   |           PR, nightly            |               nightly               |
 | Ubuntu 24.04 aarch64     |     nightly     |             nightly              |               nightly               |
 | Ubuntu 26.04 x86_64      |                 |                                  |               nightly               |
-| macOS 15 arm64 (Silicon) |     nightly     |                                  |               nightly               |
+| macOS 15 arm64 (Silicon) |     nightly     |             nightly              |               nightly               |
 
 The release install runs on the oldest and newest PHP version the release supports. Other Linux distributions may
 work; [validate an install in a container](#validating-an-install-in-a-container)
