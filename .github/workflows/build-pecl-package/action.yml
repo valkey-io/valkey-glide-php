@@ -202,7 +202,12 @@ runs:
 
         # Create tarball
         echo "=== Creating tarball ==="
-        tar czf "$PACKAGE_FILE" "$PACKAGE_DIR"
+        if [ "$RUNNER_OS" = "macOS" ]; then
+          # macOS tar stores extended attributes as extra ._* and PaxHeader entries, which pecl can't extract
+          COPYFILE_DISABLE=1 tar --no-xattrs --no-mac-metadata -czf "$PACKAGE_FILE" "$PACKAGE_DIR"
+        else
+          tar czf "$PACKAGE_FILE" "$PACKAGE_DIR"
+        fi
 
         echo "=== PECL package created successfully ==="
         ls -la "$PACKAGE_FILE"
