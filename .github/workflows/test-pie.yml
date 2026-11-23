@@ -363,10 +363,16 @@ jobs:
           engine-version: ${{ matrix.engine.version }}
           cluster-port-start: "9001"
 
+      # The tests run PHP with -n, which looks in PHP's compiled-in extension directory. Homebrew's PHP on macOS
+      # installs extensions elsewhere, so pass the installed file's full path.
+      - name: Find the installed extension
+        id: installed-extension
+        run: echo "path=$(php-config --extension-dir)/valkey_glide.so" >> "$GITHUB_OUTPUT"
+
       - name: Run PHP Extension Tests
         uses: ./.github/workflows/run-php-tests
         with:
-          extension-path: valkey_glide
+          extension-path: ${{ steps.installed-extension.outputs.path }}
           php-version: ${{ matrix.php }}
 
       - name: Cleanup
