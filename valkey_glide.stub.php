@@ -3564,6 +3564,8 @@ class ValkeyGlide
      * ['NX']                         Only set the key if it doesn't exist.
      * ['GET']                        Instead of returning `+OK` return the previous value of the
      *                                key or NULL if the key didn't exist.
+     * ['IFEQ' => 'value']            Only set the key if its current value equals `value`.
+     *                                Not supported with compression enabled.
      *
      * @return ValkeyGlide|string|bool True if the key was set or false on failure.
      *
