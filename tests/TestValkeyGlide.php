@@ -102,6 +102,7 @@ require_once __DIR__ . "/AddressResolverTest.php";
 require_once __DIR__ . "/AddressResolverClusterTest.php";
 require_once __DIR__ . "/ValkeyGlideMonitorTest.php";
 require_once __DIR__ . "/ValkeyGlideNodeDiscoveryModeTest.php";
+require_once __DIR__ . "/FtBuilderValidationTest.php";
 
 function getClassArray($classes)
 {
@@ -143,6 +144,7 @@ function getTestClass($class)
         'addressresolvercluster' => 'AddressResolverClusterTest',
         'valkeyglidemonitor' => 'ValkeyGlideMonitorTest',
         'valkeyglidenodediscoverymode' => 'ValkeyGlideNodeDiscoveryModeTest',
+        'ftbuildervalidation' => 'FtBuilderValidationTest',
     ];
 
     /* Return early if the class is one of our built-in ones */
@@ -193,6 +195,7 @@ $default_classes = implode(',', [
     'addressresolvercluster',
     'valkeyglidemonitor',
     'valkeyglidenodediscoverymode',
+    'ftbuildervalidation',
 ]);
 
 $classes = getClassArray($opt['class'] ?? $default_classes);

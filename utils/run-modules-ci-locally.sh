@@ -6,7 +6,13 @@
 # server (ValkeyGlideSearchTest.php) and the cluster one
 # (ValkeyGlideClusterSearchTest.php).
 #
-# No module CI job exists yet for this repo -- this script and
+# The "Modules Tests (Linux)" CI job runs against the submodule action's
+# pinned image (valkey/valkey-bundle:9.1.3, valkey-search 1.2.1), so the
+# valkey-search 1.3.0 tests (FT.HYBRID, cursors, INKEYS, WITHSCORES, SCORER,
+# UNF, FLOAT16/BFLOAT16, LOAD ... AS) skip there and only run through this
+# script, against a 1.3 module. Run it locally before changing the 1.3
+# surface; the builder-side validation that needs no server is covered in
+# every CI run by FtBuilderValidationTest. This script and
 # utils/start-valkey-docker-modules.sh (vendored verbatim from the main
 # repo, see that file's own header) are new.
 #
