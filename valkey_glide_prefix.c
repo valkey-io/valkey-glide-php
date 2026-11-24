@@ -489,22 +489,26 @@ static void mark_keys(valkey_glide_object* valkey_glide,
             mark_migrate(is_key, arg_count, args, args_len);
             break;
 
-        /* PUBLISH channel message: the channel is prefixed, as in PHPRedis */
+        /* PUBLISH/SPUBLISH channel message: the channel is prefixed, as in PHPRedis */
         case Publish:
+        case SPublish:
             mark_range(is_key, arg_count, 0, 1);
             break;
 
-        /* PUBSUB NUMSUB channel [channel ...] */
+        /* PUBSUB NUMSUB|SHARDNUMSUB channel [channel ...] */
         case PubSubNumSub:
+        case PubSubShardNumSub:
             mark_range(is_key, arg_count, 0, arg_count);
             break;
 
-        /* (P)(UN)SUBSCRIBE channel|pattern ... timeout: GLIDE's blocking
+        /* (P)(S)(UN)SUBSCRIBE channel|pattern ... timeout: GLIDE's blocking
          * variants end with a timeout, which is not a channel */
         case SubscribeBlocking:
         case PSubscribeBlocking:
         case UnsubscribeBlocking:
         case PUnsubscribeBlocking:
+        case SSubscribeBlocking:
+        case SUnsubscribeBlocking:
             if (arg_count > 0) {
                 mark_range(is_key, arg_count, 0, arg_count - 1);
             }

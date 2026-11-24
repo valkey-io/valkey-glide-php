@@ -595,10 +595,10 @@ int execute_exists_command(zval* object, int argc, zval* return_value, zend_clas
 
         if (execute_multi_key_command(
                 valkey_glide, Exists, &temp_array, actual_key_count, object, return_value)) {
-            zval_dtor(&temp_array);
+            zval_ptr_dtor_nogc(&temp_array);
             return 1;
         } else {
-            zval_dtor(&temp_array);
+            zval_ptr_dtor_nogc(&temp_array);
             return 0;
         }
     }
@@ -651,10 +651,10 @@ int execute_touch_command(zval* object, int argc, zval* return_value, zend_class
 
         if (execute_multi_key_command(
                 valkey_glide, Touch, &temp_array, actual_key_count, object, return_value)) {
-            zval_dtor(&temp_array);
+            zval_ptr_dtor_nogc(&temp_array);
             return 1;
         } else {
-            zval_dtor(&temp_array);
+            zval_ptr_dtor_nogc(&temp_array);
             return 0;
         }
     }

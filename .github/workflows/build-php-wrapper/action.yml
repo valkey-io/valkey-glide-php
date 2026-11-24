@@ -24,21 +24,45 @@ runs:
       if: ${{ inputs.os == 'ubuntu' }}
       uses: ./.github/actions/configure-apt-retries
 
+    # On Ubuntu, `runner` is left empty so setup-php detects the runner type itself and uses its
+    # prebuilt PHP packages. Other platforms (macOS, the Amazon Linux container) select setup-php's
+    # `self-hosted` mode, which installs PHP with the platform's package manager.
+    # The step is attempted twice because setup-php can fail on transient network errors.
     - name: Setup PHP
+      id: setup-php
+      continue-on-error: true
       uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2.40.0
       with:
         php-version: ${{ inputs.php-version }}
         extensions: tokenizer, json, ctype, iconv, mbstring, simplexml
         tools: none
       env:
-        runner: self-hosted
+        runner: ${{ inputs.os != 'ubuntu' && 'self-hosted' || '' }}
+    - name: Setup PHP (retry)
+      if: ${{ steps.setup-php.outcome == 'failure' }}
+      uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2.40.0
+      with:
+        php-version: ${{ inputs.php-version }}
+        extensions: tokenizer, json, ctype, iconv, mbstring, simplexml
+        tools: none
+      env:
+        runner: ${{ inputs.os != 'ubuntu' && 'self-hosted' || '' }}
+
+    # phpize and php-config come from the php<version>-dev package, so it is installed explicitly
+    # to make sure they match the PHP version selected above.
+    - name: Add PHP APT repository (Ubuntu)
+      if: ${{ inputs.os == 'ubuntu' }}
+      uses: ./.github/actions/add-php-apt-repo
 
     - name: Install system dependencies (Ubuntu)
       if: ${{ inputs.os == 'ubuntu' }}
       shell: bash
+      env:
+        PHP_VERSION: ${{ inputs.php-version }}
       run: |
         sudo apt-get update
         sudo apt-get install -y \
+            "php${PHP_VERSION}-dev" \
             build-essential \
             autoconf \
             automake \
@@ -50,6 +74,40 @@ runs:
             cppcheck \
             libprotobuf-c-dev \
             libprotobuf-c1
+
+    - name: Verify PHP toolchain matches requested version (Ubuntu)
+      if: ${{ inputs.os == 'ubuntu' }}
+      shell: bash
+      env:
+        PHP_VERSION: ${{ inputs.php-version }}
+      run: |
+        # An extension only loads into a PHP with the same module API it was built against.
+        # Check that php and phpize both match the requested version before building.
+        php_actual="$(php -r 'echo PHP_MAJOR_VERSION . "." . PHP_MINOR_VERSION;')"
+        php_api="$(php -i | sed -n 's/^PHP API => *//p' | head -n 1)"
+        phpize_api="$(phpize --version | sed -n 's/^PHP Api Version: *//p')"
+        echo "php: $(command -v php) -> $php_actual (module API $php_api)"
+        echo "phpize: $(command -v phpize) (PHP Api Version $phpize_api)"
+        php_config_version="$(php-config --version)"
+        php_config_actual="$(echo "$php_config_version" | cut -d. -f1,2)"
+        php_config_api="$(php-config --phpapi)"
+        echo "php-config: $(command -v php-config) -> $php_config_version (module API $php_config_api)"
+        if [ "$php_actual" != "$PHP_VERSION" ]; then
+          echo "::error::php on PATH is $php_actual, expected $PHP_VERSION"
+          exit 1
+        fi
+        if [ "$php_config_actual" != "$PHP_VERSION" ]; then
+          echo "::error::php-config on PATH is $php_config_actual, expected $PHP_VERSION"
+          exit 1
+        fi
+        if [ "$php_config_api" != "$php_api" ]; then
+          echo "::error::php-config API $php_config_api does not match php module API $php_api"
+          exit 1
+        fi
+        if [ "$phpize_api" != "$php_api" ]; then
+          echo "::error::phpize API $phpize_api does not match php module API $php_api"
+          exit 1
+        fi
 
     - name: Install system dependencies (macOS)
       if: ${{ inputs.os == 'macos' }}

@@ -3,10 +3,17 @@
 
 #include "logger.h"
 
+#include <errno.h>
+#include <fcntl.h>
+#include <limits.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <time.h>
+#include <unistd.h>
 
 #include "include/glide_bindings.h"
 
@@ -125,12 +132,150 @@ int valkey_glide_logger_get_level(void) {
  * ============================================================================ */
 
 /**
+ * Create `path` and any missing parents (like `mkdir -p`).
+ * Returns 0 on success (the directory exists afterwards), -1 otherwise.
+ */
+static int logger_mkdir_p(const char* path) {
+    char   buf[PATH_MAX];
+    size_t len = strlen(path);
+
+    if (len == 0 || len >= sizeof(buf)) {
+        return -1;
+    }
+    memcpy(buf, path, len + 1);
+
+    for (char* p = buf + 1; *p != '\0'; p++) {
+        if (*p == '/') {
+            *p = '\0';
+            if (mkdir(buf, 0777) != 0 && errno != EEXIST) {
+                return -1;
+            }
+            *p = '/';
+        }
+    }
+    if (mkdir(buf, 0777) != 0 && errno != EEXIST) {
+        return -1;
+    }
+
+    struct stat st;
+    return (stat(buf, &st) == 0 && S_ISDIR(st.st_mode)) ? 0 : -1;
+}
+
+/**
+ * Check, before handing `filename` to the core, that the log file can be created.
+ *
+ * The core builds its rolling file appender lazily, on the first log line, and
+ * panics there if the directory cannot be created or written. A panic across the
+ * FFI boundary aborts the PHP process, so the failure has to be caught here.
+ *
+ * The core writes to <dir>/<filename>.<date>, where <dir> is $GLIDE_LOG_DIR (when it
+ * is non-empty and can be created) or "glide-logs", and an absolute <filename>
+ * replaces <dir>. This mirrors that rule, creates the target directory as the core
+ * would, requires it to be writable, and opens the current hour's log file for
+ * append (creating it), which is what the core does when it builds the appender.
+ *
+ * Returns 0 if the path is usable, -1 otherwise (and sets *reason).
+ */
+static int validate_log_path(const char* filename, const char** reason) {
+    char full[PATH_MAX];
+
+    if (filename == NULL) {
+        return 0; /* console logging: nothing to check */
+    }
+
+    if (filename[0] == '\0') {
+        *reason = "log file name is empty";
+        return -1;
+    }
+
+    if (filename[0] == '/') {
+        if (strlen(filename) >= sizeof(full)) {
+            *reason = "log file path is too long";
+            return -1;
+        }
+        strcpy(full, filename);
+    } else {
+        const char* base = getenv("GLIDE_LOG_DIR");
+        if (base == NULL || base[0] == '\0' || logger_mkdir_p(base) != 0) {
+            base = "glide-logs";
+        }
+        if (snprintf(full, sizeof(full), "%s/%s", base, filename) >= (int) sizeof(full)) {
+            *reason = "log file path is too long";
+            return -1;
+        }
+    }
+
+    /* The file name must not end in a slash: the core appends ".<date>" to it. */
+    char* last_slash = strrchr(full, '/');
+    if (last_slash != NULL && last_slash[1] == '\0') {
+        *reason = "log file name must not end with '/'";
+        return -1;
+    }
+
+    /* Keep the full prefix path: the dated file name is built from it below. */
+    char file[PATH_MAX];
+    memcpy(file, full, strlen(full) + 1);
+
+    /* Directory part of the target file. */
+    if (last_slash == NULL) {
+        strcpy(full, ".");
+    } else if (last_slash == full) {
+        full[1] = '\0';
+    } else {
+        *last_slash = '\0';
+    }
+
+    if (logger_mkdir_p(full) != 0) {
+        *reason = "log directory cannot be created or is not a directory";
+        return -1;
+    }
+    if (access(full, W_OK | X_OK) != 0) {
+        *reason = "log directory is not writable";
+        return -1;
+    }
+
+    /*
+     * A writable directory can still hold today's log file with no write permission
+     * (for example owned by another user). Open the file the core will open now,
+     * <prefix>.<YYYY-MM-DD-HH> in UTC, the same way it does (append, create).
+     */
+    char      suffix[24];
+    time_t    now = time(NULL);
+    struct tm utc;
+    if (gmtime_r(&now, &utc) == NULL ||
+        strftime(suffix, sizeof(suffix), ".%Y-%m-%d-%H", &utc) == 0) {
+        *reason = "cannot compute the log file name";
+        return -1;
+    }
+    size_t file_len = strlen(file);
+    if (file_len + strlen(suffix) >= sizeof(file)) {
+        *reason = "log file path is too long";
+        return -1;
+    }
+    memcpy(file + file_len, suffix, strlen(suffix) + 1);
+
+    int fd = open(file, O_WRONLY | O_APPEND | O_CREAT | O_CLOEXEC, 0666);
+    if (fd < 0) {
+        *reason = "log file cannot be opened for writing";
+        return -1;
+    }
+    close(fd);
+    return 0;
+}
+
+/**
  * Internal function to actually initialize the logger via FFI.
  * This centralizes the FFI call and state management.
  */
 static int internal_init_logger(const char* level, const char* filename) {
     /* Prevent concurrent initialization attempts */
     if (initialization_in_progress) {
+        return -1;
+    }
+
+    const char* reason = NULL;
+    if (validate_log_path(filename, &reason) != 0) {
+        fprintf(stderr, "Failed to initialize logger: %s: %s\n", reason, filename);
         return -1;
     }
 
@@ -206,9 +351,15 @@ int valkey_glide_logger_set_config(const char* level, const char* filename) {
      */
 
     /* Reset state to allow reinitialization */
-    logger_initialized = false;
+    bool was_initialized = logger_initialized;
+    logger_initialized   = false;
 
-    return internal_init_logger(level, filename);
+    int result = internal_init_logger(level, filename);
+    if (result != 0) {
+        /* The core keeps its previous configuration when we fail; keep our view in sync. */
+        logger_initialized = was_initialized;
+    }
+    return result;
 }
 
 void valkey_glide_logger_log(const char* level, const char* identifier, const char* message) {

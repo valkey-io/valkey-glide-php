@@ -727,7 +727,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
 
     public function testPHPRedisStyleHostPort()
     {
-        // PHPRedis-style connections are not support with TLS.
+        // PHPRedis-style connections are not supported with TLS.
         $this->skipIfTlsEnabled();
 
         // Test PHPRedis-compatible connection with host and port
@@ -748,7 +748,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
 
     public function testPHPRedisStyleWithTimeout()
     {
-        // PHPRedis-style connections are not support with TLS.
+        // PHPRedis-style connections are not supported with TLS.
         $this->skipIfTlsEnabled();
 
         // Test PHPRedis-compatible connection with timeout parameter
@@ -768,7 +768,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
 
     public function testPHPRedisStyleConflictDetection()
     {
-        // PHPRedis-style connections are not support with TLS.
+        // PHPRedis-style connections are not supported with TLS.
         $this->skipIfTlsEnabled();
 
         // Test that mixing PHPRedis and ValkeyGlide parameters is detected
@@ -783,6 +783,64 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             $this->fail('Should throw exception for conflicting parameters');
         } catch (Exception $e) {
             $this->assertStringContains('Cannot specify both', $e->getMessage(), 'Exception should mention parameter conflict');
+        }
+    }
+
+    public function testPHPRedisStyleConnectTwiceThrows()
+    {
+        // PHPRedis-style connections are not supported with TLS.
+        $this->skipIfTlsEnabled();
+        if ($this->getAuth()) {
+            $this->markTestSkipped('This test connects without credentials');
+        }
+
+        // A second connect() on a connected client throws and keeps the first connection (#177)
+        $client = new ValkeyGlide();
+        $this->assertTrue($client->connect($this->getHost(), $this->getPort()));
+
+        try {
+            $id = $client->rawcommand('CLIENT', 'ID');
+            $this->assertIsInt($id);
+            $this->assertThrowsMatch($client, function ($c) {
+                $c->connect($this->getHost(), $this->getPort());
+            }, '/already connected/');
+            $this->assertEquals($id, $client->rawcommand('CLIENT', 'ID'));
+        } finally {
+            $client->close();
+        }
+    }
+
+    public function testPHPRedisStyleConnectFailureThrows()
+    {
+        // A PHPRedis-style connect() to an unreachable host throws (#177)
+        $client = new ValkeyGlide();
+        try {
+            $client->connect('nonexistent-host', 9999, 1.0);
+            $this->fail('connect() to an unreachable host should throw');
+        } catch (ValkeyGlideException $e) {
+            $this->assertStringContains('nonexistent-host:9999', $e->getMessage());
+        }
+    }
+
+    public function testPHPRedisStyleConnectFailureThrowsRedisException()
+    {
+        if (!class_exists('Redis', false)) {
+            if (PHP_VERSION_ID < 80300) {
+                $this->markTestSkipped('PHPRedis aliases require PHP 8.3+');
+            }
+            ValkeyGlide::registerPHPRedisAliases();
+        }
+        if (!is_a('Redis', ValkeyGlide::class, true)) {
+            $this->markTestSkipped('PHPRedis extension is loaded, so Redis is not an alias');
+        }
+
+        // The same failure through the PHPRedis aliases is a RedisException (#177)
+        $client = new Redis();
+        try {
+            $client->connect('nonexistent-host', 9999, 1.0);
+            $this->fail('connect() to an unreachable host should throw');
+        } catch (RedisException $e) {
+            $this->assertStringContains('nonexistent-host:9999', $e->getMessage());
         }
     }
 
@@ -961,6 +1019,202 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             $this->verifyLogContains($log_file_with_date, $debugEmptyMsg, false);
         } finally {
             $this->cleanupLogFile($log_file_with_date);
+        }
+    }
+
+    /**
+     * Run a PHP snippet against the built extension in a separate process, so that a
+     * crash in the logger cannot take the test runner down. Returns [exit code, output].
+     */
+    private function runLoggerScript(string $code, array $env = []): array
+    {
+        $so = dirname(__DIR__) . '/modules/valkey_glide.so';
+        if (!is_file($so)) {
+            $this->markTestSkipped('modules/valkey_glide.so not built');
+            return [0, ''];
+        }
+
+        $script = tempnam(sys_get_temp_dir(), 'glide_logger_');
+        file_put_contents($script, "<?php\n" . $code);
+        $envPrefix = '';
+        foreach ($env as $k => $v) {
+            $envPrefix .= $k . '=' . escapeshellarg($v) . ' ';
+        }
+        $cmd = $envPrefix . escapeshellarg(PHP_BINARY) . ' -n -d extension=' . escapeshellarg($so)
+            . ' ' . escapeshellarg($script) . ' 2>&1';
+        exec($cmd, $lines, $exit);
+        unlink($script);
+
+        return [$exit, implode("\n", $lines)];
+    }
+
+    public function testLoggerSetConfigUnwritablePathReturnsFalse()
+    {
+        // A regular file used as a directory component makes the log directory uncreatable.
+        $blocker = $this->createTempLogFile();
+        file_put_contents($blocker, 'x');
+
+        try {
+            $path = $blocker . '/x.log';
+            [$exit, $out] = $this->runLoggerScript(
+                '$r = valkey_glide_logger_set_config("error", ' . var_export($path, true) . ');'
+                . 'echo "RESULT:" . var_export($r, true) . "\n";'
+                . 'echo "INIT:" . var_export(valkey_glide_logger_is_initialized(), true) . "\n";'
+                . 'valkey_glide_logger_error("t", "first line after failed config");'
+                . 'valkey_glide_logger_error("t", "second line after failed config");'
+                . 'echo "ALIVE\n";'
+            );
+
+            $this->assertEquals(0, $exit);
+            $this->assertStringContains('RESULT:false', $out);
+            $this->assertStringContains('ALIVE', $out);
+            $this->assertFalse(strpos($out, 'panicked') !== false);
+        } finally {
+            @unlink($blocker);
+        }
+    }
+
+    public function testLoggerSetConfigRejectsBadPaths()
+    {
+        $dir = sys_get_temp_dir() . '/valkey-glide-test-dir-' . uniqid();
+        mkdir($dir);
+
+        try {
+            $roDir = $dir . '/ro';
+            mkdir($roDir, 0555);
+            // Root ignores directory permissions, so only assert the read-only case when the
+            // runner is confirmed to be non-root (unknown counts as possibly root).
+            $confirmedNonRoot = function_exists('posix_geteuid') && posix_geteuid() !== 0;
+
+            $cases = [
+                'empty name' => '',
+                'trailing slash' => $dir . '/sub/',
+            ];
+            if ($confirmedNonRoot) {
+                $cases['read-only dir'] = $roDir . '/x.log';
+            }
+
+            foreach ($cases as $label => $path) {
+                [$exit, $out] = $this->runLoggerScript(
+                    '$r = valkey_glide_logger_set_config("error", ' . var_export($path, true) . ');'
+                    . 'echo "RESULT:" . var_export($r, true);'
+                    . 'valkey_glide_logger_error("t", "line");'
+                    . 'echo "|ALIVE";'
+                );
+                $this->assertEquals(0, $exit);
+                $this->assertStringContains('RESULT:false', $out);
+                $this->assertStringContains('ALIVE', $out);
+            }
+            @chmod($roDir, 0755);
+        } finally {
+            @chmod($dir . '/ro', 0755);
+            @rmdir($dir . '/ro');
+            @rmdir($dir . '/sub');
+            @rmdir($dir);
+        }
+    }
+
+    public function testLoggerSetConfigRejectsReadOnlyExistingLogFile()
+    {
+        // The directory is writable, but the dated log file the core opens already exists
+        // without write permission (e.g. owned by another user).
+        if (!function_exists('posix_geteuid') || posix_geteuid() === 0) {
+            $this->markTestSkipped('needs a confirmed non-root user (root ignores file permissions)');
+            return;
+        }
+
+        $dir = sys_get_temp_dir() . '/valkey-glide-test-rofile-' . uniqid();
+        mkdir($dir);
+        $path = $dir . '/x.log';
+
+        // The core names the file <path>.<UTC Y-m-d-H>; cover the next hour in case
+        // the hour rolls over while the test runs.
+        $files = [];
+        foreach ([0, 3600] as $offset) {
+            $f = $path . '.' . gmdate('Y-m-d-H', time() + $offset);
+            file_put_contents($f, "existing\n");
+            chmod($f, 0444);
+            $files[] = $f;
+        }
+
+        try {
+            [$exit, $out] = $this->runLoggerScript(
+                '$r = valkey_glide_logger_set_config("error", ' . var_export($path, true) . ');'
+                . 'echo "RESULT:" . var_export($r, true);'
+                . 'valkey_glide_logger_error("t", "line");'
+                . 'echo "|ALIVE";'
+            );
+            $this->assertEquals(0, $exit);
+            $this->assertStringContains('RESULT:false', $out);
+            $this->assertStringContains('ALIVE', $out);
+            $this->assertFalse(strpos($out, 'panicked') !== false);
+            // The existing file must be left untouched.
+            $this->assertEquals("existing\n", file_get_contents($files[0]));
+        } finally {
+            foreach ($files as $f) {
+                @chmod($f, 0644);
+                @unlink($f);
+            }
+            @rmdir($dir);
+        }
+    }
+
+    public function testLoggerSetConfigCreatesMissingDirectory()
+    {
+        // A not-yet-existing directory is still valid: the core creates it, so we must accept it.
+        $dir = sys_get_temp_dir() . '/valkey-glide-test-new-' . uniqid() . '/nested';
+        $path = $dir . '/x.log';
+
+        try {
+            [$exit, $out] = $this->runLoggerScript(
+                '$r = valkey_glide_logger_set_config("error", ' . var_export($path, true) . ');'
+                . 'echo "RESULT:" . var_export($r, true);'
+                . 'valkey_glide_logger_error("t", "hello");'
+                . 'echo "|ALIVE";'
+            );
+            $this->assertEquals(0, $exit);
+            $this->assertStringContains('RESULT:true', $out);
+            $this->assertStringContains('ALIVE', $out);
+            $this->assertTrue(is_dir($dir));
+        } finally {
+            foreach (glob($dir . '/*') ?: [] as $f) {
+                @unlink($f);
+            }
+            @rmdir($dir);
+            @rmdir(dirname($dir));
+        }
+    }
+
+    public function testLoggerFailedSetConfigKeepsPreviousConfig()
+    {
+        $good = $this->createTempLogFile();
+        $blocker = $this->createTempLogFile();
+        file_put_contents($blocker, 'x');
+        $bad = $blocker . '/x.log';
+
+        try {
+            [$exit, $out] = $this->runLoggerScript(
+                'valkey_glide_logger_set_config("info", ' . var_export($good, true) . ');'
+                . '$r = valkey_glide_logger_set_config("error", ' . var_export($bad, true) . ');'
+                . 'echo "RESULT:" . var_export($r, true);'
+                . 'echo "|INIT:" . var_export(valkey_glide_logger_is_initialized(), true);'
+                . 'echo "|LEVEL:" . valkey_glide_logger_get_level();'
+                . 'valkey_glide_logger_info("t", "still-logging-to-good-file");'
+                . 'usleep(200000);'
+            );
+            $this->assertEquals(0, $exit);
+            $this->assertStringContains('RESULT:false', $out);
+            $this->assertStringContains('INIT:true', $out);
+            $this->assertStringContains('LEVEL:2', $out);
+
+            $logged = false;
+            foreach (glob($good . '*') ?: [] as $f) {
+                $logged = $logged || strpos(file_get_contents($f), 'still-logging-to-good-file') !== false;
+                @unlink($f);
+            }
+            $this->assertTrue($logged);
+        } finally {
+            @unlink($blocker);
         }
     }
 
@@ -1235,6 +1489,89 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             $fileSize = filesize($tracesFile);
             unlink($tracesFile);
             $this->assertEquals(0, $fileSize, "Traces file should be empty with 0% sampling");
+        }
+    }
+
+    /**
+     * The OpenTelemetry configuration is created once per process, so requests after
+     * the one that created it must still be able to read and change it. The PHP
+     * built-in web server runs each HTTP request as a separate PHP request in one
+     * process. With the system allocator and allocation tracking, a silent request
+     * shutdown frees (and scribbles over) request memory, so a configuration held in
+     * request memory is read back as garbage or crashes the server.
+     */
+    public function testOtelConfigSurvivesRequestEnd()
+    {
+        if ($this->getTLS() || $this->getAuth()) {
+            $this->markTestSkipped('The helper script connects without TLS or auth');
+        }
+        if (!function_exists('proc_open')) {
+            $this->markTestSkipped('proc_open is not available');
+        }
+
+        $extension_path = __DIR__ . '/../modules/valkey_glide.so';
+        $extension = file_exists($extension_path) ? $extension_path : 'valkey_glide';
+        /* The core treats a file:// path without an extension as a directory */
+        $tracesFile = sys_get_temp_dir() . '/valkey_glide_otel_multi_request_' . getmypid() . '.json';
+        /* These must override inherited values: with Zend MM, or without tracking,
+         * request memory stays readable after shutdown and the test cannot fail */
+        $env = array_merge(getenv(), ['USE_ZEND_ALLOC' => '0', 'USE_TRACKED_ALLOC' => '1',
+                                      'MallocScribble' => '1', 'MALLOC_PERTURB_' => '85']);
+
+        /* Start the server on a free port. Another process can take the port
+         * between the probe and php -S, so retry on a new port if this server
+         * does not answer the readiness check */
+        $request = function (int $port, int $step, int $timeout = 10) use ($tracesFile) {
+            $query = http_build_query(['step' => $step, 'host' => $this->getHost(),
+                                       'port' => $this->getPort(), 'traces' => $tracesFile]);
+            $context = stream_context_create(['http' => ['timeout' => $timeout, 'ignore_errors' => true]]);
+            return @file_get_contents("http://127.0.0.1:$port/?$query", false, $context);
+        };
+        $proc = null;
+        $serverPort = 0;
+        for ($attempt = 0; $attempt < 5 && !$proc; $attempt++) {
+            $probe = stream_socket_server('tcp://127.0.0.1:0');
+            $serverPort = (int) substr(strrchr(stream_socket_get_name($probe, false), ':'), 1);
+            fclose($probe);
+
+            /* report_memleaks=0 makes request shutdown "silent", which is when the
+             * tracked allocator frees the request's remaining allocations */
+            $cmd = [PHP_BINARY, '-n', '-d', 'report_memleaks=0', '-d', "extension=$extension",
+                    '-S', "127.0.0.1:$serverPort", __DIR__ . '/scripts/otel_multi_request.php'];
+            $candidate = proc_open($cmd, [1 => ['file', '/dev/null', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes, null, $env);
+            if (!is_resource($candidate)) {
+                continue;
+            }
+
+            /* Wait until it answers, or exits because the port was taken */
+            for ($wait = 0; $wait < 50; $wait++) {
+                if (!proc_get_status($candidate)['running']) {
+                    break;
+                }
+                if ($request($serverPort, 0, 1) === 'ready') {
+                    $proc = $candidate;
+                    break;
+                }
+                usleep(100000);
+            }
+            if (!$proc) {
+                proc_terminate($candidate);
+                proc_close($candidate);
+            }
+        }
+        if (!$proc) {
+            $this->fail('The PHP built-in web server did not start');
+            return;
+        }
+
+        try {
+            $this->assertEquals('percentage=42', $request($serverPort, 1));
+            $this->assertEquals('before=42 percentage=100', $request($serverPort, 2));
+            $this->assertEquals('percentage=100', $request($serverPort, 3));
+        } finally {
+            proc_terminate($proc);
+            proc_close($proc);
+            @unlink($tracesFile);
         }
     }
 

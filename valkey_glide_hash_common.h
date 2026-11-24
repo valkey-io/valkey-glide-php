@@ -310,7 +310,6 @@ void cleanup_h_command_args(char**         allocated_strings,
 #define H_RESPONSE_MAP 5
 #define H_RESPONSE_OK 6
 #define H_RESPONSE_CUSTOM 7
-#define H_RESPONSE_GETEX 8
 
 /* ====================================================================
  * HASH COMMAND EXECUTION FUNCTIONS
@@ -368,7 +367,6 @@ int execute_h_randfield_command(valkey_glide_object* valkey_glide,
 
 int process_h_ok_result_async(CommandResponse* response, void* output, zval* return_value);
 
-int process_h_getex_result_async(CommandResponse* response, void* output, zval* return_value);
 /* ====================================================================
  * HASH COMMAND MACROS
  * ==================================================================== */
@@ -386,7 +384,7 @@ int process_h_getex_result_async(CommandResponse* response, void* output, zval* 
                                      : get_valkey_glide_ce())) {                \
             return;                                                             \
         }                                                                       \
-        zval_dtor(return_value);                                                \
+        zval_ptr_dtor_nogc(return_value);                                       \
         RETURN_FALSE;                                                           \
     }
 
@@ -400,7 +398,7 @@ int process_h_getex_result_async(CommandResponse* response, void* output, zval* 
                                      : get_valkey_glide_ce())) {                \
             return;                                                             \
         }                                                                       \
-        zval_dtor(return_value);                                                \
+        zval_ptr_dtor_nogc(return_value);                                       \
         RETURN_FALSE;                                                           \
     }
 
@@ -414,7 +412,7 @@ int process_h_getex_result_async(CommandResponse* response, void* output, zval* 
                                         : get_valkey_glide_ce())) {                \
             return;                                                                \
         }                                                                          \
-        zval_dtor(return_value);                                                   \
+        zval_ptr_dtor_nogc(return_value);                                          \
         RETURN_FALSE;                                                              \
     }
 
@@ -428,7 +426,7 @@ int process_h_getex_result_async(CommandResponse* response, void* output, zval* 
                                      : get_valkey_glide_ce())) {                \
             return;                                                             \
         }                                                                       \
-        zval_dtor(return_value);                                                \
+        zval_ptr_dtor_nogc(return_value);                                       \
         RETURN_FALSE;                                                           \
     }
 
@@ -442,7 +440,7 @@ int process_h_getex_result_async(CommandResponse* response, void* output, zval* 
                                      : get_valkey_glide_ce())) {                \
             return;                                                             \
         }                                                                       \
-        zval_dtor(return_value);                                                \
+        zval_ptr_dtor_nogc(return_value);                                       \
         RETURN_FALSE;                                                           \
     }
 
@@ -456,7 +454,7 @@ int process_h_getex_result_async(CommandResponse* response, void* output, zval* 
                                        : get_valkey_glide_ce())) {                \
             return;                                                               \
         }                                                                         \
-        zval_dtor(return_value);                                                  \
+        zval_ptr_dtor_nogc(return_value);                                         \
         RETURN_FALSE;                                                             \
     }
 
@@ -471,7 +469,7 @@ int process_h_getex_result_async(CommandResponse* response, void* output, zval* 
             APPLY_REPLY_LITERAL(return_value);                                   \
             return;                                                              \
         }                                                                        \
-        zval_dtor(return_value);                                                 \
+        zval_ptr_dtor_nogc(return_value);                                        \
         RETURN_FALSE;                                                            \
     }
 
@@ -485,7 +483,7 @@ int process_h_getex_result_async(CommandResponse* response, void* output, zval* 
                                         : get_valkey_glide_ce())) {                \
             return;                                                                \
         }                                                                          \
-        zval_dtor(return_value);                                                   \
+        zval_ptr_dtor_nogc(return_value);                                          \
         RETURN_FALSE;                                                              \
     }
 
@@ -499,7 +497,7 @@ int process_h_getex_result_async(CommandResponse* response, void* output, zval* 
                                              : get_valkey_glide_ce())) {                \
             return;                                                                     \
         }                                                                               \
-        zval_dtor(return_value);                                                        \
+        zval_ptr_dtor_nogc(return_value);                                               \
         RETURN_FALSE;                                                                   \
     }
 
@@ -513,7 +511,7 @@ int process_h_getex_result_async(CommandResponse* response, void* output, zval* 
                                          : get_valkey_glide_ce())) {                \
             return;                                                                 \
         }                                                                           \
-        zval_dtor(return_value);                                                    \
+        zval_ptr_dtor_nogc(return_value);                                           \
         RETURN_FALSE;                                                               \
     }
 
@@ -527,7 +525,7 @@ int process_h_getex_result_async(CommandResponse* response, void* output, zval* 
                                            : get_valkey_glide_ce())) {                \
             return;                                                                   \
         }                                                                             \
-        zval_dtor(return_value);                                                      \
+        zval_ptr_dtor_nogc(return_value);                                             \
         RETURN_FALSE;                                                                 \
     }
 
@@ -541,7 +539,7 @@ int process_h_getex_result_async(CommandResponse* response, void* output, zval* 
                                             : get_valkey_glide_ce())) {                \
             return;                                                                    \
         }                                                                              \
-        zval_dtor(return_value);                                                       \
+        zval_ptr_dtor_nogc(return_value);                                              \
         RETURN_FALSE;                                                                  \
     }
 
@@ -555,7 +553,7 @@ int process_h_getex_result_async(CommandResponse* response, void* output, zval* 
                                              : get_valkey_glide_ce())) {                \
             return;                                                                     \
         }                                                                               \
-        zval_dtor(return_value);                                                        \
+        zval_ptr_dtor_nogc(return_value);                                               \
         RETURN_FALSE;                                                                   \
     }
 
@@ -569,7 +567,7 @@ int process_h_getex_result_async(CommandResponse* response, void* output, zval* 
                                       : get_valkey_glide_ce())) {                \
             return;                                                              \
         }                                                                        \
-        zval_dtor(return_value);                                                 \
+        zval_ptr_dtor_nogc(return_value);                                        \
         RETURN_FALSE;                                                            \
     }
 
@@ -583,7 +581,7 @@ int process_h_getex_result_async(CommandResponse* response, void* output, zval* 
                                       : get_valkey_glide_ce())) {                \
             return;                                                              \
         }                                                                        \
-        zval_dtor(return_value);                                                 \
+        zval_ptr_dtor_nogc(return_value);                                        \
         RETURN_FALSE;                                                            \
     }
 
@@ -597,7 +595,7 @@ int process_h_getex_result_async(CommandResponse* response, void* output, zval* 
                                       : get_valkey_glide_ce())) {                \
             return;                                                              \
         }                                                                        \
-        zval_dtor(return_value);                                                 \
+        zval_ptr_dtor_nogc(return_value);                                        \
         RETURN_FALSE;                                                            \
     }
 
@@ -611,7 +609,7 @@ int process_h_getex_result_async(CommandResponse* response, void* output, zval* 
                                         : get_valkey_glide_ce())) {                \
             return;                                                                \
         }                                                                          \
-        zval_dtor(return_value);                                                   \
+        zval_ptr_dtor_nogc(return_value);                                          \
         RETURN_FALSE;                                                              \
     }
 
@@ -625,7 +623,7 @@ int process_h_getex_result_async(CommandResponse* response, void* output, zval* 
                                         : get_valkey_glide_ce())) {                \
             return;                                                                \
         }                                                                          \
-        zval_dtor(return_value);                                                   \
+        zval_ptr_dtor_nogc(return_value);                                          \
         RETURN_FALSE;                                                              \
     }
 
@@ -639,7 +637,7 @@ int process_h_getex_result_async(CommandResponse* response, void* output, zval* 
                                            : get_valkey_glide_ce())) {                \
             return;                                                                   \
         }                                                                             \
-        zval_dtor(return_value);                                                      \
+        zval_ptr_dtor_nogc(return_value);                                             \
         RETURN_FALSE;                                                                 \
     }
 
@@ -655,7 +653,7 @@ int process_h_getex_result_async(CommandResponse* response, void* output, zval* 
         if (execute_func(__VA_ARGS__)) {                             \
             return;                                                  \
         }                                                            \
-        zval_dtor(return_value);                                     \
+        zval_ptr_dtor_nogc(return_value);                            \
         RETURN_FALSE;                                                \
     }
 
@@ -679,7 +677,7 @@ int process_h_getex_result_async(CommandResponse* response, void* output, zval* 
                              ? get_valkey_glide_cluster_ce()              \
                              : get_valkey_glide_ce()))                    \
             return;                                                       \
-        zval_dtor(return_value);                                          \
+        zval_ptr_dtor_nogc(return_value);                                 \
         RETURN_FALSE;                                                     \
     }
 
@@ -701,7 +699,7 @@ int process_h_getex_result_async(CommandResponse* response, void* output, zval* 
                                         : get_valkey_glide_ce())) {                \
             return;                                                                \
         }                                                                          \
-        zval_dtor(return_value);                                                   \
+        zval_ptr_dtor_nogc(return_value);                                          \
         RETURN_FALSE;                                                              \
     }
 
@@ -715,7 +713,7 @@ int process_h_getex_result_async(CommandResponse* response, void* output, zval* 
                                           : get_valkey_glide_ce())) {                \
             return;                                                                  \
         }                                                                            \
-        zval_dtor(return_value);                                                     \
+        zval_ptr_dtor_nogc(return_value);                                            \
         RETURN_FALSE;                                                                \
     }
 
@@ -729,7 +727,7 @@ int process_h_getex_result_async(CommandResponse* response, void* output, zval* 
                                      : get_valkey_glide_ce())) {                \
             return;                                                             \
         }                                                                       \
-        zval_dtor(return_value);                                                \
+        zval_ptr_dtor_nogc(return_value);                                       \
         RETURN_FALSE;                                                           \
     }
 
@@ -744,7 +742,7 @@ int process_h_getex_result_async(CommandResponse* response, void* output, zval* 
                                          : get_valkey_glide_ce())) {                \
             return;                                                                 \
         }                                                                           \
-        zval_dtor(return_value);                                                    \
+        zval_ptr_dtor_nogc(return_value);                                           \
         RETURN_FALSE;                                                               \
     }
 
@@ -759,7 +757,7 @@ int process_h_getex_result_async(CommandResponse* response, void* output, zval* 
                                       : get_valkey_glide_ce())) {                \
             return;                                                              \
         }                                                                        \
-        zval_dtor(return_value);                                                 \
+        zval_ptr_dtor_nogc(return_value);                                        \
         RETURN_FALSE;                                                            \
     }
 
@@ -774,7 +772,7 @@ int process_h_getex_result_async(CommandResponse* response, void* output, zval* 
                                        : get_valkey_glide_ce())) {                \
             return;                                                               \
         }                                                                         \
-        zval_dtor(return_value);                                                  \
+        zval_ptr_dtor_nogc(return_value);                                         \
         RETURN_FALSE;                                                             \
     }
 
@@ -788,7 +786,7 @@ int process_h_getex_result_async(CommandResponse* response, void* output, zval* 
                                         : get_valkey_glide_ce())) {                \
             return;                                                                \
         }                                                                          \
-        zval_dtor(return_value);                                                   \
+        zval_ptr_dtor_nogc(return_value);                                          \
         RETURN_FALSE;                                                              \
     }
 

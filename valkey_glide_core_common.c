@@ -56,7 +56,8 @@ int execute_core_command(valkey_glide_object* valkey_glide,
     /* Check if client is in subscribe mode - only unsubscribe allowed */
     if (is_client_in_subscribe_mode((uintptr_t) args->glide_client)) {
         if (args->cmd_type != REQUEST_TYPE_UNSUBSCRIBE &&
-            args->cmd_type != REQUEST_TYPE_PUNSUBSCRIBE) {
+            args->cmd_type != REQUEST_TYPE_PUNSUBSCRIBE &&
+            args->cmd_type != REQUEST_TYPE_SUNSUBSCRIBE) {
             zend_throw_exception(
                 get_valkey_glide_exception_ce(),
                 "Client is in subscribe mode. Only unsubscribe commands are allowed.",
@@ -495,7 +496,7 @@ int prepare_key_value_args(core_command_args_t* args,
 
             case CORE_ARG_TYPE_DOUBLE: {
                 size_t len;
-                char*  str = core_double_to_string(args->args[i].data.double_arg.value, &len);
+                char*  str = double_to_string(args->args[i].data.double_arg.value, &len);
                 if (str) {
                     (*cmd_args)[arg_idx]     = (uintptr_t) str;
                     (*cmd_args_len)[arg_idx] = len;
@@ -709,7 +710,7 @@ int prepare_message_args(core_command_args_t* args,
 
             case CORE_ARG_TYPE_DOUBLE: {
                 size_t len;
-                char*  str = core_double_to_string(arg_array[i].data.double_arg.value, &len);
+                char*  str = double_to_string(arg_array[i].data.double_arg.value, &len);
                 if (str) {
                     (*cmd_args)[arg_idx]     = (uintptr_t) str;
                     (*cmd_args_len)[arg_idx] = len;
@@ -1278,20 +1279,6 @@ char* core_long_to_string(long value, size_t* len) {
     return str;
 }
 
-/**
- * Convert double to string
- */
-char* core_double_to_string(double value, size_t* len) {
-    char buffer[64];
-    *len      = snprintf(buffer, sizeof(buffer), "%.6g", value);
-    char* str = (char*) emalloc(*len + 1);
-    if (str) {
-        memcpy(str, buffer, *len);
-        str[*len] = '\0';
-    }
-    return str;
-}
-
 /* ====================================================================
  * OPTION PARSING UTILITIES
  * ==================================================================== */
@@ -1342,7 +1329,7 @@ int parse_core_options(zval* options, core_options_t* opts) {
 
     /* Parse PERSIST option - associative format ['PERSIST' => true] */
     if ((entry = zend_hash_str_find(ht, "PERSIST", 7)) != NULL) {
-        opts->persist = zval_is_true(entry);
+        opts->persist = zend_is_true(entry);
     }
 
     /* Parse indexed array format ['PERSIST'] */
@@ -1360,19 +1347,19 @@ int parse_core_options(zval* options, core_options_t* opts) {
 
     /* Parse conditional options */
     if ((entry = zend_hash_str_find(ht, "NX", 2)) != NULL) {
-        opts->nx = zval_is_true(entry);
+        opts->nx = zend_is_true(entry);
     }
 
     if ((entry = zend_hash_str_find(ht, "XX", 2)) != NULL) {
-        opts->xx = zval_is_true(entry);
+        opts->xx = zend_is_true(entry);
     }
 
     if ((entry = zend_hash_str_find(ht, "CH", 2)) != NULL) {
-        opts->ch = zval_is_true(entry);
+        opts->ch = zend_is_true(entry);
     }
 
     if ((entry = zend_hash_str_find(ht, "GET", 3)) != NULL) {
-        opts->get_old_value = zval_is_true(entry);
+        opts->get_old_value = zend_is_true(entry);
     }
 
     /* Parse range options */
@@ -1397,11 +1384,11 @@ int parse_core_options(zval* options, core_options_t* opts) {
 
     /* Parse special flags */
     if ((entry = zend_hash_str_find(ht, "BYBIT", 5)) != NULL) {
-        opts->bybit = zval_is_true(entry);
+        opts->bybit = zend_is_true(entry);
     }
 
     if ((entry = zend_hash_str_find(ht, "APPROXIMATE", 11)) != NULL) {
-        opts->approximate = zval_is_true(entry);
+        opts->approximate = zend_is_true(entry);
     }
 
     return 1;

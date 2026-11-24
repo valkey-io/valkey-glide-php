@@ -147,6 +147,9 @@ int parse_list_position_options(zval* options, list_position_options_t* opts);
 
 
 /* Argument preparation functions */
+/* Argument preparation. On a return value <= 0 these functions must not free *args_out,
+ * *args_len_out or *allocated_strings: the caller (execute_list_generic_command) releases them
+ * on every path. */
 int prepare_list_key_only_args(list_command_args_t* args,
                                uintptr_t**          args_out,
                                unsigned long**      args_len_out);
@@ -332,7 +335,7 @@ int execute_list_mpop_command(
                                           : get_valkey_glide_ce())) {                \
             return;                                                                  \
         }                                                                            \
-        zval_dtor(return_value);                                                     \
+        zval_ptr_dtor_nogc(return_value);                                            \
         RETURN_FALSE;                                                                \
     }
 
@@ -347,7 +350,7 @@ int execute_list_mpop_command(
                                           : get_valkey_glide_ce())) {                \
             return;                                                                  \
         }                                                                            \
-        zval_dtor(return_value);                                                     \
+        zval_ptr_dtor_nogc(return_value);                                            \
         RETURN_FALSE;                                                                \
     }
 
@@ -362,7 +365,7 @@ int execute_list_mpop_command(
                                           : get_valkey_glide_ce())) {                \
             return;                                                                  \
         }                                                                            \
-        zval_dtor(return_value);                                                     \
+        zval_ptr_dtor_nogc(return_value);                                            \
         RETURN_FALSE;                                                                \
     }
 
@@ -377,7 +380,7 @@ int execute_list_mpop_command(
                                           : get_valkey_glide_ce())) {                \
             return;                                                                  \
         }                                                                            \
-        zval_dtor(return_value);                                                     \
+        zval_ptr_dtor_nogc(return_value);                                            \
         RETURN_FALSE;                                                                \
     }
 
@@ -392,7 +395,7 @@ int execute_list_mpop_command(
                                          : get_valkey_glide_ce())) {                \
             return;                                                                 \
         }                                                                           \
-        zval_dtor(return_value);                                                    \
+        zval_ptr_dtor_nogc(return_value);                                           \
         RETURN_FALSE;                                                               \
     }
 
@@ -407,7 +410,7 @@ int execute_list_mpop_command(
                                          : get_valkey_glide_ce())) {                \
             return;                                                                 \
         }                                                                           \
-        zval_dtor(return_value);                                                    \
+        zval_ptr_dtor_nogc(return_value);                                           \
         RETURN_FALSE;                                                               \
     }
 
@@ -422,7 +425,7 @@ int execute_list_mpop_command(
                                                   : get_valkey_glide_ce())) {                \
             return;                                                                          \
         }                                                                                    \
-        zval_dtor(return_value);                                                             \
+        zval_ptr_dtor_nogc(return_value);                                                    \
         RETURN_FALSE;                                                                        \
     }
 
@@ -437,7 +440,7 @@ int execute_list_mpop_command(
                                                   : get_valkey_glide_ce())) {                \
             return;                                                                          \
         }                                                                                    \
-        zval_dtor(return_value);                                                             \
+        zval_ptr_dtor_nogc(return_value);                                                    \
         RETURN_FALSE;                                                                        \
     }
 
@@ -452,7 +455,7 @@ int execute_list_mpop_command(
             APPLY_REPLY_LITERAL(return_value);                                      \
             return;                                                                 \
         }                                                                           \
-        zval_dtor(return_value);                                                    \
+        zval_ptr_dtor_nogc(return_value);                                           \
         RETURN_FALSE;                                                               \
     }
 
@@ -466,7 +469,7 @@ int execute_list_mpop_command(
                                            : get_valkey_glide_ce())) {                \
             return;                                                                   \
         }                                                                             \
-        zval_dtor(return_value);                                                      \
+        zval_ptr_dtor_nogc(return_value);                                             \
         RETURN_FALSE;                                                                 \
     }
 
@@ -481,7 +484,7 @@ int execute_list_mpop_command(
             APPLY_REPLY_LITERAL(return_value);                                       \
             return;                                                                  \
         }                                                                            \
-        zval_dtor(return_value);                                                     \
+        zval_ptr_dtor_nogc(return_value);                                            \
         RETURN_FALSE;                                                                \
     }
 
@@ -495,7 +498,7 @@ int execute_list_mpop_command(
                                          : get_valkey_glide_ce())) {                \
             return;                                                                 \
         }                                                                           \
-        zval_dtor(return_value);                                                    \
+        zval_ptr_dtor_nogc(return_value);                                           \
         RETURN_FALSE;                                                               \
     }
 
@@ -510,7 +513,7 @@ int execute_list_mpop_command(
                                           : get_valkey_glide_ce())) {                \
             return;                                                                  \
         }                                                                            \
-        zval_dtor(return_value);                                                     \
+        zval_ptr_dtor_nogc(return_value);                                            \
         RETURN_FALSE;                                                                \
     }
 
@@ -525,7 +528,7 @@ int execute_list_mpop_command(
                                           : get_valkey_glide_ce())) {                \
             return;                                                                  \
         }                                                                            \
-        zval_dtor(return_value);                                                     \
+        zval_ptr_dtor_nogc(return_value);                                            \
         RETURN_FALSE;                                                                \
     }
 
@@ -539,7 +542,7 @@ int execute_list_mpop_command(
                                          : get_valkey_glide_ce())) {                \
             return;                                                                 \
         }                                                                           \
-        zval_dtor(return_value);                                                    \
+        zval_ptr_dtor_nogc(return_value);                                           \
         RETURN_FALSE;                                                               \
     }
 
@@ -553,7 +556,7 @@ int execute_list_mpop_command(
                                             : get_valkey_glide_ce())) {                \
             return;                                                                    \
         }                                                                              \
-        zval_dtor(return_value);                                                       \
+        zval_ptr_dtor_nogc(return_value);                                              \
         RETURN_FALSE;                                                                  \
     }
 
@@ -567,7 +570,7 @@ int execute_list_mpop_command(
                                               : get_valkey_glide_ce())) {                \
             return;                                                                      \
         }                                                                                \
-        zval_dtor(return_value);                                                         \
+        zval_ptr_dtor_nogc(return_value);                                                \
         RETURN_FALSE;                                                                    \
     }
 
@@ -582,7 +585,7 @@ int execute_list_mpop_command(
                                           : get_valkey_glide_ce())) {                \
             return;                                                                  \
         }                                                                            \
-        zval_dtor(return_value);                                                     \
+        zval_ptr_dtor_nogc(return_value);                                            \
         RETURN_FALSE;                                                                \
     }
 
@@ -597,7 +600,7 @@ int execute_list_mpop_command(
                                           : get_valkey_glide_ce())) {                \
             return;                                                                  \
         }                                                                            \
-        zval_dtor(return_value);                                                     \
+        zval_ptr_dtor_nogc(return_value);                                            \
         RETURN_FALSE;                                                                \
     }
 
@@ -611,7 +614,7 @@ int execute_list_mpop_command(
                                            : get_valkey_glide_ce())) {                \
             return;                                                                   \
         }                                                                             \
-        zval_dtor(return_value);                                                      \
+        zval_ptr_dtor_nogc(return_value);                                             \
         RETURN_FALSE;                                                                 \
     }
 

@@ -156,6 +156,7 @@ zend_long valkey_glide_read_from_to_failover(valkey_glide_read_from_t read_from)
 bool      valkey_glide_set_failover(valkey_glide_object* valkey_glide, zval* value);
 void      valkey_glide_update_saved_request_database(valkey_glide_object* valkey_glide,
                                                      zend_long            dbindex);
+bool      valkey_glide_is_tracked_connection_command(zend_string* name, zend_string* sub);
 void      valkey_glide_track_connection_command(valkey_glide_object* valkey_glide,
                                                 zend_string**        args,
                                                 int                  argc);
@@ -285,10 +286,10 @@ int execute_cluster_scan_command(const void* glide_client,
                                  const char* pattern,
                                  size_t      pattern_len,
                                  long        count,
-                                 int         has_count,
+                                 bool        has_count,
                                  const char* type,
                                  size_t      type_len,
-                                 int         has_type,
+                                 bool        has_type,
                                  zval*       return_value);
 int execute_sscan_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 int execute_copy_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
@@ -405,7 +406,7 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
                            : get_valkey_glide_ce())) {                \
             return;                                                   \
         }                                                             \
-        zval_dtor(return_value);                                      \
+        zval_ptr_dtor_nogc(return_value);                             \
         RETURN_FALSE;                                                 \
     }
 
@@ -440,7 +441,7 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
             APPLY_REPLY_LITERAL(return_value);                                    \
             return;                                                               \
         }                                                                         \
-        zval_dtor(return_value);                                                  \
+        zval_ptr_dtor_nogc(return_value);                                         \
         RETURN_FALSE;                                                             \
     }
 
@@ -472,7 +473,7 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
             APPLY_REPLY_LITERAL(return_value);                                   \
             return;                                                              \
         }                                                                        \
-        zval_dtor(return_value);                                                 \
+        zval_ptr_dtor_nogc(return_value);                                        \
         RETURN_FALSE;                                                            \
     }
 
@@ -487,7 +488,7 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
             APPLY_REPLY_LITERAL(return_value);                                    \
             return;                                                               \
         }                                                                         \
-        zval_dtor(return_value);                                                  \
+        zval_ptr_dtor_nogc(return_value);                                         \
         RETURN_FALSE;                                                             \
     }
 
@@ -510,7 +511,7 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
             APPLY_REPLY_LITERAL(return_value);                                 \
             return;                                                            \
         }                                                                      \
-        zval_dtor(return_value);                                               \
+        zval_ptr_dtor_nogc(return_value);                                      \
         RETURN_FALSE;                                                          \
     }
 
@@ -532,7 +533,7 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
             APPLY_REPLY_LITERAL(return_value);                                     \
             return;                                                                \
         }                                                                          \
-        zval_dtor(return_value);                                                   \
+        zval_ptr_dtor_nogc(return_value);                                          \
         RETURN_FALSE;                                                              \
     }
 
@@ -547,7 +548,7 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
             APPLY_REPLY_LITERAL(return_value);                                      \
             return;                                                                 \
         }                                                                           \
-        zval_dtor(return_value);                                                    \
+        zval_ptr_dtor_nogc(return_value);                                           \
         RETURN_FALSE;                                                               \
     }
 
@@ -653,7 +654,7 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
             APPLY_REPLY_LITERAL(return_value);                                    \
             return;                                                               \
         }                                                                         \
-        zval_dtor(return_value);                                                  \
+        zval_ptr_dtor_nogc(return_value);                                         \
         RETURN_FALSE;                                                             \
     }
 
@@ -698,7 +699,7 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
             APPLY_REPLY_LITERAL(return_value);                                    \
             return;                                                               \
         }                                                                         \
-        zval_dtor(return_value);                                                  \
+        zval_ptr_dtor_nogc(return_value);                                         \
         RETURN_FALSE;                                                             \
     }
 
@@ -804,7 +805,7 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
             APPLY_REPLY_LITERAL(return_value);                                     \
             return;                                                                \
         }                                                                          \
-        zval_dtor(return_value);                                                   \
+        zval_ptr_dtor_nogc(return_value);                                          \
         RETURN_FALSE;                                                              \
     }
 
@@ -840,7 +841,7 @@ int execute_unlink_command(zval* object, int argc, zval* return_value, zend_clas
             APPLY_REPLY_LITERAL(return_value);                                  \
             return;                                                             \
         }                                                                       \
-        zval_dtor(return_value);                                                \
+        zval_ptr_dtor_nogc(return_value);                                       \
         RETURN_FALSE;                                                           \
     }
 
@@ -879,7 +880,7 @@ void execute_script_command(zval* object, int argc, zval* return_value, zend_cla
         valkey_glide_object* _valkey_glide =                                                \
             VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, getThis());               \
         if (_valkey_glide && _valkey_glide->opt_reply_literal && Z_TYPE_P(rv) == IS_TRUE) { \
-            zval_dtor(rv);                                                                  \
+            zval_ptr_dtor_nogc(rv);                                                         \
             ZVAL_STRING(rv, "OK");                                                          \
         }                                                                                   \
     } while (0)
@@ -918,7 +919,7 @@ static inline bool valkey_glide_legacy_reply_literal(zval* value) {
                                                                               \
         switch (option) {                                                     \
             case VALKEY_GLIDE_OPT_REPLY_LITERAL:                              \
-                valkey_glide->opt_reply_literal = zval_is_true(value);        \
+                valkey_glide->opt_reply_literal = zend_is_true(value);        \
                 RETURN_TRUE;                                                  \
             case VALKEY_GLIDE_OPT_PREFIX:                                     \
                 RETURN_BOOL(valkey_glide_set_prefix(valkey_glide, value));    \
@@ -943,7 +944,7 @@ static inline bool valkey_glide_legacy_reply_literal(zval* value) {
                 if (!valkey_glide_legacy_reply_literal(value)) {              \
                     RETURN_FALSE;                                             \
                 }                                                             \
-                valkey_glide->opt_reply_literal = zval_is_true(value);        \
+                valkey_glide->opt_reply_literal = zend_is_true(value);        \
                 RETURN_TRUE;                                                  \
             case VALKEY_GLIDE_OPT_SLAVE_FAILOVER:                             \
                 RETURN_BOOL(valkey_glide_set_failover(valkey_glide, value));  \

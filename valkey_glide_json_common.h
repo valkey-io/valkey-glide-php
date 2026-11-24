@@ -81,7 +81,7 @@ int execute_json_arrlen_command(zval* object, int argc, zval* return_value, zend
         if (execute_fn(getThis(), ZEND_NUM_ARGS(), return_value, JSON_METHOD_CE(class_name))) { \
             return;                                                                             \
         }                                                                                       \
-        zval_dtor(return_value);                                                                \
+        zval_ptr_dtor_nogc(return_value);                                                       \
         RETURN_FALSE;                                                                           \
     }
 

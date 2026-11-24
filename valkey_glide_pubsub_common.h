@@ -22,7 +22,10 @@ typedef pthread_cond_t  cond_t;
 #define REQUEST_TYPE_PSUBSCRIBE PSubscribeBlocking
 #define REQUEST_TYPE_UNSUBSCRIBE UnsubscribeBlocking
 #define REQUEST_TYPE_PUNSUBSCRIBE PUnsubscribeBlocking
+#define REQUEST_TYPE_SSUBSCRIBE SSubscribeBlocking
+#define REQUEST_TYPE_SUNSUBSCRIBE SUnsubscribeBlocking
 #define REQUEST_TYPE_PUBLISH Publish
+#define REQUEST_TYPE_SPUBLISH SPublish
 
 // Message queue node
 typedef struct pubsub_message {
@@ -45,23 +48,24 @@ typedef struct pubsub_message {
 
 // Pubsub callback info structure
 typedef struct pubsub_callback_info {
-    zval            callback;
-    zval            client_obj;
-    bool            is_active;  // false once unsubscribed (written under queue_mutex)
-    pubsub_message* queue_head;
-    pubsub_message* queue_tail;
-    size_t          queue_depth;       // queued messages (protected by queue_mutex)
-    size_t          queue_bytes;       // their payload bytes (protected by queue_mutex)
-    size_t          dropped_count;     // messages dropped on a full queue (queue_mutex)
-    size_t          reported_drops;    // dropped_count already logged (queue_mutex)
-    time_t          last_drop_report;  // when drops were last logged (queue_mutex)
-    pubsub_message* in_flight;         // dequeued message being delivered (subscribe loop only)
-    mutex_t         queue_mutex;
-    cond_t          queue_cond;
-    HashTable*      subscribed_channels;  // HashTable of subscribed channel/pattern names
-    bool            in_subscribe_mode;
-    bool            client_closed;              // close() was called from the subscribe callback
-    uintptr_t       owner_thread;               // PHP thread whose request registered it (ZTS)
+    zval             callback;
+    zval             client_obj;
+    bool             is_active;  // false once unsubscribed (written under queue_mutex)
+    pubsub_message*  queue_head;
+    pubsub_message*  queue_tail;
+    size_t           queue_depth;       // queued messages (protected by queue_mutex)
+    size_t           queue_bytes;       // their payload bytes (protected by queue_mutex)
+    size_t           dropped_count;     // messages dropped on a full queue (queue_mutex)
+    size_t           reported_drops;    // dropped_count already logged (queue_mutex)
+    time_t           last_drop_report;  // when drops were last logged (queue_mutex)
+    pubsub_message*  in_flight;         // dequeued message being delivered (subscribe loop only)
+    mutex_t          queue_mutex;
+    cond_t           queue_cond;
+    HashTable*       subscribed_channels;  // HashTable of subscribed channel/pattern names
+    bool             in_subscribe_mode;
+    enum RequestType unsub_type;  // unsubscribe type of the running loop (in_subscribe_mode only)
+    bool             client_closed;             // close() was called from the subscribe callback
+    uintptr_t        owner_thread;              // PHP thread whose request registered it (ZTS)
     struct pubsub_callback_info* next_removed;  // list used while freeing at request shutdown,
                                                 // or of entries detached by close()
 } pubsub_callback_info;
@@ -141,6 +145,11 @@ void valkey_glide_psubscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* conn
 void valkey_glide_unsubscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connection);
 void valkey_glide_punsubscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connection);
 void valkey_glide_publish_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connection);
+
+// Sharded pubsub (cluster mode only, Valkey 7.0+)
+void valkey_glide_ssubscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connection);
+void valkey_glide_sunsubscribe_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connection);
+void valkey_glide_spublish_impl(INTERNAL_FUNCTION_PARAMETERS, const void* connection);
 
 
 #endif  // VALKEY_GLIDE_PUBSUB_COMMON_H

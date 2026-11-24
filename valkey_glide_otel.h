@@ -27,5 +27,7 @@ void     valkey_glide_otel_set_sample_percentage(uint32_t percentage);
 int      valkey_glide_otel_get_sample_percentage(uint32_t* percentage);
 uint64_t valkey_glide_create_span(enum RequestType request_type);
 void     valkey_glide_drop_span(uint64_t span_ptr);
+/* Module shutdown: free the process-lifetime OTEL configuration */
+void valkey_glide_otel_shutdown(void);
 
 #endif /* VALKEY_GLIDE_OTEL_H */

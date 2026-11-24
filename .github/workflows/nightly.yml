@@ -10,8 +10,9 @@ permissions:
 
 jobs:
   full-matrix-tests:
+    # Scheduled runs only upstream, so forks don't run the full matrix every day.
+    # Manual dispatch still works anywhere.
+    if: github.repository == 'valkey-io/valkey-glide-php' || github.event_name == 'workflow_dispatch'
     uses: ./.github/workflows/test.yml
     with:
       profile: full
-    secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

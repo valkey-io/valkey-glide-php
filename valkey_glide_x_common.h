@@ -312,7 +312,7 @@ int execute_xinfo_command(zval* object, int argc, zval* return_value, zend_class
                                            : get_valkey_glide_ce())) {                \
             return;                                                                   \
         }                                                                             \
-        zval_dtor(return_value);                                                      \
+        zval_ptr_dtor_nogc(return_value);                                             \
         RETURN_FALSE;                                                                 \
     }
 #define XACK_METHOD_IMPL(class_name)                                            \
@@ -325,7 +325,7 @@ int execute_xinfo_command(zval* object, int argc, zval* return_value, zend_class
                                      : get_valkey_glide_ce())) {                \
             return;                                                             \
         }                                                                       \
-        zval_dtor(return_value);                                                \
+        zval_ptr_dtor_nogc(return_value);                                       \
         RETURN_FALSE;                                                           \
     }
 #define XADD_METHOD_IMPL(class_name)                                            \
@@ -338,7 +338,7 @@ int execute_xinfo_command(zval* object, int argc, zval* return_value, zend_class
                                      : get_valkey_glide_ce())) {                \
             return;                                                             \
         }                                                                       \
-        zval_dtor(return_value);                                                \
+        zval_ptr_dtor_nogc(return_value);                                       \
         RETURN_FALSE;                                                           \
     }
 
@@ -352,7 +352,7 @@ int execute_xinfo_command(zval* object, int argc, zval* return_value, zend_class
                                            : get_valkey_glide_ce())) {                \
             return;                                                                   \
         }                                                                             \
-        zval_dtor(return_value);                                                      \
+        zval_ptr_dtor_nogc(return_value);                                             \
         RETURN_FALSE;                                                                 \
     }
 
@@ -366,7 +366,7 @@ int execute_xinfo_command(zval* object, int argc, zval* return_value, zend_class
                                      : get_valkey_glide_ce())) {                \
             return;                                                             \
         }                                                                       \
-        zval_dtor(return_value);                                                \
+        zval_ptr_dtor_nogc(return_value);                                       \
         RETURN_FALSE;                                                           \
     }
 
@@ -380,7 +380,7 @@ int execute_xinfo_command(zval* object, int argc, zval* return_value, zend_class
                                      : get_valkey_glide_ce())) {                \
             return;                                                             \
         }                                                                       \
-        zval_dtor(return_value);                                                \
+        zval_ptr_dtor_nogc(return_value);                                       \
         RETURN_FALSE;                                                           \
     }
 
@@ -394,7 +394,7 @@ int execute_xinfo_command(zval* object, int argc, zval* return_value, zend_class
                                            : get_valkey_glide_ce())) {                \
             return;                                                                   \
         }                                                                             \
-        zval_dtor(return_value);                                                      \
+        zval_ptr_dtor_nogc(return_value);                                             \
         RETURN_FALSE;                                                                 \
     }
 
@@ -408,7 +408,7 @@ int execute_xinfo_command(zval* object, int argc, zval* return_value, zend_class
                                        : get_valkey_glide_ce())) {                \
             return;                                                               \
         }                                                                         \
-        zval_dtor(return_value);                                                  \
+        zval_ptr_dtor_nogc(return_value);                                         \
         RETURN_FALSE;                                                             \
     }
 
@@ -422,7 +422,7 @@ int execute_xinfo_command(zval* object, int argc, zval* return_value, zend_class
                                      : get_valkey_glide_ce())) {                \
             return;                                                             \
         }                                                                       \
-        zval_dtor(return_value);                                                \
+        zval_ptr_dtor_nogc(return_value);                                       \
         RETURN_FALSE;                                                           \
     }
 
@@ -436,7 +436,7 @@ int execute_xinfo_command(zval* object, int argc, zval* return_value, zend_class
                                        : get_valkey_glide_ce())) {                \
             return;                                                               \
         }                                                                         \
-        zval_dtor(return_value);                                                  \
+        zval_ptr_dtor_nogc(return_value);                                         \
         RETURN_FALSE;                                                             \
     }
 
@@ -450,7 +450,7 @@ int execute_xinfo_command(zval* object, int argc, zval* return_value, zend_class
                                       : get_valkey_glide_ce())) {                \
             return;                                                              \
         }                                                                        \
-        zval_dtor(return_value);                                                 \
+        zval_ptr_dtor_nogc(return_value);                                        \
         RETURN_FALSE;                                                            \
     }
 
@@ -464,7 +464,7 @@ int execute_xinfo_command(zval* object, int argc, zval* return_value, zend_class
                                      : get_valkey_glide_ce())) {                \
             return;                                                             \
         }                                                                       \
-        zval_dtor(return_value);                                                \
+        zval_ptr_dtor_nogc(return_value);                                       \
         RETURN_FALSE;                                                           \
     }
 
@@ -478,7 +478,7 @@ int execute_xinfo_command(zval* object, int argc, zval* return_value, zend_class
                                          : get_valkey_glide_ce())) {                \
             return;                                                                 \
         }                                                                           \
-        zval_dtor(return_value);                                                    \
+        zval_ptr_dtor_nogc(return_value);                                           \
         RETURN_FALSE;                                                               \
     }
 
@@ -492,7 +492,7 @@ int execute_xinfo_command(zval* object, int argc, zval* return_value, zend_class
                                        : get_valkey_glide_ce())) {                \
             return;                                                               \
         }                                                                         \
-        zval_dtor(return_value);                                                  \
+        zval_ptr_dtor_nogc(return_value);                                         \
         RETURN_FALSE;                                                             \
     }
 
@@ -506,7 +506,7 @@ int execute_xinfo_command(zval* object, int argc, zval* return_value, zend_class
                                       : get_valkey_glide_ce())) {                \
             return;                                                              \
         }                                                                        \
-        zval_dtor(return_value);                                                 \
+        zval_ptr_dtor_nogc(return_value);                                        \
         RETURN_FALSE;                                                            \
     }
 
@@ -520,7 +520,7 @@ int execute_xinfo_command(zval* object, int argc, zval* return_value, zend_class
                                           : get_valkey_glide_ce())) {                \
             return;                                                                  \
         }                                                                            \
-        zval_dtor(return_value);                                                     \
+        zval_ptr_dtor_nogc(return_value);                                            \
         RETURN_FALSE;                                                                \
     }
 
@@ -534,7 +534,7 @@ int execute_xinfo_command(zval* object, int argc, zval* return_value, zend_class
                                       : get_valkey_glide_ce())) {                \
             return;                                                              \
         }                                                                        \
-        zval_dtor(return_value);                                                 \
+        zval_ptr_dtor_nogc(return_value);                                        \
         RETURN_FALSE;                                                            \
     }
 

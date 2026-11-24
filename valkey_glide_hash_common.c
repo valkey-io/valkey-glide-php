@@ -262,10 +262,6 @@ int execute_h_simple_command(valkey_glide_object* valkey_glide,
             arg_count = prepare_h_field_only_args(
                 args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
             break;
-        case HGetEx:
-            arg_count = prepare_h_getex_args(
-                args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
-            break;
         case HGetDel:
             arg_count = prepare_h_getdel_args(
                 args, &cmd_args, &args_len, &allocated_strings, &allocated_count);
@@ -798,16 +794,19 @@ int prepare_h_randfield_args(h_command_args_t* args,
     unsigned long arg_count      = 1; /* key */
     int           need_count_str = 0;
 
-    if (args->count != 1) {
+    /* A count of 0 means none was given, as in PHPRedis: any other count is sent, so the
+     * reply is an array even for a count of 1. WITHVALUES needs a count; like PHPRedis, use 1
+     * when none was given */
+    long count = args->count;
+    if (args->withvalues && count == 0) {
+        count = 1;
+    }
+    if (count != 0) {
         arg_count++; /* count */
         need_count_str = 1;
     }
     if (args->withvalues) {
         arg_count++; /* WITHVALUES */
-        if (need_count_str == 0) {
-            arg_count++; /* count (required with WITHVALUES) */
-            need_count_str = 1;
-        }
     }
 
     *args_out          = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
@@ -823,7 +822,7 @@ int prepare_h_randfield_args(h_command_args_t* args,
 
     /* Add count if needed */
     if (need_count_str) {
-        char* count_str = long_to_string(args->count, &(*args_len_out)[arg_idx]);
+        char* count_str = long_to_string(count, &(*args_len_out)[arg_idx]);
 
         (*allocated_strings)[0] = count_str;
         *allocated_count        = 1;
@@ -874,7 +873,7 @@ int populate_field_args(zval*          field_values,
             convert_to_string(&temp);
             field_len = Z_STRLEN(temp);
             field_str = estrndup(Z_STRVAL(temp), field_len);
-            zval_dtor(&temp);
+            zval_ptr_dtor_nogc(&temp);
         }
 
         /* Store copy in allocated_strings for cleanup */
@@ -1090,52 +1089,60 @@ int process_h_map_result_async(CommandResponse* response, void* output, zval* re
 }
 
 /**
- * Custom processor for HGETEX that maps field names to values
+ * Custom processor for HGETEX that maps field names to values. It owns its heap-allocated
+ * args: after mapping the reply it frees the copied fields and the args. A NULL response only
+ * frees them.
  */
-int process_h_getex_result_async(CommandResponse* response, void* output, zval* return_value) {
+static int process_h_getex_result(CommandResponse* response, void* output, zval* return_value) {
     h_command_args_t* args = (h_command_args_t*) output;
+    int               ret  = 0;
 
-    if (!response || !args || !args->fields) {
-        ZVAL_FALSE(return_value);
-        return 0;
-    }
+    if (response) {
+        // First get the array of values; a missing field is false, as in hMget() and hGetDel()
+        zval temp_array;
+        if (!command_response_to_zval(
+                response, &temp_array, COMMAND_RESPONSE_NOT_ASSOSIATIVE, true)) {
+            ZVAL_FALSE(return_value);
+        } else {
+            // Create associative array mapping fields to values
+            array_init(return_value);
 
-    // First get the array of values
-    zval temp_array;
-    if (!command_response_to_zval(response, &temp_array, COMMAND_RESPONSE_NOT_ASSOSIATIVE, false)) {
-        ZVAL_FALSE(return_value);
-        return 0;
-    }
+            if (Z_TYPE(temp_array) == IS_ARRAY) {
+                HashTable* values_ht = Z_ARRVAL(temp_array);
+                int        value_idx = 0;
 
-    // Create associative array mapping fields to values
-    array_init(return_value);
+                for (int i = 0;
+                     i < args->field_count && value_idx < zend_hash_num_elements(values_ht);
+                     i++) {
+                    zval* value = zend_hash_index_find(values_ht, value_idx);
+                    if (value) {
+                        // Convert field zval to string key
+                        zval*        field_zval = &args->fields[i];
+                        zend_string* field_str  = zval_get_string(field_zval);
 
-    if (Z_TYPE(temp_array) == IS_ARRAY) {
-        HashTable* values_ht = Z_ARRVAL(temp_array);
-        int        value_idx = 0;
+                        // Add to associative array
+                        zval value_copy;
+                        ZVAL_COPY(&value_copy, value);
+                        add_assoc_zval_ex(
+                            return_value, ZSTR_VAL(field_str), ZSTR_LEN(field_str), &value_copy);
 
-        for (int i = 0; i < args->field_count && value_idx < zend_hash_num_elements(values_ht);
-             i++) {
-            zval* value = zend_hash_index_find(values_ht, value_idx);
-            if (value) {
-                // Convert field zval to string key
-                zval*        field_zval = &args->fields[i];
-                zend_string* field_str  = zval_get_string(field_zval);
-
-                // Add to associative array
-                zval value_copy;
-                ZVAL_COPY(&value_copy, value);
-                add_assoc_zval_ex(
-                    return_value, ZSTR_VAL(field_str), ZSTR_LEN(field_str), &value_copy);
-
-                zend_string_release(field_str);
-                value_idx++;
+                        zend_string_release(field_str);
+                        value_idx++;
+                    }
+                }
             }
+
+            zval_ptr_dtor_nogc(&temp_array);
+            ret = 1;
         }
     }
 
-    zval_dtor(&temp_array);
-    return 1;
+    for (int j = 0; j < args->field_count; j++) {
+        zval_ptr_dtor(&args->fields[j]);
+    }
+    efree(args->fields);
+    efree(args);
+    return ret;
 }
 
 /**
@@ -1168,8 +1175,6 @@ z_result_processor_t get_processor_for_response_type(int response_type) {
             return process_h_array_result_async;
         case H_RESPONSE_MAP:
             return process_h_map_result_async;
-        case H_RESPONSE_GETEX:
-            return process_h_getex_result_async;
         case H_RESPONSE_OK:
             return process_h_ok_result_async;
         default:
@@ -1180,6 +1185,18 @@ z_result_processor_t get_processor_for_response_type(int response_type) {
 /* ====================================================================
  * RESULT PROCESSING FUNCTIONS
  * ==================================================================== */
+
+/**
+ * Free a heap h_command_args_t that owns its copied field zvals (HMGET, HGETDEL)
+ */
+static void free_h_fields_args(void* output) {
+    h_command_args_t* args = (h_command_args_t*) output;
+    for (int j = 0; j < args->field_count; j++) {
+        zval_ptr_dtor(&args->fields[j]);
+    }
+    efree(args->fields);
+    efree(args);
+}
 
 /**
  * Process results for HMGET (associative field mapping) - legacy version
@@ -1262,17 +1279,13 @@ int process_h_randfield_result(CommandResponse* response, void* output, zval* re
     }
     bool* withvalues_ptr = output;
 
+    /* A missing key gives a nil without a count (false) and an empty array with one ([]), as in
+     * PHPRedis */
     int ret_val = command_response_to_zval(
         response,
         return_value,
         *withvalues_ptr ? COMMAND_RESPONSE_ARRAY_ASSOCIATIVE : COMMAND_RESPONSE_NOT_ASSOSIATIVE,
-        false);
-
-    if (ret_val && Z_TYPE_P(return_value) == IS_ARRAY &&
-        zend_hash_num_elements(Z_ARRVAL_P(return_value)) == 0) {
-        zval_dtor(return_value);  /* clean up the array */
-        ZVAL_FALSE(return_value); /* set to boolean false */
-    }
+        true);
     efree(output);
     return ret_val;
 }
@@ -1297,15 +1310,15 @@ int process_h_incrbyfloat_result(CommandResponse* response, void* output, zval* 
             /* Convert long to double */
             output_value = (double) Z_LVAL(temp_result);
         } else {
-            zval_dtor(&temp_result);
+            zval_ptr_dtor_nogc(&temp_result);
             return 0;
         }
         ZVAL_DOUBLE(return_value, output_value);
-        zval_dtor(&temp_result);
+        zval_ptr_dtor_nogc(&temp_result);
         return 1;
     }
 
-    zval_dtor(&temp_result);
+    zval_ptr_dtor_nogc(&temp_result);
     return 0;
 }
 
@@ -1572,8 +1585,12 @@ int execute_h_mget_command(valkey_glide_object* valkey_glide,
     args->fields           = fields;
     args->field_count      = fields_count;
 
-    return execute_h_generic_command(
+    int status = execute_h_generic_command(
         valkey_glide, HMGet, args, args, process_h_mget_result, return_value);
+    if (status && valkey_glide->is_in_batch_mode) {
+        valkey_glide_batch_own_result(valkey_glide, args, free_h_fields_args);
+    }
+    return status;
 }
 
 
@@ -1596,8 +1613,13 @@ int execute_h_randfield_command(valkey_glide_object* valkey_glide,
     bool* withvalues_ptr = emalloc(sizeof(bool));
     *withvalues_ptr      = withvalues ? true : false;
 
-    return execute_h_generic_command(
+    int status = execute_h_generic_command(
         valkey_glide, HRandField, &args, withvalues_ptr, process_h_randfield_result, return_value);
+    if (status && valkey_glide->is_in_batch_mode) {
+        valkey_glide_batch_own_result(
+            valkey_glide, withvalues_ptr, valkey_glide_batch_efree_result);
+    }
+    return status;
 }
 
 /* ====================================================================
@@ -1657,7 +1679,6 @@ int execute_hlen_command(zval* object, int argc, zval* return_value, zend_class_
     valkey_glide_object* valkey_glide;
     char*                key = NULL;
     size_t               key_len;
-    long                 result_value;
 
     /* Parse parameters */
     if (zend_parse_method_parameters(argc, object, "Os", &object, ce, &key, &key_len) == FAILURE) {
@@ -1676,8 +1697,7 @@ int execute_hlen_command(zval* object, int argc, zval* return_value, zend_class_
     args.key_len          = key_len;
 
     /* Execute with batch support */
-    if (execute_h_simple_command(
-            valkey_glide, HLen, &args, &result_value, H_RESPONSE_INT, return_value)) {
+    if (execute_h_simple_command(valkey_glide, HLen, &args, NULL, H_RESPONSE_INT, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);
@@ -1698,7 +1718,6 @@ int execute_hexists_command(zval* object, int argc, zval* return_value, zend_cla
     valkey_glide_object* valkey_glide;
     char *               key = NULL, *field = NULL;
     size_t               key_len, field_len;
-    int                  result;
 
     /* Parse parameters */
     if (zend_parse_method_parameters(
@@ -1721,7 +1740,7 @@ int execute_hexists_command(zval* object, int argc, zval* return_value, zend_cla
 
     /* Execute with batch support */
     if (execute_h_simple_command(
-            valkey_glide, HExists, &args, &result, H_RESPONSE_BOOL, return_value)) {
+            valkey_glide, HExists, &args, NULL, H_RESPONSE_BOOL, return_value)) {
         if (valkey_glide->is_in_batch_mode) {
             /* In batch mode, return $this for method chaining */
             ZVAL_COPY(return_value, object);
@@ -2264,7 +2283,7 @@ int execute_hrandfield_command(zval* object, int argc, zval* return_value, zend_
     char*                key = NULL;
     size_t               key_len;
     zval*                z_opts     = NULL;
-    zend_long            count      = 1;
+    zend_long            count      = 0; /* none given */
     zend_bool            withvalues = 0;
 
     /* Parse parameters */
@@ -2279,19 +2298,25 @@ int execute_hrandfield_command(zval* object, int argc, zval* return_value, zend_
         return 0;
     }
 
-    /* Process options if provided */
+    /* Process options as PHPRedis does: the keys are case-insensitive, and WITHVALUES can also
+     * be given as a plain value (['WITHVALUES']) */
     if (z_opts) {
-        HashTable* htopts  = Z_ARRVAL_P(z_opts);
-        zval*      z_count = zend_hash_str_find(htopts, "count", sizeof("count") - 1);
-        zval* z_withvalues = zend_hash_str_find(htopts, "withvalues", sizeof("withvalues") - 1);
-
-        if (z_count) {
-            count = zval_get_long(z_count);
+        zend_string* zkey;
+        zval*        z_ele;
+        ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARRVAL_P(z_opts), zkey, z_ele) {
+            ZVAL_DEREF(z_ele);
+            if (zkey) {
+                if (zend_string_equals_literal_ci(zkey, "count")) {
+                    count = zval_get_long(z_ele);
+                } else if (zend_string_equals_literal_ci(zkey, "withvalues")) {
+                    withvalues = zend_is_true(z_ele);
+                }
+            } else if (Z_TYPE_P(z_ele) == IS_STRING &&
+                       zend_string_equals_literal_ci(Z_STR_P(z_ele), "withvalues")) {
+                withvalues = 1;
+            }
         }
-
-        if (z_withvalues) {
-            withvalues = zval_is_true(z_withvalues);
-        }
+        ZEND_HASH_FOREACH_END();
     }
 
 
@@ -2351,8 +2376,10 @@ static int execute_hash_expiry_command(zval*             object,
     // Validate field count based on command type
     if (cmd_type == HSetEx && (num_args < 2 || num_args % 2 != 0)) {
         return 0;  // HSetEx needs field-value pairs
-    } else if (cmd_type == HExpire && num_args < 1) {
-        return 0;  // HExpire needs at least one field
+    } else if ((cmd_type == HExpire || cmd_type == HPExpire || cmd_type == HExpireAt ||
+                cmd_type == HPExpireAt) &&
+               num_args < 1) {
+        return 0;  // The HEXPIRE family needs at least one field
     }
 
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
@@ -2399,8 +2426,21 @@ static int execute_hexpire_with_condition(zval*             object,
                                           zend_class_entry* ce,
                                           const char*       expiry_type,
                                           const char*       condition) {
+    /* expiry_type selects the command: NULL = HEXPIRE (relative seconds), "PX" = HPEXPIRE
+     * (relative ms), "EXAT" = HEXPIREAT (unix seconds), "PXAT" = HPEXPIREAT (unix ms) */
+    enum RequestType cmd_type = HExpire;
+    if (expiry_type) {
+        if (strcmp(expiry_type, "PX") == 0) {
+            cmd_type = HPExpire;
+        } else if (strcmp(expiry_type, "EXAT") == 0) {
+            cmd_type = HExpireAt;
+        } else if (strcmp(expiry_type, "PXAT") == 0) {
+            cmd_type = HPExpireAt;
+        }
+    }
+
     return execute_hash_expiry_command(
-        object, argc, return_value, ce, HExpire, expiry_type, condition, H_RESPONSE_ARRAY, 1);
+        object, argc, return_value, ce, cmd_type, expiry_type, condition, H_RESPONSE_ARRAY, 1);
 }
 
 // Unified hash field expiration command execution
@@ -2526,7 +2566,7 @@ int execute_hexpire_command(zval* object, int argc, zval* return_value, zend_cla
             valkey_glide, HExpire, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
         /* Cleanup allocated field array */
         for (int i = 0; i < total_fields; i++) {
-            zval_dtor(&all_fields[i]);
+            zval_ptr_dtor_nogc(&all_fields[i]);
         }
         efree(all_fields);
 
@@ -2539,7 +2579,7 @@ int execute_hexpire_command(zval* object, int argc, zval* return_value, zend_cla
 
     /* Cleanup on failure */
     for (int i = 0; i < total_fields; i++) {
-        zval_dtor(&all_fields[i]);
+        zval_ptr_dtor_nogc(&all_fields[i]);
     }
     efree(all_fields);
     return 0;
@@ -2609,7 +2649,7 @@ int execute_hpexpire_command(zval* object, int argc, zval* return_value, zend_cl
             valkey_glide, HPExpire, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
         /* Cleanup allocated field array */
         for (int i = 0; i < total_fields; i++) {
-            zval_dtor(&all_fields[i]);
+            zval_ptr_dtor_nogc(&all_fields[i]);
         }
         efree(all_fields);
 
@@ -2622,7 +2662,7 @@ int execute_hpexpire_command(zval* object, int argc, zval* return_value, zend_cl
 
     /* Cleanup on failure */
     for (int i = 0; i < total_fields; i++) {
-        zval_dtor(&all_fields[i]);
+        zval_ptr_dtor_nogc(&all_fields[i]);
     }
     efree(all_fields);
     return 0;
@@ -2691,7 +2731,7 @@ int execute_hexpireat_command(zval* object, int argc, zval* return_value, zend_c
             valkey_glide, HExpireAt, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
         /* Cleanup allocated field array */
         for (int i = 0; i < total_fields; i++) {
-            zval_dtor(&all_fields[i]);
+            zval_ptr_dtor_nogc(&all_fields[i]);
         }
         efree(all_fields);
 
@@ -2704,7 +2744,7 @@ int execute_hexpireat_command(zval* object, int argc, zval* return_value, zend_c
 
     /* Cleanup on failure */
     for (int i = 0; i < total_fields; i++) {
-        zval_dtor(&all_fields[i]);
+        zval_ptr_dtor_nogc(&all_fields[i]);
     }
     efree(all_fields);
     return 0;
@@ -2773,7 +2813,7 @@ int execute_hpexpireat_command(zval* object, int argc, zval* return_value, zend_
             valkey_glide, HPExpireAt, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
         /* Cleanup allocated field array */
         for (int i = 0; i < total_fields; i++) {
-            zval_dtor(&all_fields[i]);
+            zval_ptr_dtor_nogc(&all_fields[i]);
         }
         efree(all_fields);
 
@@ -2786,7 +2826,7 @@ int execute_hpexpireat_command(zval* object, int argc, zval* return_value, zend_
 
     /* Cleanup on failure */
     for (int i = 0; i < total_fields; i++) {
-        zval_dtor(&all_fields[i]);
+        zval_ptr_dtor_nogc(&all_fields[i]);
     }
     efree(all_fields);
     return 0;
@@ -2842,7 +2882,7 @@ int execute_httl_command(zval* object, int argc, zval* return_value, zend_class_
     if (execute_h_simple_command(valkey_glide, HTtl, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
         /* Cleanup allocated field array */
         for (int i = 0; i < total_fields; i++) {
-            zval_dtor(&all_fields[i]);
+            zval_ptr_dtor_nogc(&all_fields[i]);
         }
         efree(all_fields);
 
@@ -2855,7 +2895,7 @@ int execute_httl_command(zval* object, int argc, zval* return_value, zend_class_
 
     /* Cleanup on failure */
     for (int i = 0; i < total_fields; i++) {
-        zval_dtor(&all_fields[i]);
+        zval_ptr_dtor_nogc(&all_fields[i]);
     }
     efree(all_fields);
     return 0;
@@ -2912,7 +2952,7 @@ int execute_hpttl_command(zval* object, int argc, zval* return_value, zend_class
             valkey_glide, HPTtl, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
         /* Cleanup allocated field array */
         for (int i = 0; i < total_fields; i++) {
-            zval_dtor(&all_fields[i]);
+            zval_ptr_dtor_nogc(&all_fields[i]);
         }
         efree(all_fields);
 
@@ -2925,7 +2965,7 @@ int execute_hpttl_command(zval* object, int argc, zval* return_value, zend_class
 
     /* Cleanup on failure */
     for (int i = 0; i < total_fields; i++) {
-        zval_dtor(&all_fields[i]);
+        zval_ptr_dtor_nogc(&all_fields[i]);
     }
     efree(all_fields);
     return 0;
@@ -2982,7 +3022,7 @@ int execute_hexpiretime_command(zval* object, int argc, zval* return_value, zend
             valkey_glide, HExpireTime, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
         /* Cleanup allocated field array */
         for (int i = 0; i < total_fields; i++) {
-            zval_dtor(&all_fields[i]);
+            zval_ptr_dtor_nogc(&all_fields[i]);
         }
         efree(all_fields);
 
@@ -2995,7 +3035,7 @@ int execute_hexpiretime_command(zval* object, int argc, zval* return_value, zend
 
     /* Cleanup on failure */
     for (int i = 0; i < total_fields; i++) {
-        zval_dtor(&all_fields[i]);
+        zval_ptr_dtor_nogc(&all_fields[i]);
     }
     efree(all_fields);
     return 0;
@@ -3111,7 +3151,7 @@ int execute_hpersist_command(zval* object, int argc, zval* return_value, zend_cl
             valkey_glide, HPersist, &args, NULL, H_RESPONSE_ARRAY, return_value)) {
         /* Cleanup allocated field array */
         for (int i = 0; i < total_fields; i++) {
-            zval_dtor(&all_fields[i]);
+            zval_ptr_dtor_nogc(&all_fields[i]);
         }
         efree(all_fields);
 
@@ -3124,7 +3164,7 @@ int execute_hpersist_command(zval* object, int argc, zval* return_value, zend_cl
 
     /* Cleanup on failure */
     for (int i = 0; i < total_fields; i++) {
-        zval_dtor(&all_fields[i]);
+        zval_ptr_dtor_nogc(&all_fields[i]);
     }
     efree(all_fields);
     return 0;
@@ -3147,13 +3187,16 @@ int execute_hgetex_command(zval* object, int argc, zval* return_value, zend_clas
         return 0;
     }
 
-    h_command_args_t args = {0};
-    args.key              = key;
-    args.key_len          = key_len;
+    /* Heap-allocate the args and fields: in a batch they are read at exec(), after this
+     * function returns. Ownership passes to process_h_getex_result, which frees them. */
+    h_command_args_t* args = ecalloc(1, sizeof(h_command_args_t));
+    args->glide_client     = valkey_glide->glide_client;
+    args->key              = key;
+    args->key_len          = key_len;
 
     // Extract fields from the array parameter
     int   field_count = zend_array_count(Z_ARRVAL_P(fields));
-    zval* field_array = emalloc(field_count * sizeof(zval));
+    zval* field_array = safe_emalloc(field_count, sizeof(zval), 0);
 
     // Copy fields from the PHP array to our zval array
     HashTable* fields_ht = Z_ARRVAL_P(fields);
@@ -3165,8 +3208,8 @@ int execute_hgetex_command(zval* object, int argc, zval* return_value, zend_clas
     }
     ZEND_HASH_FOREACH_END();
 
-    args.fields      = field_array;
-    args.field_count = field_count;
+    args->fields      = field_array;
+    args->field_count = field_count;
 
     // Parse options array if provided (consistent with getEx)
     if (options && Z_TYPE_P(options) == IS_ARRAY) {
@@ -3175,41 +3218,36 @@ int execute_hgetex_command(zval* object, int argc, zval* return_value, zend_clas
 
         // Check for EX (seconds)
         if ((z_val = zend_hash_str_find(opts_ht, "EX", 2)) != NULL) {
-            args.expiry      = (int) zval_get_long(z_val);
-            args.expiry_type = "EX";
+            args->expiry      = (int) zval_get_long(z_val);
+            args->expiry_type = "EX";
         }
         // Check for PX (milliseconds)
         else if ((z_val = zend_hash_str_find(opts_ht, "PX", 2)) != NULL) {
-            args.expiry      = (int) zval_get_long(z_val);
-            args.expiry_type = "PX";
+            args->expiry      = (int) zval_get_long(z_val);
+            args->expiry_type = "PX";
         }
         // Check for EXAT (unix timestamp)
         else if ((z_val = zend_hash_str_find(opts_ht, "EXAT", 4)) != NULL) {
-            args.expiry      = (int) zval_get_long(z_val);
-            args.expiry_type = "EXAT";
+            args->expiry      = (int) zval_get_long(z_val);
+            args->expiry_type = "EXAT";
         }
         // Check for PXAT (unix timestamp in milliseconds)
         else if ((z_val = zend_hash_str_find(opts_ht, "PXAT", 4)) != NULL) {
-            args.expiry      = (int) zval_get_long(z_val);
-            args.expiry_type = "PXAT";
+            args->expiry      = (int) zval_get_long(z_val);
+            args->expiry_type = "PXAT";
         }
         // Check for PERSIST
         else if (zend_hash_str_exists(opts_ht, "PERSIST", 7)) {
-            args.expiry_type = "PERSIST";
+            args->expiry_type = "PERSIST";
         }
     }
 
-    int result = execute_h_simple_command(
-        valkey_glide, HGetEx, &args, &args, H_RESPONSE_GETEX, return_value);
-
-    // Cleanup allocated field array
-    for (int j = 0; j < field_count; j++) {
-        zval_dtor(&field_array[j]);
-    }
-    efree(field_array);
+    int result = execute_h_generic_command(
+        valkey_glide, HGetEx, args, args, process_h_getex_result, return_value);
 
     if (result) {
         if (valkey_glide->is_in_batch_mode) {
+            valkey_glide_batch_own_result(valkey_glide, args, free_h_fields_args);
             ZVAL_COPY(return_value, object);
             return 1;
         }
@@ -3320,6 +3358,7 @@ int execute_hgetdel_command(zval* object, int argc, zval* return_value, zend_cla
 
     /* Handle batch mode */
     if (result && valkey_glide->is_in_batch_mode) {
+        valkey_glide_batch_own_result(valkey_glide, args, free_h_fields_args);
         /* In batch mode, return $this for method chaining */
         ZVAL_COPY(return_value, object);
     }

@@ -1818,6 +1818,103 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         }
     }
 
+    /* PHPRedis RedisCluster-style constructor: $name is ignored, $seeds are the seed nodes (#177) */
+    public function testPhpRedisStyleConstructorWithNameAndSeeds()
+    {
+        // The PHPRedis-style constructor connects without TLS
+        $this->skipIfTlsEnabled();
+
+        $seeds  = $this->getClusterAddresses();
+        $key    = 'test_phpredis_style_seeds_' . uniqid();
+        $client = new ValkeyGlideCluster('any-cluster-name', $seeds, auth: $this->getAuth());
+
+        try {
+            $this->assertTrue($client->set($key, 'value'));
+            $this->assertEquals('value', $client->get($key));
+        } finally {
+            $client->del($key);
+            $client->close();
+        }
+    }
+
+    /* $read_timeout is the request timeout in seconds (#177) */
+    public function testPhpRedisStyleReadTimeoutIsRequestTimeout()
+    {
+        // The PHPRedis-style constructor connects without TLS
+        $this->skipIfTlsEnabled();
+
+        $seeds = $this->getClusterAddresses();
+
+        // A 150 ms DEBUG SLEEP finishes within a 500 ms $read_timeout...
+        $control = new ValkeyGlideCluster(null, $seeds, read_timeout: 0.5, auth: $this->getAuth());
+        try {
+            $this->assertTrue($control->rawcommand('test', 'DEBUG', 'SLEEP', '0.15'));
+        } finally {
+            $control->close();
+        }
+
+        // ...but outlasts a 50 ms $read_timeout
+        $client = new ValkeyGlideCluster(null, $seeds, read_timeout: 0.05, auth: $this->getAuth());
+        try {
+            $this->assertFalse($client->rawcommand('test', 'DEBUG', 'SLEEP', '0.15'));
+            $this->assertStringContains('timed out', (string) $client->getLastError());
+        } finally {
+            $client->close();
+            // Let the server finish sleeping before the next test
+            usleep(200000);
+        }
+    }
+
+    /* A keyed $auth array authenticates as that user, as $credentials does (#177) */
+    public function testPhpRedisStyleAuthKeyedArray()
+    {
+        // The PHPRedis-style constructor connects without TLS
+        $this->skipIfTlsEnabled();
+
+        $user  = 'glide_phpredis_auth_' . uniqid();
+        $admin = $this->newInstance();
+
+        try {
+            $admin->rawcommand('allNodes', 'ACL', 'SETUSER', $user, 'on', '>user_pass', '~*', '&*', '+@all');
+
+            $seeds  = $this->getClusterAddresses();
+            $client = new ValkeyGlideCluster(null, $seeds, auth: ['username' => $user, 'password' => 'user_pass']);
+            try {
+                $this->assertEquals($user, $client->rawcommand('test', 'ACL', 'WHOAMI'));
+            } finally {
+                $client->close();
+            }
+        } finally {
+            try {
+                $admin->rawcommand('allNodes', 'ACL', 'DELUSER', $user);
+            } finally {
+                $admin->close();
+            }
+        }
+    }
+
+    /* PHPRedis-style parameters can't be combined with $addresses (#177) */
+    public function testPhpRedisStyleConstructorConflicts()
+    {
+        $seeds = $this->getClusterAddresses();
+
+        $conflicts = [
+            '$seeds'        => fn() => new ValkeyGlideCluster(null, $seeds, addresses: $seeds),
+            '$name'         => fn() => new ValkeyGlideCluster('name', addresses: $seeds),
+            '$timeout'      => fn() => new ValkeyGlideCluster(timeout: 1.0, addresses: $seeds),
+            '$read_timeout' => fn() => new ValkeyGlideCluster(read_timeout: 1.0, addresses: $seeds),
+            '$auth'         => fn() => new ValkeyGlideCluster(auth: ['password' => 'x'], addresses: $seeds),
+        ];
+        foreach ($conflicts as $param => $construct) {
+            try {
+                $construct()->close();
+                $this->fail("$param with \$addresses should throw");
+            } catch (ValkeyGlideException $e) {
+                $this->assertStringContains('PHPRedis-style and ValkeyGlide-style', $e->getMessage());
+            }
+        }
+    }
+
     public function testOptSlaveFailoverRejected()
     {
         $client = $this->newInstance();
@@ -1941,6 +2038,92 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             $client->close();
         }
     }
+
+    /* A raw WATCH queued in a pipeline watches once the batch is sent, as watch() does, so it
+     * blocks OPT_SLAVE_FAILOVER; a discarded one watches nothing (#413) */
+    public function testOptSlaveFailoverAfterQueuedRawWatch()
+    {
+        $client = $this->newInstance();
+        $key = '{a}test_opt_slave_failover_raw_watch_' . uniqid();
+
+        try {
+            $client->multi(ValkeyGlide::PIPELINE);
+            $this->assertTrue($client->rawcommand($key, 'WATCH', $key) === $client);
+            $this->assertTrue($client->discard());
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_NONE));
+
+            $client->multi(ValkeyGlide::PIPELINE);
+            $client->rawcommand($key, 'WATCH', $key);
+            $this->assertEquals([true], $client->exec());
+            $this->assertFalse($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+            $this->assertStringContains('watched', (string) $client->getLastError());
+        } finally {
+            $client->close();
+        }
+    }
+
+    /* A raw UNWATCH queued in a pipeline ends the watches on every primary, as unwatch() does,
+     * so OPT_SLAVE_FAILOVER is allowed again (#413) */
+    public function testOptSlaveFailoverAfterQueuedRawUnwatch()
+    {
+        $client = $this->newInstance();
+        // Hash tags in slots served by different primaries ({a} is slot 15495, {b} slot 3300)
+        $keyA = '{a}test_opt_slave_failover_raw_unwatch_' . uniqid();
+        $keyB = '{b}test_opt_slave_failover_raw_unwatch_' . uniqid();
+
+        try {
+            $this->assertTrue($client->watch($keyA, $keyB));
+            $this->assertFalse($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+
+            $client->multi(ValkeyGlide::PIPELINE);
+            $this->assertTrue($client->rawcommand($keyA, 'UNWATCH') === $client);
+            $this->assertEquals([true], $client->exec());
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_NONE));
+        } finally {
+            $client->close();
+        }
+    }
+
+    /* A raw SUBSCRIBE that is queued and then discarded, or refused for its route, subscribes
+     * to nothing, so it doesn't block OPT_SLAVE_FAILOVER (#413) */
+    public function testOptSlaveFailoverAfterDiscardedRawSubscribe()
+    {
+        $client = $this->newInstance();
+        $channel = 'test_opt_slave_failover_queued_sub_' . uniqid();
+
+        try {
+            foreach ([ValkeyGlide::MULTI, ValkeyGlide::PIPELINE] as $mode) {
+                $client->multi($mode);
+                $this->assertTrue($client->rawcommand($channel, 'SUBSCRIBE', $channel) === $client);
+                $this->assertFalse($client->rawcommand('allPrimaries', 'SUBSCRIBE', $channel));
+                $this->assertTrue($client->discard());
+            }
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+            $this->assertTrue($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_NONE));
+        } finally {
+            $client->close();
+        }
+    }
+
+    /* A queued raw SUBSCRIBE that is sent blocks OPT_SLAVE_FAILOVER, as an immediate one does */
+    public function testOptSlaveFailoverRejectedAfterQueuedRawSubscribe()
+    {
+        $client = $this->newInstance();
+        $channel = 'test_opt_slave_failover_sent_sub_' . uniqid();
+
+        try {
+            $client->multi(ValkeyGlide::PIPELINE);
+            $client->rawcommand($channel, 'SUBSCRIBE', $channel);
+            $client->exec();
+            $this->assertFalse($client->setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ValkeyGlideCluster::FAILOVER_DISTRIBUTE_SLAVES));
+            $this->assertStringContains('subscribed', (string) $client->getLastError());
+        } finally {
+            $client->close();
+        }
+    }
+
     public function testOptSlaveFailoverRejectedAfterRawSubscribe()
     {
         $client = $this->newInstance();

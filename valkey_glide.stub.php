@@ -1873,12 +1873,23 @@ class ValkeyGlide
      *
      *                        <code>
      *                        $options = [
-     *                            'COUNT'      => int  # An optional number of fields to return.
+     *                            'COUNT'      => int  # An optional number of fields to return. A
+     *                                                 # negative count may return the same field
+     *                                                 # more than once (not with WITHVALUES, as
+     *                                                 # fields are array keys), and 0 means no
+     *                                                 # count.
      *                            'WITHVALUES' => bool # Also return the field values.
      *                        ];
      *                        </code>
      *
-     * @return ValkeyGlide|array|string One or more random fields (and possibly values).
+     *                        Option names are case-insensitive, and 'WITHVALUES' can also be
+     *                        passed on its own, e.g. ['WITHVALUES'].
+     *
+     * @return ValkeyGlide|array|string|false A single random field if there is no COUNT (or a
+     *                                       COUNT of 0) and WITHVALUES is not set, or false if
+     *                                       the hash doesn't exist. Otherwise an array of fields, or of field =>
+     *                                       value pairs with WITHVALUES, which is empty if the
+     *                                       hash doesn't exist.
      *
      * @see https://valkey.io/commands/hrandfield
      *
@@ -1990,7 +2001,8 @@ class ValkeyGlide
      * @param array $fields Array of field names to retrieve.
      * @param array|null $options Optional expiration settings.
      *
-     * @return ValkeyGlide|array|false Returns an associative array of field-value pairs, or false on failure.
+     * @return ValkeyGlide|array|false Returns an associative array of field-value pairs, with false for a
+     *                                 field that does not exist, or false on failure.
      */
     public function hGetEx(string $key, array $fields, ?array $options = null): ValkeyGlide|array|false;
 
@@ -2168,7 +2180,10 @@ class ValkeyGlide
      * @param string|null $pattern An optional glob-style pattern to filter fields with.
      * @param int    $count     An optional hint to ValkeyGlide about how many fields and values to return per HSCAN.
      *
-     * @return ValkeyGlide|array|bool An array with a subset of fields and values.
+     * @throws ValkeyGlideException In multi() or pipeline(), where SCAN commands can't be
+     *                              queued. The batch stays open: call exec() or discard().
+     *
+     * @return array|bool An array with a subset of fields and values.
      *
      * @example
      * $valkey_glide = new ValkeyGlide(['host' => 'localhost']);
@@ -2192,7 +2207,7 @@ class ValkeyGlide
      *     }
      * } while ($it != "0");
      */
-    public function hscan(string $key, null|string &$iterator, ?string $pattern = null, int $count = 0): ValkeyGlide|array|bool;
+    public function hscan(string $key, null|string &$iterator, ?string $pattern = null, int $count = 0): array|bool;
 
     /**
      * Increment a key's value, optionally by a specific amount.
@@ -2910,19 +2925,20 @@ class ValkeyGlide
      *
      * @param string $command The PUBSUB subcommand (case-insensitive). One of:
      *                        <code>"channels"</code>, <code>"numsub"</code>, <code>"numpat"</code>,
-     *                        <code>"shardchannels"</code>.
+     *                        <code>"shardchannels"</code>, <code>"shardnumsub"</code>.
      * @param mixed  $arg     Depends on the subcommand:
      *                        <code>
      *                        channels / shardchannels - optional glob-style pattern string.
-     *                        numsub                    - optional array of channel names.
+     *                        numsub / shardnumsub      - array of channel names.
      *                        numpat                    - no argument.
      *                        </code>
      *
      * @return mixed For <code>channels</code>/<code>shardchannels</code> an array of active
-     *               channels; for <code>numsub</code> a flat array of channel/count pairs;
-     *               for <code>numpat</code> an integer.
+     *               channels; for <code>numsub</code>/<code>shardnumsub</code> a flat array of
+     *               channel/count pairs; for <code>numpat</code> an integer.
      *
      * @see https://valkey.io/commands/pubsub-shardchannels/
+     * @see https://valkey.io/commands/pubsub-shardnumsub/
      *
      * @example $valkey_glide->pubsub('shardchannels', 'news.*');
      */
@@ -3323,6 +3339,9 @@ class ValkeyGlide
      * @param string $type     An optional argument to specify which key types to scan (e.g.
      *                         'STRING', 'LIST', 'SET')
      *
+     * @throws ValkeyGlideException In multi() or pipeline(), where SCAN commands can't be
+     *                              queued. The batch stays open: call exec() or discard().
+     *
      * @return array|false     An array of keys, or false if no keys were returned for this
      *                         invocation of scan.  Note that it is possible for ValkeyGlide to return
      *                         zero keys before having scanned the entire key space, so the caller
@@ -3630,6 +3649,24 @@ class ValkeyGlide
     public function sismember(string $key, mixed $value): ValkeyGlide|bool;
 
     /**
+     * Returns whether a given value is a member of a set,
+     * or null if the key does not exist.
+     *
+     * @see https://valkey.io/commands/sismember/
+     *
+     * @since Valkey 9.2
+     *
+     * @param string $key   The Valkey set to check.
+     * @param mixed  $value The value to test.
+     *
+     * @return ValkeyGlide|bool|null True if the member exists, false if the key exists but the
+     *                               member does not, null if the key does not exist.
+     *
+     * @example $valkey_glide->sIsMemberIfExists('myset', 'mem1');
+     */
+    public function sIsMemberIfExists(string $key, mixed $value): ValkeyGlide|bool|null;
+
+    /**
      * Update one or more keys last modified metadata.
      *
      * @see https://valkey.io/commands/touch/
@@ -3709,6 +3746,9 @@ class ValkeyGlide
      *                          returns the subset of members matching this pattern.
      * @param int    $count     A hint to ValkeyGlide as to how many members it should scan in one command
      *                          before returning members for that iteration.
+     *
+     * @throws ValkeyGlideException In multi() or pipeline(), where SCAN commands can't be
+     *                              queued. The batch stays open: call exec() or discard().
      *
      * @example
      * $valkey_glide->del('myset');
@@ -4961,7 +5001,10 @@ class ValkeyGlide
      *                           from the call.  The higher the more work ValkeyGlide may do in any one given call to
      *                           ZSCAN potentially blocking for longer periods of time.
      *
-     * @return ValkeyGlide|array|false An array of elements or false on failure.
+     * @throws ValkeyGlideException In multi() or pipeline(), where SCAN commands can't be
+     *                              queued. The batch stays open: call exec() or discard().
+     *
+     * @return array|false An array of elements or false on failure.
      *
      * @see https://valkey.io/commands/zscan
      * @see https://valkey.io/commands/scan
@@ -4970,7 +5013,7 @@ class ValkeyGlide
      * NOTE:  See ValkeyGlide::scan() for detailed example code on how to call SCAN like commands.
      *
      */
-    public function zscan(string $key, null|string &$iterator, ?string $pattern = null, int $count = 0): ValkeyGlide|array|false;
+    public function zscan(string $key, null|string &$iterator, ?string $pattern = null, int $count = 0): array|false;
 
     /**
      * Retrieve the union of one or more sorted sets

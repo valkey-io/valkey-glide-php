@@ -234,18 +234,19 @@ static void build_sort_args(const char*     key,
     if (desc_out)
         *desc_out = desc;
 
-    /* Calculate the maximum number of arguments */
-    unsigned long max_args = 1; /* key */
+    /* Calculate the maximum number of arguments. Each clause below emits at most:
+     * key (1), BY <pattern> (2), LIMIT <offset> <count> (3), GET <pattern> (2 per
+     * pattern), STORE <dest> (2), ALPHA (1), and DESC or ASC (1). */
+    unsigned long max_args = 1 + 2 + 3 + 2 + 1 + 1;
     if (sort_pattern && Z_TYPE_P(sort_pattern) == IS_ARRAY) {
-        /* Patterns array can have: BY, LIMIT, GET, STORE */
         HashTable* ht = Z_ARRVAL_P(sort_pattern);
-        max_args +=
-            2 * zend_hash_num_elements(ht) + 2; /* Extra space for possible LIMIT offset count */
+        zval*      z_get;
+        if ((z_get = zend_hash_str_find(ht, "get", sizeof("get") - 1)) != NULL ||
+            (z_get = zend_hash_str_find(ht, "GET", sizeof("GET") - 1)) != NULL) {
+            max_args +=
+                Z_TYPE_P(z_get) == IS_ARRAY ? 2 * zend_hash_num_elements(Z_ARRVAL_P(z_get)) : 2;
+        }
     }
-    if (alpha)
-        max_args++; /* ALPHA */
-    if (desc)
-        max_args++; /* DESC */
 
     /* Allocate arrays for arguments */
     uintptr_t*     args     = (uintptr_t*) emalloc(max_args * sizeof(uintptr_t));
