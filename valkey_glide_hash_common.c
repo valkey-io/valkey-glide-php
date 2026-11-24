@@ -2608,6 +2608,35 @@ static int run_hsetex(valkey_glide_object* valkey_glide,
     return 0;
 }
 
+/*
+ * Copy field => value pairs into dst with each value converted to a string by
+ * PHP's standard conversion (false => "", null => ""). Stops at the first value
+ * that can't be converted; returns 0 with the exception pending, and dst must
+ * still be destroyed by the caller.
+ */
+static int hsetex_string_values(HashTable* src, zval* dst) {
+    zend_string* name;
+    zend_ulong   idx;
+    zval*        value;
+
+    array_init_size(dst, zend_hash_num_elements(src));
+    ZEND_HASH_FOREACH_KEY_VAL(src, idx, name, value) {
+        zval zv;
+        ZVAL_STR(&zv, zval_get_string(value));
+        if (EG(exception)) {
+            zval_ptr_dtor(&zv);
+            return 0;
+        }
+        if (name) {
+            zend_hash_update(Z_ARRVAL_P(dst), name, &zv);
+        } else {
+            zend_hash_index_update(Z_ARRVAL_P(dst), idx, &zv);
+        }
+    }
+    ZEND_HASH_FOREACH_END();
+    return 1;
+}
+
 /* PHPRedis form: hSetEx(string $key, array $fields, ?array $expiry = null) */
 static int execute_hsetex_phpredis(zval*             object,
                                    int               argc,
@@ -2637,13 +2666,22 @@ static int execute_hsetex_phpredis(zval*             object,
     h_command_args_t hargs = {0};
     hargs.key              = key;
     hargs.key_len          = key_len;
-    hargs.field_values     = z_fields;
 
     if (z_expiry && !parse_hsetex_expiry_options(Z_ARRVAL_P(z_expiry), &hargs)) {
         return 0;
     }
 
-    return run_hsetex(valkey_glide, object, &hargs, return_value);
+    // Convert every value before anything is sent or queued
+    zval fields;
+    if (!hsetex_string_values(Z_ARRVAL_P(z_fields), &fields)) {
+        zval_ptr_dtor(&fields);
+        return 0;
+    }
+    hargs.field_values = &fields;
+
+    int ret = run_hsetex(valkey_glide, object, &hargs, return_value);
+    zval_ptr_dtor(&fields);
+    return ret;
 }
 
 /*
@@ -2711,10 +2749,10 @@ static int execute_hsetex_legacy(zval*             object,
         return 0;
     }
 
-    // Standard string conversion, as the legacy form always used
+    // Standard string conversion; stop before sending if any of it throws
     zval fields;
     array_init_size(&fields, num_args / 2);
-    for (int i = 0; i < num_args; i += 2) {
+    for (int i = 0; i < num_args && !EG(exception); i += 2) {
         zend_string* name  = zval_get_string(&args[i]);
         zend_string* value = zval_get_string(&args[i + 1]);
         zval         zv;

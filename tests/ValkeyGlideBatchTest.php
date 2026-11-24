@@ -832,6 +832,21 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->assertEquals(1, $results[3]);
         $this->assertEquals(1, $results[4]); // legacy named arguments
         $this->valkey_glide->del($key);
+
+        // A value that can't be converted throws and queues nothing
+        $this->valkey_glide->multi();
+        $threw = false;
+        try {
+            $this->valkey_glide->hSetEx($key, ['bad' => new \stdClass()]);
+        } catch (\Error $e) {
+            $threw = true;
+        }
+        $this->valkey_glide->hSetEx($key, ['ok' => 'v']);
+        $results = $this->valkey_glide->exec();
+        $this->assertTrue($threw);
+        $this->assertEquals([1], $results);
+        $this->assertEquals(['ok' => 'v'], $this->valkey_glide->hGetAll($key));
+        $this->valkey_glide->del($key);
     }
 
     // ===================================================================

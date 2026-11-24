@@ -5741,6 +5741,13 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->valkey_glide->del($key);
     }
 
+    private function sortedHash(string $key): array
+    {
+        $hash = $this->valkey_glide->hGetAll($key);
+        ksort($hash);
+        return $hash;
+    }
+
     /**
      * Test the PHPRedis hSetEx($key, $fields, $expiry) argument handling.
      */
@@ -5830,6 +5837,39 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         // An empty field array is rejected with a warning
         $this->assertFalse(@$this->valkey_glide->hSetEx($key, []));
+
+        // Values use PHP's standard string conversion, the same in both forms
+        $ref = 'byref';
+        $this->valkey_glide->del($key);
+        $this->assertEquals(1, $this->valkey_glide->hSetEx(
+            $key,
+            ['f' => false, 't' => true, 'n' => null, 'd' => 1.5, 'r' => &$ref]
+        ));
+        $this->assertEquals(
+            ['d' => '1.5', 'f' => '', 'n' => '', 'r' => 'byref', 't' => '1'],
+            $this->sortedHash($key)
+        );
+        $this->valkey_glide->del($key);
+        @$this->valkey_glide->hSetEx($key, 60, null, 'f', false, 't', true, 'n', null, 'd', 1.5);
+        $this->assertEquals(['d' => '1.5', 'f' => '', 'n' => '', 't' => '1'], $this->sortedHash($key));
+
+        // A value that can't be converted throws and nothing is written, in either form
+        $this->valkey_glide->del($key);
+        $unconvertible = [
+            fn() => $this->valkey_glide->hSetEx($key, ['ok' => 'v', 'bad' => new \stdClass()]),
+            fn() => $this->valkey_glide->hSetEx($key, ['ok' => 'v', 'bad' => new HSetExThrowingString()]),
+            fn() => @$this->valkey_glide->hSetEx($key, 60, null, 'ok', 'v', 'bad', new HSetExThrowingString()),
+        ];
+        foreach ($unconvertible as $call) {
+            $threw = false;
+            try {
+                $call();
+            } catch (\Throwable $e) {
+                $threw = true;
+            }
+            $this->assertTrue($threw);
+            $this->assertEquals(0, $this->valkey_glide->exists($key));
+        }
 
         $this->valkey_glide->del($key);
     }
@@ -12317,5 +12357,13 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         $this->assertEquals('int', $this->valkey_glide->object('ENCODING', '{object}k'));
 
         $this->valkey_glide->del('{object}k', '{object}marker');
+    }
+}
+
+class HSetExThrowingString
+{
+    public function __toString(): string
+    {
+        throw new \RuntimeException('cannot convert');
     }
 }
