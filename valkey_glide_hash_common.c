@@ -2608,12 +2608,8 @@ static int run_hsetex(valkey_glide_object* valkey_glide,
     return 0;
 }
 
-/*
- * Copy field => value pairs into dst with each value converted to a string by
- * PHP's standard conversion (false => "", null => ""). Stops at the first value
- * that can't be converted; returns 0 with the exception pending, and dst must
- * still be destroyed by the caller.
- */
+/* Copy src into dst with string values. Returns 0 if a conversion throws; dst
+ * must be destroyed either way. */
 static int hsetex_string_values(HashTable* src, zval* dst) {
     zend_string* name;
     zend_ulong   idx;
@@ -2671,7 +2667,7 @@ static int execute_hsetex_phpredis(zval*             object,
         return 0;
     }
 
-    // Convert every value before anything is sent or queued
+    // Convert before anything is sent or queued
     zval fields;
     if (!hsetex_string_values(Z_ARRVAL_P(z_fields), &fields)) {
         zval_ptr_dtor(&fields);
@@ -2684,41 +2680,22 @@ static int execute_hsetex_phpredis(zval*             object,
     return ret;
 }
 
+#define HSETEX_REPLACEMENT "hSetEx($key, [$field => $value, ...], ['EX' => $seconds])"
+
 /*
- * Deprecated legacy form, used by hSetEx and hPSetEx. $mode is 'NX' or 'XX'
- * (sent as FNX/FXX). The arguments are converted to the PHPRedis form's
- * field => value array and sent through the same path.
+ * Deprecated legacy form (hSetEx and hPSetEx), after argument parsing. $mode is
+ * 'NX' or 'XX', sent as FNX/FXX. args holds num_args field/value zvals.
  */
-static int execute_hsetex_legacy(zval*             object,
-                                 int               argc,
-                                 zval*             return_value,
-                                 zend_class_entry* ce,
-                                 const char*       expiry_type,
-                                 const char*       replacement) {
-    valkey_glide_object* valkey_glide;
-    char*                key = NULL;
-    size_t               key_len;
-    zval*                args     = NULL;
-    int                  num_args = 0;
-    zend_long            expiry;
-    char*                mode     = NULL;
-    size_t               mode_len = 0;
-
-    if (zend_parse_method_parameters(argc,
-                                     object,
-                                     "Osls!+",
-                                     &object,
-                                     ce,
-                                     &key,
-                                     &key_len,
-                                     &expiry,
-                                     &mode,
-                                     &mode_len,
-                                     &args,
-                                     &num_args) == FAILURE) {
-        return 0;
-    }
-
+static int hsetex_legacy_send(zval*       object,
+                              const char* key,
+                              size_t      key_len,
+                              zend_long   expiry,
+                              const char* mode,
+                              zval*       args,
+                              int         num_args,
+                              const char* expiry_type,
+                              const char* replacement,
+                              zval*       return_value) {
     php_error_docref(NULL,
                      E_DEPRECATED,
                      "The (key, %s, mode, field, value, ...) signature is deprecated and will be "
@@ -2730,7 +2707,7 @@ static int execute_hsetex_legacy(zval*             object,
     }
 
     if (num_args < 2 || num_args % 2 != 0) {
-        return 0;  // needs field/value pairs
+        return 0;
     }
 
     const char* condition = NULL;
@@ -2744,12 +2721,13 @@ static int execute_hsetex_legacy(zval*             object,
         }
     }
 
-    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    valkey_glide_object* valkey_glide =
+        VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
     if (!valkey_glide || !valkey_glide->glide_client) {
         return 0;
     }
 
-    // Standard string conversion; stop before sending if any of it throws
+    // Convert everything before sending; stop at the first failure
     zval fields;
     array_init_size(&fields, num_args / 2);
     for (int i = 0; i < num_args && !EG(exception); i += 2) {
@@ -2770,8 +2748,7 @@ static int execute_hsetex_legacy(zval*             object,
     hargs.key_len          = key_len;
     hargs.field_values     = &fields;
     hargs.mode             = condition;
-    // A non-positive timeout sends no expiry
-    if (expiry > 0) {
+    if (expiry > 0) {  // a non-positive timeout sends no expiry
         hargs.expiry_type = expiry_type ? expiry_type : "EX";
         hargs.expiry      = (long long) expiry;
     }
@@ -2781,20 +2758,52 @@ static int execute_hsetex_legacy(zval*             object,
     return ret;
 }
 
+/* Legacy form, positional arguments. */
+static int execute_hsetex_legacy(zval*             object,
+                                 int               argc,
+                                 zval*             return_value,
+                                 zend_class_entry* ce,
+                                 const char*       expiry_type,
+                                 const char*       replacement) {
+    char*     key = NULL;
+    size_t    key_len;
+    zval*     args     = NULL;
+    int       num_args = 0;
+    zend_long expiry;
+    char*     mode     = NULL;
+    size_t    mode_len = 0;
+
+    if (zend_parse_method_parameters(argc,
+                                     object,
+                                     "Osls!+",
+                                     &object,
+                                     ce,
+                                     &key,
+                                     &key_len,
+                                     &expiry,
+                                     &mode,
+                                     &mode_len,
+                                     &args,
+                                     &num_args) == FAILURE) {
+        return 0;
+    }
+    return hsetex_legacy_send(
+        object, key, key_len, expiry, mode, args, num_args, expiry_type, replacement, return_value);
+}
+
 /*
- * Legacy call using the legacy parameter names (seconds, mode, field, value) as
- * named arguments: put them back in position and call the method again.
+ * Legacy form with the legacy names (seconds, mode, field, value) as named
+ * arguments. Checks types in this frame so the caller's strict_types applies.
  */
 static int hsetex_named_legacy_call(zend_execute_data* call, zval* object, zval* return_value) {
     static const char* names[] = {"key", "seconds", "mode", "field", "value"};
-    const int          nslots  = 5;
     const char*        cls     = ZSTR_VAL(call->func->common.scope->name);
     uint32_t           argc    = ZEND_CALL_NUM_ARGS(call);
     zval               params[5];
 
-    for (int i = 0; i < nslots; i++) {
+    for (uint32_t i = 0; i < 5; i++) {
         ZVAL_UNDEF(&params[i]);
-        if ((uint32_t) i < argc) {
+        if (i < argc) {
             ZVAL_COPY_VALUE(&params[i], ZEND_CALL_ARG(call, i + 1));
         }
     }
@@ -2803,7 +2812,7 @@ static int hsetex_named_legacy_call(zend_execute_data* call, zval* object, zval*
     zval*        value;
     ZEND_HASH_FOREACH_STR_KEY_VAL(call->extra_named_params, name, value) {
         int slot = -1;
-        for (int i = 1; i < nslots; i++) {
+        for (int i = 1; i < 5; i++) {
             if (zend_string_equals_cstr(name, names[i], strlen(names[i]))) {
                 slot = i;
                 break;
@@ -2822,7 +2831,7 @@ static int hsetex_named_legacy_call(zend_execute_data* call, zval* object, zval*
     }
     ZEND_HASH_FOREACH_END();
 
-    for (int i = 0; i < nslots; i++) {
+    for (int i = 0; i < 5; i++) {
         if (Z_TYPE(params[i]) == IS_UNDEF) {
             zend_argument_count_error(
                 "%s::hSetEx(): Argument #%d ($%s) not passed", cls, i + 1, names[i]);
@@ -2830,16 +2839,47 @@ static int hsetex_named_legacy_call(zend_execute_data* call, zval* object, zval*
         }
     }
 
-    zval retval;
-    ZVAL_UNDEF(&retval);
-    zend_call_known_function(
-        call->func, Z_OBJ_P(object), Z_OBJCE_P(object), &retval, nslots, params, NULL);
-    if (EG(exception)) {
-        zval_ptr_dtor(&retval);
-        return 0;
+    // Same checks as the positional "sls!", on copies (conversion is in place)
+    zval         key_zv, seconds_zv, mode_zv;
+    zend_string* key_str;
+    zend_string* mode_str;
+    zend_long    seconds;
+    bool         is_null;
+    int          ret = 0;
+
+    ZVAL_COPY(&key_zv, &params[0]);
+    ZVAL_COPY(&seconds_zv, &params[1]);
+    ZVAL_COPY(&mode_zv, &params[2]);
+
+    if (!zend_parse_arg_str(&key_zv, &key_str, false, 1)) {
+        if (!EG(exception)) {
+            zend_wrong_parameter_type_error(1, Z_EXPECTED_STRING, &key_zv);
+        }
+    } else if (!zend_parse_arg_long(&seconds_zv, &seconds, &is_null, false, 2)) {
+        if (!EG(exception)) {
+            zend_wrong_parameter_type_error(2, Z_EXPECTED_LONG, &seconds_zv);
+        }
+    } else if (!zend_parse_arg_str(&mode_zv, &mode_str, true, 3)) {
+        if (!EG(exception)) {
+            zend_wrong_parameter_type_error(3, Z_EXPECTED_STRING_OR_NULL, &mode_zv);
+        }
+    } else if (!EG(exception)) {
+        ret = hsetex_legacy_send(object,
+                                 ZSTR_VAL(key_str),
+                                 ZSTR_LEN(key_str),
+                                 seconds,
+                                 mode_str ? ZSTR_VAL(mode_str) : NULL,
+                                 &params[3],
+                                 2,
+                                 NULL,
+                                 HSETEX_REPLACEMENT,
+                                 return_value);
     }
-    ZVAL_COPY_VALUE(return_value, &retval);
-    return 1;
+
+    zval_ptr_dtor(&key_zv);
+    zval_ptr_dtor(&seconds_zv);
+    zval_ptr_dtor(&mode_zv);
+    return ret;
 }
 
 /* hSetEx entry point: picks the calling form from argument 2. */
@@ -2871,12 +2911,7 @@ int execute_hsetex_command(zval* object, int argc, zval* return_value, zend_clas
             return execute_hsetex_phpredis(object, argc, return_value, ce);
         }
     }
-    return execute_hsetex_legacy(object,
-                                 argc,
-                                 return_value,
-                                 ce,
-                                 NULL,
-                                 "hSetEx($key, [$field => $value, ...], ['EX' => $seconds])");
+    return execute_hsetex_legacy(object, argc, return_value, ce, NULL, HSETEX_REPLACEMENT);
 }
 
 /* hPSetEx: deprecated legacy form only. */

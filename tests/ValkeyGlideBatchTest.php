@@ -833,6 +833,24 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->assertEquals(1, $results[4]); // legacy named arguments
         $this->valkey_glide->del($key);
 
+        // A named legacy argument with the wrong type under strict_types throws
+        // and queues nothing, as the positional call does
+        $client = $this->valkey_glide;
+        $k = $key;
+        $this->valkey_glide->multi();
+        $threw = 0;
+        foreach (['hSetEx($k, "60", null, "f", "v")', 'hSetEx($k, seconds: "60", mode: null, field: "f", value: "v")'] as $strictCall) {
+            try {
+                eval('declare(strict_types=1); return @$client->' . $strictCall . ';');
+            } catch (\TypeError $e) {
+                $threw++;
+            }
+        }
+        $results = $this->valkey_glide->exec();
+        $this->assertEquals(2, $threw);
+        $this->assertEquals([], $results);
+        $this->assertEquals(0, $this->valkey_glide->exists($key));
+
         // A value that can't be converted throws and queues nothing
         $this->valkey_glide->multi();
         $threw = false;

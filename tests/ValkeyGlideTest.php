@@ -6008,6 +6008,40 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals(1, $r);
         $this->assertEquals('lv', $this->valkey_glide->hGet($key, 'l2'));
 
+        // Named legacy arguments are type-checked like positional ones, using the
+        // caller's strict_types setting, and nothing is written when they fail
+        $client = $this->valkey_glide;
+        $k = $key;
+        $strictCalls = [
+            'hSetEx($k, "60", null, "f", "v")',
+            'hSetEx($k, seconds: "60", mode: null, field: "f", value: "v")',
+            'hSetEx(5, 60, null, "f", "v")',
+            'hSetEx(key: 5, seconds: 60, mode: null, field: "f", value: "v")',
+            'hSetEx($k, 60, 1, "f", "v")',
+            'hSetEx($k, seconds: 60, mode: 1, field: "f", value: "v")',
+            'hPSetEx($k, "1000", null, "f", "v")',
+            'hPSetEx($k, milliseconds: "1000", mode: null, field: "f", value: "v")',
+        ];
+        foreach ($strictCalls as $strictCall) {
+            $this->valkey_glide->del($key);
+            $this->valkey_glide->del('5');
+            $threw = false;
+            try {
+                eval('declare(strict_types=1); return @$client->' . $strictCall . ';');
+            } catch (\TypeError $e) {
+                $threw = true;
+            }
+            $this->assertTrue($threw);
+            $this->assertEquals(0, $this->valkey_glide->exists($key));
+            $this->assertEquals(0, $this->valkey_glide->exists('5'));
+        }
+        // Without strict_types both are coerced the same way
+        foreach (['hSetEx($k, "60", null, "f", "v")', 'hSetEx($k, seconds: "60", mode: null, field: "f", value: "v")'] as $weakCall) {
+            $this->valkey_glide->del($key);
+            $this->assertEquals(1, eval('return @$client->' . $weakCall . ';'));
+            $this->assertEquals('v', $this->valkey_glide->hGet($key, 'f'));
+        }
+
         // Wrong types fail like any other bad argument
         $threw = false;
         try {
