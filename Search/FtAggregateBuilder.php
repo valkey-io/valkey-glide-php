@@ -30,6 +30,8 @@ namespace ValkeyGlide\Search;
  */
 class FtAggregateBuilder
 {
+    use FtPipelineClauses;
+
     private ?string $indexName = null;
     private ?string $queryStr = null;
     private bool $addScores = false;
@@ -155,90 +157,6 @@ class FtAggregateBuilder
     }
 
     /**
-     * Add a GROUPBY clause with optional reducers.
-     *
-     * @param array       $fields   Fields to group by (e.g. ['@condition']).
-     * @param FtReducer[] $reducers Reducer definitions built with FtReducer.
-     */
-    public function groupBy(array $fields, array $reducers = []): self
-    {
-        $this->tokens[] = 'GROUPBY';
-        $this->tokens[] = (string) count($fields);
-        foreach ($fields as $field) {
-            $this->tokens[] = $field;
-        }
-        foreach ($reducers as $reducer) {
-            $this->tokens[] = 'REDUCE';
-            foreach ($reducer->toTokens() as $token) {
-                $this->tokens[] = $token;
-            }
-        }
-        return $this;
-    }
-
-    /**
-     * Add a SORTBY clause.
-     *
-     * @param array    $fieldOrders Associative array: ['@field' => 'ASC|DESC', ...].
-     * @param int|null $max         Optional MAX limit for partial sorting.
-     */
-    public function sortBy(array $fieldOrders, ?int $max = null): self
-    {
-        $this->tokens[] = 'SORTBY';
-        $this->tokens[] = (string) (count($fieldOrders) * 2);
-        foreach ($fieldOrders as $field => $order) {
-            $this->tokens[] = $field;
-            $this->tokens[] = strtoupper($order);
-        }
-        if ($max !== null) {
-            $this->tokens[] = 'MAX';
-            $this->tokens[] = (string) $max;
-        }
-        return $this;
-    }
-
-    /**
-     * Add an APPLY clause.
-     *
-     * @param string $expression The expression to compute.
-     * @param string $alias      The output property name.
-     */
-    public function apply(string $expression, string $alias): self
-    {
-        $this->tokens[] = 'APPLY';
-        $this->tokens[] = $expression;
-        $this->tokens[] = 'AS';
-        $this->tokens[] = $alias;
-        return $this;
-    }
-
-    /**
-     * Add a FILTER clause.
-     *
-     * @param string $expression The filter expression.
-     */
-    public function filter(string $expression): self
-    {
-        $this->tokens[] = 'FILTER';
-        $this->tokens[] = $expression;
-        return $this;
-    }
-
-    /**
-     * Add a LIMIT clause.
-     *
-     * @param int $offset Starting offset.
-     * @param int $count  Number of results.
-     */
-    public function limit(int $offset, int $count): self
-    {
-        $this->tokens[] = 'LIMIT';
-        $this->tokens[] = (string) $offset;
-        $this->tokens[] = (string) $count;
-        return $this;
-    }
-
-    /**
      * Expose the relevance score as a pipeline field named `__score`
      * (valkey-search 1.3.0). Reachable afterward like any other pipeline
      * field, from load(), apply(), sortBy() or a reducer expression.
@@ -267,9 +185,14 @@ class FtAggregateBuilder
      * Request a paged reply instead of the whole result set at once
      * (valkey-search 1.3.0). Paged replies become `[rows, cursor_id]`;
      * pass `cursor_id` to `$client->ftCursorRead()`/`ftCursorDel()` to
-     * fetch subsequent pages or discard the cursor early. A paged query,
-     * and every subsequent FT.CURSOR READ/DEL against it, is always
-     * routed to the PRIMARY of the index's slot.
+     * fetch subsequent pages or discard the cursor early. The cluster
+     * client always routes a paged query, and every subsequent FT.CURSOR
+     * READ/DEL against it, to the PRIMARY of the index's slot. A standalone
+     * client follows its ReadFrom configuration: with READ_FROM_PREFER_REPLICA
+     * or an AZ-affinity strategy the cursor can be opened on a replica, and
+     * ftCursorRead()/ftCursorDel() then fail with `Cursor: not found`. Use
+     * READ_FROM_PRIMARY for cursor queries on a standalone client until the
+     * core fix lands.
      *
      * @param int|null $count   Rows to return per page.
      * @param int|null $maxIdle How long (ms) the cursor may sit idle
@@ -324,5 +247,12 @@ class FtAggregateBuilder
             'query'   => $this->queryStr,
             'options' => empty($tokens) ? null : $tokens,
         ];
+    }
+
+    protected function appendPipelineTokens(string ...$tokens): void
+    {
+        foreach ($tokens as $token) {
+            $this->tokens[] = $token;
+        }
     }
 }

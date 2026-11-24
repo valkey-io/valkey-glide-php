@@ -49,6 +49,8 @@ namespace ValkeyGlide\Search;
  */
 class FtHybridBuilder
 {
+    use FtPipelineClauses;
+
     private ?string $indexName = null;
 
     /* SEARCH arm */
@@ -326,66 +328,6 @@ class FtHybridBuilder
         return $this;
     }
 
-    /** Add a FILTER clause to the aggregate-suffix tail. */
-    public function filter(string $expression): self
-    {
-        $this->clauseTokens[] = 'FILTER';
-        $this->clauseTokens[] = $expression;
-        return $this;
-    }
-
-    /** Add a LIMIT clause to the aggregate-suffix tail. */
-    public function limit(int $offset, int $count): self
-    {
-        $this->clauseTokens[] = 'LIMIT';
-        $this->clauseTokens[] = (string) $offset;
-        $this->clauseTokens[] = (string) $count;
-        return $this;
-    }
-
-    /** Add a GROUPBY clause with optional reducers, to the aggregate-suffix tail. */
-    public function groupBy(array $fields, array $reducers = []): self
-    {
-        $this->clauseTokens[] = 'GROUPBY';
-        $this->clauseTokens[] = (string) count($fields);
-        foreach ($fields as $field) {
-            $this->clauseTokens[] = $field;
-        }
-        foreach ($reducers as $reducer) {
-            $this->clauseTokens[] = 'REDUCE';
-            foreach ($reducer->toTokens() as $token) {
-                $this->clauseTokens[] = $token;
-            }
-        }
-        return $this;
-    }
-
-    /** Add a SORTBY clause to the aggregate-suffix tail. */
-    public function sortBy(array $fieldOrders, ?int $max = null): self
-    {
-        $this->clauseTokens[] = 'SORTBY';
-        $this->clauseTokens[] = (string) (count($fieldOrders) * 2);
-        foreach ($fieldOrders as $field => $order) {
-            $this->clauseTokens[] = $field;
-            $this->clauseTokens[] = strtoupper($order);
-        }
-        if ($max !== null) {
-            $this->clauseTokens[] = 'MAX';
-            $this->clauseTokens[] = (string) $max;
-        }
-        return $this;
-    }
-
-    /** Add an APPLY clause to the aggregate-suffix tail. */
-    public function apply(string $expression, string $alias): self
-    {
-        $this->clauseTokens[] = 'APPLY';
-        $this->clauseTokens[] = $expression;
-        $this->clauseTokens[] = 'AS';
-        $this->clauseTokens[] = $alias;
-        return $this;
-    }
-
     /**
      * Request a paged reply instead of the whole result set at once.
      * See FtAggregateBuilder::withCursor() for the reply-shape and
@@ -495,5 +437,12 @@ class FtHybridBuilder
             'params' => $this->params,
             'dialect' => $this->dialect,
         ];
+    }
+
+    protected function appendPipelineTokens(string ...$tokens): void
+    {
+        foreach ($tokens as $token) {
+            $this->clauseTokens[] = $token;
+        }
     }
 }
