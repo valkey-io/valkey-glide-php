@@ -326,9 +326,11 @@ class ValkeyGlideCluster
      * @param string|null $name                 Cluster name (not used, for compatibility only).
      * @param array|null $seeds                 Seed nodes array [['host' => 'x', 'port' => y], ...].
      * @param float|null $timeout               Connection timeout in seconds, in place of
-     *                                          $advanced_config['connection_timeout']. 0 keeps the
-     *                                          default connection timeout.
+     *                                          $advanced_config['connection_timeout']. 0 keeps
+     *                                          $advanced_config['connection_timeout'] if it is set,
+     *                                          or else the default (250 ms).
      * @param float|null $read_timeout          Read timeout in seconds, in place of $request_timeout.
+     *                                          0 keeps the default request timeout (5 s).
      * @param bool|null $persistent             Keep the client open after the request ends and reuse
      *                                          it in later requests of the same worker process (e.g.
      *                                          PHP-FPM) that use the same configuration. See

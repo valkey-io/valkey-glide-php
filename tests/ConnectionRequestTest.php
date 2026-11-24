@@ -211,6 +211,8 @@ class ConnectionRequestTest extends \TestSuite
             [['pass'], '', 'pass'],
             [['user', 'pass'], 'user', 'pass'],
             [['user' => 'user', 'pass' => 'pass'], 'user', 'pass'],
+            /* As in PHPRedis, the user is index 0 or 'user' and the password index 1 or 'pass' */
+            [[0 => 'user', 'pass' => 'pass'], 'user', 'pass'],
             [['username' => 'user', 'password' => 'pass'], 'user', 'pass'],
             [['password' => 'pass'], '', 'pass'],
             /* As in PHPRedis, a null or false user means none, and scalars are converted */
@@ -277,6 +279,19 @@ class ConnectionRequestTest extends \TestSuite
                 ClientConstructorMock::simulate_cluster_phpredis_constructor(timeout: $timeout);
             }, '/\$timeout must be/');
         }
+
+        /* $read_timeout gets the same checks: 0 keeps the default, under 1 ms sets 1 ms */
+        $default = ClientConstructorMock::simulate_cluster_phpredis_constructor(seeds: [['host' => 'localhost', 'port' => 7001]])->getRequestTimeout();
+        $request = ClientConstructorMock::simulate_cluster_phpredis_constructor(read_timeout: 0.0);
+        $this->assertEquals($default, $request->getRequestTimeout());
+        $request = ClientConstructorMock::simulate_cluster_phpredis_constructor(read_timeout: 0.0004);
+        $this->assertEquals(1, $request->getRequestTimeout());
+
+        foreach ([-1.0, INF, NAN, 3000000.0] as $read_timeout) {
+            $this->assertThrowsMatch($read_timeout, function ($read_timeout) {
+                ClientConstructorMock::simulate_cluster_phpredis_constructor(read_timeout: $read_timeout);
+            }, '/\$read_timeout must be/');
+        }
     }
 
     /* A PHPRedis-style parameter conflicts with the ValkeyGlide-style parameter it maps to */
@@ -293,9 +308,11 @@ class ConnectionRequestTest extends \TestSuite
             $this->assertThrowsMatch(null, fn() => $construct(), $regex);
         }
 
-        /* A $timeout of 0 has no effect, so it doesn't conflict */
+        /* A $timeout or $read_timeout of 0 has no effect, so it doesn't conflict */
         $request = ClientConstructorMock::simulate_cluster_phpredis_constructor(timeout: 0.0, advanced_config: ['connection_timeout' => 500]);
         $this->assertEquals(500, $request->getConnectionTimeout());
+        $request = ClientConstructorMock::simulate_cluster_phpredis_constructor(read_timeout: 0.0, request_timeout: 500);
+        $this->assertEquals(500, $request->getRequestTimeout());
 
         /* $timeout and $request_timeout set different timeouts, so they combine */
         $request = ClientConstructorMock::simulate_cluster_phpredis_constructor(timeout: 1.0, request_timeout: 500);

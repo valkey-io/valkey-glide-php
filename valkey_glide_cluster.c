@@ -295,7 +295,7 @@ static int phpredis_auth_to_credentials(zval* auth, zval* out) {
  * and $auth the credentials. A PHPRedis-style parameter conflicts with the GLIDE-style parameter
  * it maps to. *auth_storage receives a converted $auth, which params->credentials then points
  * to; the caller destroys it with zval_ptr_dtor() once the client is created. Returns FAILURE,
- * with an exception thrown, on a conflict or an invalid $auth. */
+ * with an exception thrown, on a conflict or an invalid $timeout, $read_timeout or $auth. */
 int valkey_glide_cluster_map_phpredis_params(valkey_glide_php_common_constructor_params_t* params,
                                              zval*                                         seeds,
                                              double                                        timeout,
@@ -312,7 +312,8 @@ int valkey_glide_cluster_map_phpredis_params(valkey_glide_php_common_constructor
                              0);
         return FAILURE;
     }
-    if (!read_timeout_is_null && !params->request_timeout_is_null) {
+    /* A $read_timeout of 0 has no effect, so it doesn't conflict, as with $timeout below */
+    if (!read_timeout_is_null && read_timeout > 0.0 && !params->request_timeout_is_null) {
         zend_throw_exception(get_valkey_glide_exception_ce(),
                              "Cannot specify both 'read_timeout' and 'request_timeout'",
                              0);
@@ -321,6 +322,13 @@ int valkey_glide_cluster_map_phpredis_params(valkey_glide_php_common_constructor
     if (!timeout_is_null && (timeout < 0.0 || !zend_finite(timeout) || timeout * 1000 > INT_MAX)) {
         zend_throw_exception(get_valkey_glide_exception_ce(),
                              "$timeout must be a number of seconds from 0 to 2147483",
+                             0);
+        return FAILURE;
+    }
+    if (!read_timeout_is_null &&
+        (read_timeout < 0.0 || !zend_finite(read_timeout) || read_timeout * 1000 > INT_MAX)) {
+        zend_throw_exception(get_valkey_glide_exception_ce(),
+                             "$read_timeout must be a number of seconds from 0 to 2147483",
                              0);
         return FAILURE;
     }
@@ -345,7 +353,8 @@ int valkey_glide_cluster_map_phpredis_params(valkey_glide_php_common_constructor
         params->addresses = seeds;
     }
 
-    /* As in PHPRedis, a $timeout of 0 means no limit, so it keeps the default */
+    /* As in PHPRedis, a $timeout of 0 uses the default, though the defaults differ: 60 s in
+     * PHPRedis, advanced_config['connection_timeout'] or 250 ms here */
     if (!timeout_is_null && timeout > 0.0) {
         /* A timeout under 1 ms still sets one, rather than 0 */
         zend_long ms                       = (zend_long) (timeout * 1000);
@@ -353,8 +362,11 @@ int valkey_glide_cluster_map_phpredis_params(valkey_glide_php_common_constructor
         params->connection_timeout_is_null = 0;
     }
 
-    if (!read_timeout_is_null) {
-        params->request_timeout         = (zend_long) (read_timeout * 1000);
+    /* A $read_timeout of 0 keeps the default request timeout, as a $request_timeout of 0 does */
+    if (!read_timeout_is_null && read_timeout > 0.0) {
+        /* A timeout under 1 ms still sets one, rather than 0 */
+        zend_long ms                    = (zend_long) (read_timeout * 1000);
+        params->request_timeout         = ms > 0 ? ms : 1;
         params->request_timeout_is_null = 0;
     }
 
