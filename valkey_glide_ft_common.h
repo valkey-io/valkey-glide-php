@@ -339,7 +339,7 @@ int execute_ft_cursor_del_command(zval* object, int argc, zval* return_value, ze
                                           : get_valkey_glide_ce())) {                \
             return;                                                                  \
         }                                                                            \
-        zval_dtor(return_value);                                                     \
+        zval_ptr_dtor_nogc(return_value);                                            \
         RETURN_FALSE;                                                                \
     }
 
@@ -353,7 +353,7 @@ int execute_ft_cursor_del_command(zval* object, int argc, zval* return_value, ze
                                                : get_valkey_glide_ce())) {                \
             return;                                                                       \
         }                                                                                 \
-        zval_dtor(return_value);                                                          \
+        zval_ptr_dtor_nogc(return_value);                                                 \
         RETURN_FALSE;                                                                     \
     }
 
@@ -367,7 +367,7 @@ int execute_ft_cursor_del_command(zval* object, int argc, zval* return_value, ze
                                               : get_valkey_glide_ce())) {                \
             return;                                                                      \
         }                                                                                \
-        zval_dtor(return_value);                                                         \
+        zval_ptr_dtor_nogc(return_value);                                                \
         RETURN_FALSE;                                                                    \
     }
 

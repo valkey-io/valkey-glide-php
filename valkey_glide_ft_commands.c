@@ -542,8 +542,8 @@ int execute_ft_hybrid_command(zval* object, int argc, zval* return_value, zend_c
     ZVAL_STRING(&method_name, "toArray");
     if (call_user_function(NULL, builder_zval, &method_name, &builder_result, 0, NULL) != SUCCESS ||
         Z_TYPE(builder_result) != IS_ARRAY) {
-        zval_dtor(&method_name);
-        zval_dtor(&builder_result);
+        zval_ptr_dtor_nogc(&method_name);
+        zval_ptr_dtor_nogc(&builder_result);
         if (!EG(exception)) {
             zend_throw_exception(
                 get_valkey_glide_exception_ce(),
@@ -552,13 +552,13 @@ int execute_ft_hybrid_command(zval* object, int argc, zval* return_value, zend_c
         }
         return 0;
     }
-    zval_dtor(&method_name);
+    zval_ptr_dtor_nogc(&method_name);
 
     HashTable* result_ht = Z_ARRVAL(builder_result);
 
     zval* z_index = zend_hash_str_find(result_ht, "index", sizeof("index") - 1);
     if (!z_index || Z_TYPE_P(z_index) != IS_STRING) {
-        zval_dtor(&builder_result);
+        zval_ptr_dtor_nogc(&builder_result);
         zend_throw_exception(get_valkey_glide_exception_ce(),
                              "ftHybrid: builder toArray() must return an 'index' string",
                              0);
@@ -579,7 +579,7 @@ int execute_ft_hybrid_command(zval* object, int argc, zval* return_value, zend_c
                               &count,
                               &allocated,
                               &alloc_n)) {
-        zval_dtor(&builder_result);
+        zval_ptr_dtor_nogc(&builder_result);
         return 0;
     }
 
@@ -602,7 +602,7 @@ int execute_ft_hybrid_command(zval* object, int argc, zval* return_value, zend_c
     efree(full_args);
     efree(full_lens);
     free_ft_collected(args, lens, allocated, alloc_n);
-    zval_dtor(&builder_result);
+    zval_ptr_dtor_nogc(&builder_result);
     return status;
 }
 
