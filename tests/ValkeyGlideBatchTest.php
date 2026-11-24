@@ -810,6 +810,30 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->valkey_glide->del($key);
     }
 
+    public function testBatchHSetExLegacyForm()
+    {
+        if (!$this->minVersionCheck('9.0.0')) {
+            $this->markTestSkipped('HSETEX requires Valkey 9.0.0+');
+            return;
+        }
+
+        $key = 'batch_hsetex_legacy_' . uniqid();
+        $this->valkey_glide->multi();
+        @$this->valkey_glide->hSetEx($key, 60, null, 'f1', 'v1');
+        @$this->valkey_glide->hPSetEx($key, 30000, null, 'f2', 'v2');
+        @$this->valkey_glide->hSetEx($key, 60, 'NX', 'f1', 'again');
+        $this->valkey_glide->hSetEx($key, ['f3' => 'v3'], ['EX' => 60]);
+        @$this->valkey_glide->hSetEx($key, seconds: 60, mode: 'XX', field: 'f3', value: 'v4');
+        $results = $this->valkey_glide->exec();
+
+        $this->assertEquals(1, $results[0]);
+        $this->assertEquals(1, $results[1]);
+        $this->assertEquals(0, $results[2]); // f1 exists, field-level NX
+        $this->assertEquals(1, $results[3]);
+        $this->assertEquals(1, $results[4]); // legacy named arguments
+        $this->valkey_glide->del($key);
+    }
+
     // ===================================================================
     // LIST ADVANCED OPERATIONS BATCH TESTS
     // ===================================================================

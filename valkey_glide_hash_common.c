@@ -2397,8 +2397,7 @@ int execute_hrandfield_command(zval* object, int argc, zval* return_value, zend_
     return 0;
 }
 
-// Shared helper for the hExpire-family variants (positional arguments:
-// key, expiry, condition, fields...). hSetEx has its own executor below.
+// Shared helper for the hExpire-family variants
 static int execute_hash_expiry_command(zval*             object,
                                        int               argc,
                                        zval*             return_value,
@@ -2496,19 +2495,13 @@ static int execute_hexpire_with_condition(zval*             object,
 }
 
 /*
- * Parse the PHPRedis-style hSetEx $expiry array into hargs.
- *
- * Accepted entries (names are case-insensitive, as in PHPRedis):
+ * Parse the hSetEx $expiry array into hargs. Entry names are case-insensitive:
  *   'EX' | 'PX' | 'EXAT' | 'PXAT' => int   expiry (non-negative)
  *   'KEEPTTL'                             keep the existing TTL
  *   'FNX' | 'FXX'                         field-level condition
  *   'NX'  | 'XX'                          key-level condition (Valkey 9.1+)
- *
- * Unlike PHPRedis, which silently ignores entries it doesn't recognize, any
- * unknown, malformed, negative, or conflicting entry is rejected. Ignoring
- * one would turn a conditional write into an unconditional one.
- *
- * Returns 1 on success, 0 if the array is invalid.
+ * Unknown, malformed or conflicting entries are rejected so a typo can't turn a
+ * conditional write into an unconditional one. Returns 1 on success, 0 otherwise.
  */
 static int parse_hsetex_expiry_options(HashTable* opts, h_command_args_t* hargs) {
     zend_string* name;
@@ -2533,8 +2526,16 @@ static int parse_hsetex_expiry_options(HashTable* opts, h_command_args_t* hargs)
             }
 
             zend_long value;
+            double    dval;
             if (Z_TYPE_P(zv) == IS_LONG) {
                 value = Z_LVAL_P(zv);
+            } else if (Z_TYPE_P(zv) == IS_DOUBLE) {
+                // Whole numbers only, e.g. ['PX' => round($ms)]
+                dval = Z_DVAL_P(zv);
+                if (!zend_finite(dval) || dval != floor(dval) || !ZEND_DOUBLE_FITS_LONG(dval)) {
+                    return 0;
+                }
+                value = (zend_long) dval;
             } else if (Z_TYPE_P(zv) != IS_STRING ||
                        is_numeric_string(Z_STRVAL_P(zv), Z_STRLEN_P(zv), &value, NULL, 0) !=
                            IS_LONG) {
@@ -2582,12 +2583,36 @@ static int parse_hsetex_expiry_options(HashTable* opts, h_command_args_t* hargs)
 }
 
 /*
- * hSetEx(string $key, array $fields, ?array $expiry = null): int|false
+ * hSetEx() has two calling forms:
  *
- * Matches the PHPRedis signature. $fields is field => value; $expiry is
- * described in parse_hsetex_expiry_options().
+ *   PHPRedis form:  hSetEx($key, [$field => $value, ...], ['EX' => 60, 'FNX'])
+ *   Legacy form:    hSetEx($key, $seconds, $mode, $field, $value, ...)
+ *                   hPSetEx($key, $milliseconds, $mode, $field, $value, ...)
+ *
+ * The legacy form is deprecated: it emits E_DEPRECATED, gets no new options and
+ * will be removed in the next major version. Argument 2 selects the form (an
+ * array means the PHPRedis form).
  */
-int execute_hsetex_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+
+/* Send the HSETEX described by hargs. Shared by both calling forms. */
+static int run_hsetex(valkey_glide_object* valkey_glide,
+                      zval*                object,
+                      h_command_args_t*    hargs,
+                      zval*                return_value) {
+    if (execute_h_simple_command(valkey_glide, HSetEx, hargs, NULL, H_RESPONSE_INT, return_value)) {
+        if (valkey_glide->is_in_batch_mode) {
+            ZVAL_COPY(return_value, object);
+        }
+        return 1;
+    }
+    return 0;
+}
+
+/* PHPRedis form: hSetEx(string $key, array $fields, ?array $expiry = null) */
+static int execute_hsetex_phpredis(zval*             object,
+                                   int               argc,
+                                   zval*             return_value,
+                                   zend_class_entry* ce) {
     valkey_glide_object* valkey_glide;
     char*                key     = NULL;
     size_t               key_len = 0;
@@ -2618,14 +2643,212 @@ int execute_hsetex_command(zval* object, int argc, zval* return_value, zend_clas
         return 0;
     }
 
-    if (execute_h_simple_command(
-            valkey_glide, HSetEx, &hargs, NULL, H_RESPONSE_INT, return_value)) {
-        if (valkey_glide->is_in_batch_mode) {
-            ZVAL_COPY(return_value, object);
-        }
-        return 1;
+    return run_hsetex(valkey_glide, object, &hargs, return_value);
+}
+
+/*
+ * Deprecated legacy form, used by hSetEx and hPSetEx. $mode is 'NX' or 'XX'
+ * (sent as FNX/FXX). The arguments are converted to the PHPRedis form's
+ * field => value array and sent through the same path.
+ */
+static int execute_hsetex_legacy(zval*             object,
+                                 int               argc,
+                                 zval*             return_value,
+                                 zend_class_entry* ce,
+                                 const char*       expiry_type,
+                                 const char*       replacement) {
+    valkey_glide_object* valkey_glide;
+    char*                key = NULL;
+    size_t               key_len;
+    zval*                args     = NULL;
+    int                  num_args = 0;
+    zend_long            expiry;
+    char*                mode     = NULL;
+    size_t               mode_len = 0;
+
+    if (zend_parse_method_parameters(argc,
+                                     object,
+                                     "Osls!+",
+                                     &object,
+                                     ce,
+                                     &key,
+                                     &key_len,
+                                     &expiry,
+                                     &mode,
+                                     &mode_len,
+                                     &args,
+                                     &num_args) == FAILURE) {
+        return 0;
     }
-    return 0;
+
+    php_error_docref(NULL,
+                     E_DEPRECATED,
+                     "The (key, %s, mode, field, value, ...) signature is deprecated and will be "
+                     "removed in the next major version. Use %s",
+                     expiry_type ? "milliseconds" : "seconds",
+                     replacement);
+    if (EG(exception)) {
+        return 0;  // the error handler threw
+    }
+
+    if (num_args < 2 || num_args % 2 != 0) {
+        return 0;  // needs field/value pairs
+    }
+
+    const char* condition = NULL;
+    if (mode) {
+        if (strcasecmp(mode, "NX") == 0) {
+            condition = "FNX";
+        } else if (strcasecmp(mode, "XX") == 0) {
+            condition = "FXX";
+        } else {
+            return 0;
+        }
+    }
+
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        return 0;
+    }
+
+    // Standard string conversion, as the legacy form always used
+    zval fields;
+    array_init_size(&fields, num_args / 2);
+    for (int i = 0; i < num_args; i += 2) {
+        zend_string* name  = zval_get_string(&args[i]);
+        zend_string* value = zval_get_string(&args[i + 1]);
+        zval         zv;
+        ZVAL_STR(&zv, value);
+        zend_symtable_update(Z_ARRVAL(fields), name, &zv);
+        zend_string_release(name);
+    }
+    if (EG(exception)) {
+        zval_ptr_dtor(&fields);
+        return 0;
+    }
+
+    h_command_args_t hargs = {0};
+    hargs.key              = key;
+    hargs.key_len          = key_len;
+    hargs.field_values     = &fields;
+    hargs.mode             = condition;
+    // A non-positive timeout sends no expiry
+    if (expiry > 0) {
+        hargs.expiry_type = expiry_type ? expiry_type : "EX";
+        hargs.expiry      = (long long) expiry;
+    }
+
+    int ret = run_hsetex(valkey_glide, object, &hargs, return_value);
+    zval_ptr_dtor(&fields);
+    return ret;
+}
+
+/*
+ * Legacy call using the legacy parameter names (seconds, mode, field, value) as
+ * named arguments: put them back in position and call the method again.
+ */
+static int hsetex_named_legacy_call(zend_execute_data* call, zval* object, zval* return_value) {
+    static const char* names[] = {"key", "seconds", "mode", "field", "value"};
+    const int          nslots  = 5;
+    const char*        cls     = ZSTR_VAL(call->func->common.scope->name);
+    uint32_t           argc    = ZEND_CALL_NUM_ARGS(call);
+    zval               params[5];
+
+    for (int i = 0; i < nslots; i++) {
+        ZVAL_UNDEF(&params[i]);
+        if ((uint32_t) i < argc) {
+            ZVAL_COPY_VALUE(&params[i], ZEND_CALL_ARG(call, i + 1));
+        }
+    }
+
+    zend_string* name;
+    zval*        value;
+    ZEND_HASH_FOREACH_STR_KEY_VAL(call->extra_named_params, name, value) {
+        int slot = -1;
+        for (int i = 1; i < nslots; i++) {
+            if (zend_string_equals_cstr(name, names[i], strlen(names[i]))) {
+                slot = i;
+                break;
+            }
+        }
+        if (slot < 0) {
+            zend_argument_count_error(
+                "Internal function %s::hSetEx() does not accept named variadic arguments", cls);
+            return 0;
+        }
+        if (Z_TYPE(params[slot]) != IS_UNDEF) {
+            zend_throw_error(NULL, "Named parameter $%s overwrites previous argument", names[slot]);
+            return 0;
+        }
+        ZVAL_COPY_VALUE(&params[slot], value);
+    }
+    ZEND_HASH_FOREACH_END();
+
+    for (int i = 0; i < nslots; i++) {
+        if (Z_TYPE(params[i]) == IS_UNDEF) {
+            zend_argument_count_error(
+                "%s::hSetEx(): Argument #%d ($%s) not passed", cls, i + 1, names[i]);
+            return 0;
+        }
+    }
+
+    zval retval;
+    ZVAL_UNDEF(&retval);
+    zend_call_known_function(
+        call->func, Z_OBJ_P(object), Z_OBJCE_P(object), &retval, nslots, params, NULL);
+    if (EG(exception)) {
+        zval_ptr_dtor(&retval);
+        return 0;
+    }
+    ZVAL_COPY_VALUE(return_value, &retval);
+    return 1;
+}
+
+/* hSetEx entry point: picks the calling form from argument 2. */
+int execute_hsetex_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    zval*              second = NULL;
+    zend_execute_data* call   = EG(current_execute_data);
+
+    if (ZEND_CALL_INFO(call) & ZEND_CALL_HAS_EXTRA_NAMED_PARAMS) {
+        // PHPRedis form: no extra named arguments are allowed
+        if (argc >= 2) {
+            second = ZEND_CALL_ARG(call, 2);
+            ZVAL_DEREF(second);
+            if (Z_TYPE_P(second) == IS_ARRAY) {
+                zend_string* name;
+                ZEND_HASH_FOREACH_STR_KEY(call->extra_named_params, name) {
+                    zend_throw_error(NULL, "Unknown named parameter $%s", ZSTR_VAL(name));
+                    return 0;
+                }
+                ZEND_HASH_FOREACH_END();
+            }
+        }
+        return hsetex_named_legacy_call(call, object, return_value);
+    }
+
+    if (argc >= 2) {
+        second = ZEND_CALL_ARG(call, 2);
+        ZVAL_DEREF(second);
+        if (Z_TYPE_P(second) == IS_ARRAY) {
+            return execute_hsetex_phpredis(object, argc, return_value, ce);
+        }
+    }
+    return execute_hsetex_legacy(object,
+                                 argc,
+                                 return_value,
+                                 ce,
+                                 NULL,
+                                 "hSetEx($key, [$field => $value, ...], ['EX' => $seconds])");
+}
+
+/* hPSetEx: deprecated legacy form only. */
+int execute_hpsetex_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    return execute_hsetex_legacy(object,
+                                 argc,
+                                 return_value,
+                                 ce,
+                                 "PX",
+                                 "hSetEx($key, [$field => $value, ...], ['PX' => $milliseconds])");
 }
 
 // hExpire NX/XX variants - reuse existing hExpire infrastructure with conditions

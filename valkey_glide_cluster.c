@@ -824,6 +824,10 @@ HVALS_METHOD_IMPL(ValkeyGlideCluster)
 HSETEX_METHOD_IMPL(ValkeyGlideCluster)
 /* }}} */
 
+/* {{{ proto int ValkeyGlideCluster::hPSetEx(string key, int milliseconds, ...) (deprecated) */
+HPSETEX_METHOD_IMPL(ValkeyGlideCluster)
+/* }}} */
+
 /* {{{ proto array ValkeyGlideCluster::hExpire(string key, long time_value, string time_unit, string
  * field, ...) */
 HEXPIRE_METHOD_IMPL(ValkeyGlideCluster)

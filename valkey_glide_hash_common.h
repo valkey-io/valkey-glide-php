@@ -684,9 +684,13 @@ int process_h_ok_result_async(CommandResponse* response, void* output, zval* ret
         RETURN_FALSE;                                                     \
     }
 
-// hSetEx(string $key, array $fields, ?array $expiry = null) - PHPRedis signature
+// hSetEx: PHPRedis form, plus the deprecated legacy form
 #define HSETEX_METHOD_IMPL(class_name) \
     HSETEX_VARIANT_METHOD_IMPL(class_name, hSetEx, execute_hsetex_command)
+
+// hPSetEx: deprecated legacy form
+#define HPSETEX_METHOD_IMPL(class_name) \
+    HSETEX_VARIANT_METHOD_IMPL(class_name, hPSetEx, execute_hpsetex_command)
 
 
 #define HEXPIRE_METHOD_IMPL(class_name)                                            \
@@ -792,6 +796,7 @@ int process_h_ok_result_async(CommandResponse* response, void* output, zval* ret
 
 // Hash Field Expiration function declarations
 int execute_hsetex_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+int execute_hpsetex_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 
 // Hash Field Expiration NX/XX variants
 

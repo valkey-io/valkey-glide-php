@@ -1962,21 +1962,22 @@ class ValkeyGlide
 
     /**
      * Set one or more hash fields with optional expiration and conditions.
-     * Same signature as PHPRedis.
      *
      * @see https://valkey.io/commands/hsetex/
      *
      * @param string     $key    The key of the hash.
      * @param array      $fields The fields to set, as field => value.
-     * @param array|null $expiry Optional expiration and conditions. Entry names are case-insensitive:
-     *                           - 'EX' => int, 'PX' => int, 'EXAT' => int or 'PXAT' => int: expiry
-     *                             (non-negative). At most one of these or 'KEEPTTL'.
+     * @param array|null $expiry Optional expiration and conditions (case-insensitive):
+     *                           - 'EX', 'PX', 'EXAT' or 'PXAT' => int: expiry. At most one of
+     *                             these or 'KEEPTTL'.
      *                           - 'KEEPTTL': keep the fields' existing TTL.
      *                           - 'FNX' / 'FXX': set only if none / all of the fields exist.
      *                           - 'NX' / 'XX': set only if the key does not / does exist
      *                             (Valkey 9.1+).
-     *                           Unknown, malformed or conflicting entries return false without
-     *                           sending the command.
+     *                           Invalid entries return false without sending the command.
+     *
+     * The legacy form hSetEx($key, $seconds, $mode, $field, $value, ...) is deprecated and will be
+     * removed in the next major version.
      *
      * @return ValkeyGlide|int|false 1 if the fields were set, 0 if a condition prevented it,
      *                               or false on failure.
@@ -1986,7 +1987,23 @@ class ValkeyGlide
      * $client->hSetEx('profile', ['token' => 'abc123'], ['PX' => 60000, 'FNX']);
      * $client->hSetEx('profile', ['token' => 'abc123'], ['XX', 'KEEPTTL']);
      */
-    public function hSetEx(string $key, array $fields, ?array $expiry = null): ValkeyGlide|int|false;
+    public function hSetEx(string $key, array|int $fields, array|string|null $expiry = null, mixed ...$legacy_fields_and_vals): ValkeyGlide|int|false;
+    /**
+     * Deprecated and will be removed in the next major version.
+     * Use hSetEx($key, [$field => $value, ...], ['PX' => $milliseconds]).
+     *
+     * @see https://valkey.io/commands/hsetex/
+     *
+     * @param string $key The key of the hash.
+     * @param int $milliseconds The expiration time in milliseconds.
+     * @param string|null $mode Optional field-level condition: 'NX' or 'XX'.
+     * @param string $field The field name.
+     * @param mixed $value The field value.
+     * @param mixed $fields_and_vals Additional field-value pairs.
+     *
+     * @return ValkeyGlide|int|false 1 if the fields were set, 0 if a condition prevented it, or false on failure.
+     */
+    public function hPSetEx(string $key, int $milliseconds, ?string $mode, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlide|int|false;
 
     /**
      * Get hash field values with optional expiration settings.

@@ -5799,6 +5799,9 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals(1, $this->valkey_glide->hSetEx($key, [7 => 'seven'], ['EX' => '30']));
         $this->assertEquals('seven', $this->valkey_glide->hGet($key, '7'));
         $this->assertGT(0, $this->valkey_glide->hTtl($key, '7')[0]);
+        // A whole-number float expiry is accepted, as in PHPRedis (e.g. round($ms))
+        $this->assertEquals(1, $this->valkey_glide->hSetEx($key, ['f' => 'v'], ['PX' => round(30000.4)]));
+        $this->assertGT(0, $this->valkey_glide->hPTtl($key, 'f')[0]);
 
         // Invalid input returns false and writes nothing
         $this->valkey_glide->del($key);
@@ -5807,6 +5810,9 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             ['ex' => -1],                 // negative timeout
             ['EX' => 'soon'],             // non-numeric timeout
             ['EX' => null],               // null timeout
+            ['EX' => 1.5],                // fractional timeout
+            ['EX' => INF],                // non-finite timeout
+            ['EX' => 1e30],               // timeout out of integer range
             ['EX' => 10, 'PX' => 10000],  // two expiries
             ['EX' => 10, 'KEEPTTL'],      // expiry and KEEPTTL
             ['TTL' => 10],                // unknown keyed entry
@@ -5824,6 +5830,152 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         // An empty field array is rejected with a warning
         $this->assertFalse(@$this->valkey_glide->hSetEx($key, []));
+
+        $this->valkey_glide->del($key);
+    }
+
+    /**
+     * Call $fn collecting E_DEPRECATED messages; returns [result, messages].
+     */
+    private function callCollectingDeprecations(callable $fn): array
+    {
+        $messages = [];
+        set_error_handler(function ($errno, $errstr) use (&$messages) {
+            $messages[] = $errstr;
+            return true;
+        }, E_DEPRECATED);
+        try {
+            $result = $fn();
+        } finally {
+            restore_error_handler();
+        }
+        return [$result, $messages];
+    }
+
+    /**
+     * The legacy hSetEx/hPSetEx forms keep working, emit E_DEPRECATED on every
+     * call, and the PHPRedis form never does.
+     */
+    public function testHSetExLegacyFormDeprecated()
+    {
+        if (!$this->compare_major_version_number(9)) {
+            $this->markTestSkipped('HSETEX requires Valkey 9.0.0+ (current: ' . $this->version . ')');
+        }
+        $key = $this->createRandomString(10) . '_hsetex_legacy';
+        $this->valkey_glide->del($key);
+
+        // hSetEx legacy: seconds, no mode, several pairs
+        [$r, $msgs] = $this->callCollectingDeprecations(
+            fn() => $this->valkey_glide->hSetEx($key, 60, null, 'f1', 'v1', 'f2', 'v2')
+        );
+        $this->assertEquals(1, $r);
+        $this->assertCount(1, $msgs);
+        $this->assertStringContains('deprecated', $msgs[0]);
+        $this->assertEquals('v1', $this->valkey_glide->hGet($key, 'f1'));
+        $this->assertEquals('v2', $this->valkey_glide->hGet($key, 'f2'));
+        $ttl = $this->valkey_glide->hTtl($key, 'f1');
+        $this->assertTrue($ttl[0] > 0 && $ttl[0] <= 60);
+
+        // Notice on every call, not just the first
+        [$r, $msgs] = $this->callCollectingDeprecations(function () use ($key) {
+            $this->valkey_glide->hSetEx($key, 60, null, 'f1', 'again');
+            return $this->valkey_glide->hSetEx($key, 60, null, 'f1', 'again2');
+        });
+        $this->assertEquals(1, $r);
+        $this->assertCount(2, $msgs);
+
+        // Field-level conditions: NX/XX mean FNX/FXX in the legacy form
+        [$r] = $this->callCollectingDeprecations(fn() => $this->valkey_glide->hSetEx($key, 60, 'NX', 'f1', 'x'));
+        $this->assertEquals(0, $r); // f1 exists
+        [$r] = $this->callCollectingDeprecations(fn() => $this->valkey_glide->hSetEx($key, 60, 'NX', 'f3', 'v3'));
+        $this->assertEquals(1, $r);
+        [$r] = $this->callCollectingDeprecations(fn() => $this->valkey_glide->hSetEx($key, 60, 'XX', 'nope', 'x'));
+        $this->assertEquals(0, $r); // field missing
+        [$r] = $this->callCollectingDeprecations(fn() => $this->valkey_glide->hSetEx($key, 60, 'XX', 'f3', 'v3b'));
+        $this->assertEquals(1, $r);
+        $this->assertEquals('v3b', $this->valkey_glide->hGet($key, 'f3'));
+
+        // The legacy form gains no new options: array mode and unknown modes return false
+        [$r] = $this->callCollectingDeprecations(fn() => @$this->valkey_glide->hSetEx($key, 60, 'GT', 'f1', 'x'));
+        $this->assertFalse($r);
+        // Odd pair count; the call is still flagged as deprecated
+        [$r, $msgs] = $this->callCollectingDeprecations(fn() => $this->valkey_glide->hSetEx($key, 60, null, 'f1'));
+        $this->assertFalse($r);
+        $this->assertCount(1, $msgs);
+
+        // hPSetEx: milliseconds
+        $this->valkey_glide->del($key);
+        [$r, $msgs] = $this->callCollectingDeprecations(
+            fn() => $this->valkey_glide->hPSetEx($key, 30000, null, 'p1', 'pv')
+        );
+        $this->assertEquals(1, $r);
+        $this->assertCount(1, $msgs);
+        $this->assertStringContains("'PX'", $msgs[0]);
+        $pttl = $this->valkey_glide->hPTtl($key, 'p1');
+        $this->assertTrue($pttl[0] > 0 && $pttl[0] <= 30000);
+        [$r] = $this->callCollectingDeprecations(fn() => $this->valkey_glide->hPSetEx($key, 30000, 'NX', 'p1', 'x'));
+        $this->assertEquals(0, $r);
+
+        // PHPRedis form: no deprecation, and both forms coexist on one client
+        [$r, $msgs] = $this->callCollectingDeprecations(
+            fn() => $this->valkey_glide->hSetEx($key, ['n1' => 'nv'], ['EX' => 60, 'FNX'])
+        );
+        $this->assertEquals(1, $r);
+        $this->assertEquals([], $msgs);
+
+        // PHPRedis parameter names work as named arguments, and the options are applied
+        $this->valkey_glide->del($key);
+        $this->assertEquals(0, $this->valkey_glide->hSetEx($key, ['n1' => 'nv'], expiry: ['FXX']));
+        $this->assertFalse($this->valkey_glide->hExists($key, 'n1'));
+        $this->assertEquals(1, $this->valkey_glide->hSetEx(key: $key, fields: ['n1' => 'nv'], expiry: ['EX' => 60]));
+        $ttl = $this->valkey_glide->hTtl($key, 'n1');
+        $this->assertTrue($ttl[0] > 0 && $ttl[0] <= 60);
+
+        // Unknown named arguments are rejected instead of being silently dropped:
+        // in the PHPRedis form the same way PHP will once the legacy form is removed,
+        // in the legacy form the same way the original legacy signature did.
+        $rejected = [
+            [fn() => $this->valkey_glide->hSetEx($key, ['n1' => 'x'], options: ['FNX']), 'Unknown named parameter $options'],
+            [fn() => @$this->valkey_glide->hSetEx($key, 60, null, 'n1', 'x', junk: 1), 'does not accept named variadic arguments'],
+            [fn() => @$this->valkey_glide->hSetEx($key, 60, null, 'n1', 'x', seconds: 30), 'overwrites previous argument'],
+            [fn() => @$this->valkey_glide->hSetEx($key, seconds: 60, field: 'n1', value: 'x'), 'Argument #3 ($mode) not passed'],
+        ];
+        foreach ($rejected as [$call, $message]) {
+            $threw = false;
+            try {
+                $call();
+            } catch (\Error $e) {
+                $threw = str_contains($e->getMessage(), $message);
+            }
+            $this->assertTrue($threw);
+        }
+        $this->assertEquals('nv', $this->valkey_glide->hGet($key, 'n1'));
+
+        // The legacy parameter names still work as named arguments
+        [$r, $msgs] = $this->callCollectingDeprecations(
+            fn() => $this->valkey_glide->hSetEx($key, seconds: 60, mode: 'NX', field: 'l1', value: 'lv')
+        );
+        $this->assertEquals(1, $r);
+        $this->assertCount(1, $msgs);
+        [$r] = $this->callCollectingDeprecations(
+            fn() => $this->valkey_glide->hSetEx($key, 60, value: 'lv2', field: 'l1', mode: 'XX')
+        );
+        $this->assertEquals(1, $r);
+        $this->assertEquals('lv2', $this->valkey_glide->hGet($key, 'l1'));
+        [$r] = $this->callCollectingDeprecations(
+            fn() => $this->valkey_glide->hPSetEx($key, milliseconds: 30000, mode: null, field: 'l2', value: 'lv')
+        );
+        $this->assertEquals(1, $r);
+        $this->assertEquals('lv', $this->valkey_glide->hGet($key, 'l2'));
+
+        // Wrong types fail like any other bad argument
+        $threw = false;
+        try {
+            $this->valkey_glide->hSetEx($key, 'abc', null, 'f', 'v');
+        } catch (\TypeError $e) {
+            $threw = true;
+        }
+        $this->assertTrue($threw);
 
         $this->valkey_glide->del($key);
     }

@@ -466,6 +466,10 @@ HVALS_METHOD_IMPL(ValkeyGlide);
 HSETEX_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
+/* {{{ proto int ValkeyGlide::hPSetEx(string key, int milliseconds, ...) (deprecated) */
+HPSETEX_METHOD_IMPL(ValkeyGlide)
+/* }}} */
+
 
 /* {{{ proto array ValkeyGlide::hTtl(string key, string field, ...) */
 HTTL_METHOD_IMPL(ValkeyGlide)
