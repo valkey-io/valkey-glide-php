@@ -129,9 +129,8 @@ class ValkeyGlideSearchTest extends ValkeyGlideBaseTest
      * Probes a real 1.3-only behaviour (FT.SEARCH INKEYS, rejected with
      * "Unexpected argument `INKEYS`" by every pre-1.3 module build) on a
      * throwaway index, rather than trusting MODULE LIST's version string
-     * alone -- the version number is unreliable across rc builds (see
-     * the "never trust a version string alone" note
-     * in the main repo's planning tree). The probe index is cleaned up
+     * alone -- the version number is unreliable across rc builds. The
+     * probe index is cleaned up
      * before returning in every case, including when the probe itself
      * throws; a failed cleanup DROPINDEX retries once, then raises
      * (the capability probe must never swallow a genuine failure).
