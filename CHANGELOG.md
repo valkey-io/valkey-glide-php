@@ -57,15 +57,9 @@
 
 ### Changes
 
-* Add valkey-search 1.3.0 support: typed API parity with the Python/Node/Java/Go ports --
-  `FT.CREATE` `FILTER`, `SCORE_FIELD`, `NOHL`, `SORTABLE UNF`, and FLOAT16/BFLOAT16 vector types
-  (`FtVectorField::hnsw()`/`flat()`'s `$vectorType` parameter); `FT.AGGREGATE`/`FT.HYBRID`
-  `LOAD ... AS` field aliasing (`LoadField`); `FT.SEARCH` `INKEYS`, `WITHSCORES` and `SCORER`;
-  `FT.AGGREGATE` `ADDSCORES`, `SCORER` and `WITHCURSOR` paging (`ftCursorRead()`/`ftCursorDel()`);
-  `FT.HYBRID` (`ftHybrid()`), fusing a text/tag/numeric query with a vector similarity search via
-  RRF, linear or a custom fusion expression. `FT.HYBRID` and the cursor commands are dispatched
-  through the client's raw-command path pending an upstream core change; see this port's PR
-  description Limitations for details
+* Add valkey-search 1.3.0 support, with typed API parity with the Python, Node, Java and Go clients: `FT.CREATE` `FILTER`, `SCORE_FIELD`, `NOHL`, `SORTABLE UNF`, and FLOAT16/BFLOAT16 vector types (the `$vectorType` parameter of `FtVectorField::hnsw()`/`flat()`); `FT.AGGREGATE`/`FT.HYBRID` `LOAD ... AS` field aliasing (`LoadField`); `FT.SEARCH` `INKEYS`, `WITHSCORES` and `SCORER`; `FT.AGGREGATE` `ADDSCORES`, `SCORER` and `WITHCURSOR` paging (`ftCursorRead()`, `ftCursorDel()`); and `FT.HYBRID` (`ftHybrid()`), which fuses a text/tag/numeric query with a vector similarity search by RRF, linear or a custom fusion expression ([#423](https://github.com/valkey-io/valkey-glide-php/pull/423))
+* Cursor paging (`withCursor()`, `ftCursorRead()`, `ftCursorDel()`) on a standalone client requires `READ_FROM_PRIMARY`: with a replica read strategy the cursor can be opened on a replica and `ftCursorRead()`/`ftCursorDel()` then fail with `Cursor: not found`. The cluster client always routes cursor commands to the primary of the index's slot ([#423](https://github.com/valkey-io/valkey-glide-php/pull/423))
+* `ftHybrid()`, `ftCursorRead()` and `ftCursorDel()`, like the other `FT.*` methods, are not supported inside `multi()` or `pipeline()` ([#423](https://github.com/valkey-io/valkey-glide-php/pull/423))
 * Add `FtReducer::toList()`, `firstValue()` and `randomSample()` reducers
 * Add PHP 8.6 to the supported versions and the CI test matrix. The extension no longer uses `XtOffsetOf`, `zval_is_true`, `zval_dtor` and `INI_INT`, which PHP 8.6 removed; their replacements (`offsetof`, `zend_is_true`, `zval_ptr_dtor_nogc`, `zend_ini_long`) work on all supported PHP versions
 * At most 10,000 messages or 64 MiB of payload are queued per pub/sub subscriber (a single larger message is still delivered when the queue is empty). When a slow callback falls behind, newer messages are dropped and a warning with the drop count is logged (at most once per second); previously every message was queued, without a limit ([#363](https://github.com/valkey-io/valkey-glide-php/issues/363))

@@ -2189,5 +2189,5 @@ class ValkeyGlideCluster
     /**
      * @see ValkeyGlide::ftCursorDel
      */
-    public function ftCursorDel(string $index, int $cursorId): bool;
+    public function ftCursorDel(string $index, int $cursorId): ValkeyGlideCluster|bool;
 }

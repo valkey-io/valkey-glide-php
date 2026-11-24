@@ -5663,8 +5663,12 @@ class ValkeyGlide
 
     /**
      * Fetch the next page of a cursor opened by `ftAggregate()`/`ftHybrid()`'s
-     * `withCursor()` option (valkey-search 1.3.0). Always routed to the PRIMARY of the
-     * index's slot, regardless of the client's ReadFrom configuration.
+     * `withCursor()` option (valkey-search 1.3.0). The cluster client always routes it to
+     * the PRIMARY of the index's slot, regardless of its ReadFrom configuration. A
+     * standalone client follows its ReadFrom configuration: with `READ_FROM_PREFER_REPLICA`
+     * or an AZ-affinity strategy the cursor can be opened on a replica, and this call then
+     * fails with `Cursor: not found`. Use `READ_FROM_PRIMARY` for cursor queries on a
+     * standalone client until the core fix lands.
      *
      * @param string   $index    The index the cursor was opened against.
      * @param int      $cursorId The cursor ID returned by the paged query.
@@ -5679,17 +5683,19 @@ class ValkeyGlide
 
     /**
      * Discard a cursor opened by `ftAggregate()`/`ftHybrid()`'s `withCursor()` option
-     * before it would otherwise expire (valkey-search 1.3.0). Always routed to the
-     * PRIMARY of the index's slot.
+     * before it would otherwise expire (valkey-search 1.3.0). The cluster client always
+     * routes it to the PRIMARY of the index's slot. A standalone client follows its ReadFrom
+     * configuration, so with a replica strategy it fails with `Cursor: not found` (use
+     * `READ_FROM_PRIMARY` for cursor queries on a standalone client).
      *
      * @param string $index    The index the cursor was opened against.
      * @param int    $cursorId The cursor ID to discard.
      *
-     * @return bool True on success.
+     * @return ValkeyGlide|bool True on success.
      *
      * @see https://valkey.io/commands/ft.cursor/
      */
-    public function ftCursorDel(string $index, int $cursorId): bool;
+    public function ftCursorDel(string $index, int $cursorId): ValkeyGlide|bool;
 }
 
 class ValkeyGlideException extends RuntimeException
