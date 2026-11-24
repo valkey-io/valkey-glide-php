@@ -74,6 +74,23 @@ class UpdateConnectionPasswordTest extends TestSuite
         $client->close();
     }
 
+    // A password containing a NUL byte is rejected: the core takes a C string, so it would be cut
+    // short (#468)
+    public function testUpdateConnectionPasswordRejectsNulBytes()
+    {
+        foreach (['createClient', 'createClusterClient'] as $create) {
+            $client = $this->$create();
+            try {
+                $client->updateConnectionPassword("pass\0word", false);
+                $this->fail("Expected exception for a password containing a NUL byte");
+            } catch (ValkeyGlideException $e) {
+                $this->assertStringContains("Password must not contain NUL bytes", $e->getMessage());
+            } finally {
+                $client->close();
+            }
+        }
+    }
+
     // Test null password - PHP converts to empty string which throws exception
     public function testUpdateConnectionPasswordNull()
     {

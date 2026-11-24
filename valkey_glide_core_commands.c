@@ -2861,6 +2861,15 @@ void execute_update_connection_password(zval*             object,
     valkey_glide_object* valkey_glide;
     zend_bool            is_cluster = (ce != NULL && ce == get_valkey_glide_cluster_ce());
 
+    /* The core takes the password as a NUL-terminated C string, so an embedded NUL would cut it
+     * short ("abc\0def" would become "abc") */
+    if (memchr(password, '\0', password_len)) {
+        const char* message = "Password must not contain NUL bytes.";
+        VALKEY_LOG_ERROR("update_connection_password", message);
+        zend_throw_exception(get_valkey_glide_exception_ce(), message, 0);
+        return;
+    }
+
     /* Get ValkeyGlide object */
     valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
     if (!valkey_glide || !valkey_glide->glide_client) {
