@@ -197,4 +197,30 @@ class ClientConstructorMock
         ?string $lib_name = null,
         ?string $client_info_tag = null,
     ): \Connection_request\ConnectionRequest;
+
+    /**
+     * Simulates a ValkeyGlideCluster constructor called with PHPRedis RedisCluster-style
+     * parameters, mapped to the connection request as the real constructor maps them.
+     *
+     * @param string|null $name          Cluster name (ignored).
+     * @param array|null $seeds          Seed nodes.
+     * @param float|null $timeout        Connection timeout in seconds.
+     * @param float|null $read_timeout   Request timeout in seconds.
+     * @param mixed $auth                Password, [password], [user, password], or a credentials array.
+     * @param array|null $addresses      ValkeyGlide-style addresses, to test conflicts.
+     * @param array|null $credentials    ValkeyGlide-style credentials, to test conflicts.
+     * @param int|null $request_timeout  ValkeyGlide-style request timeout, to test conflicts.
+     * @param array|null $advanced_config ValkeyGlide-style advanced configuration, to test conflicts.
+     */
+    public static function simulate_cluster_phpredis_constructor(
+        ?string $name = null,
+        ?array $seeds = null,
+        ?float $timeout = null,
+        ?float $read_timeout = null,
+        mixed $auth = null,
+        ?array $addresses = null,
+        ?array $credentials = null,
+        ?int $request_timeout = null,
+        ?array $advanced_config = null,
+    ): \Connection_request\ConnectionRequest;
 }
