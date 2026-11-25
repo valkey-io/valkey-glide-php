@@ -363,6 +363,36 @@ echo "Value: " . $value . "\n";
 $client->close();
 ```
 
+To get AWS credentials from your own source (for example HashiCorp Vault or a custom STS
+assume-role flow) instead of the default AWS credential chain, set a credential provider:
+
+```php
+$client->connect(
+    addresses: [['host' => 'my-cluster.xxxxx.use1.cache.amazonaws.com', 'port' => 6379]],
+    use_tls: true,
+    credentials: [
+        'username' => 'my-iam-user',
+        'iamConfig' => [
+            ValkeyGlide::IAM_CONFIG_CLUSTER_NAME => 'my-cluster',
+            ValkeyGlide::IAM_CONFIG_REGION => 'us-east-1',
+            ValkeyGlide::IAM_CONFIG_SERVICE => ValkeyGlide::IAM_SERVICE_ELASTICACHE,
+            ValkeyGlide::IAM_CONFIG_CREDENTIAL_PROVIDER => fn () => [
+                'accessKeyId' => $vault->accessKeyId(),         // required
+                'secretAccessKey' => $vault->secretAccessKey(), // required
+                'sessionToken' => $vault->sessionToken(),       // optional
+                'expiresAt' => $vault->expiresAtMillis(),       // optional, Unix epoch milliseconds
+            ],
+        ]
+    ]
+);
+```
+
+The provider runs on connect, before a command once half the refresh interval has passed (or
+when the credentials expire within one interval), and in `refreshIamToken()`. PHP code can
+only run in your script, so the provider is not called while the script is idle: the client
+signs new tokens with the last credentials until they expire. A client with a credential
+provider is never persistent and cannot use `address_resolver`.
+
 ### With TLS
 
 ```php

@@ -283,6 +283,15 @@ class ValkeyGlide
     public const IAM_CONFIG_REFRESH_INTERVAL = 'refreshIntervalSeconds';
 
     /**
+     * @var string
+     * IAM config key for a custom credential provider: a callable returning
+     * ['accessKeyId' => string, 'secretAccessKey' => string,
+     *  'sessionToken' => ?string, 'expiresAt' => ?int (Unix epoch milliseconds)].
+     * Without it the default AWS credential chain is used.
+     */
+    public const IAM_CONFIG_CREDENTIAL_PROVIDER = 'credentialProvider';
+
+    /**
      * Compression Backend Constants
      */
 
@@ -471,7 +480,18 @@ class ValkeyGlide
      * @param float|null $read_timeout Read timeout in seconds (not implemented)
      * @param array|null $addresses Server addresses array: [['host' => 'x', 'port' => y], ...] (ValkeyGlide-style)
      * @param bool|null $use_tls Enable TLS/SSL (default: false)
-     * @param array|null $credentials Authentication: ['username' => 'x', 'password' => 'y'] or IAM config
+     * @param array|null $credentials Authentication: ['username' => 'x', 'password' => 'y'] or IAM config:
+     *                                ['username' => 'x', 'iamConfig' => ['clusterName' => ..., 'region' => ...,
+     *                                'service' => ..., 'refreshIntervalSeconds' => ..., 'credentialProvider' => ...]].
+     *                                The optional credentialProvider is a callable returning
+     *                                ['accessKeyId' => string, 'secretAccessKey' => string,
+     *                                'sessionToken' => ?string, 'expiresAt' => ?int (Unix epoch ms)]
+     *                                instead of the default AWS credential chain. It is called on connect,
+     *                                before a command once half the refresh interval has passed (or the
+     *                                credentials expire within one interval), and by refreshIamToken().
+     *                                It is not called while the script is idle: the core then signs new
+     *                                tokens with the last credentials until they expire. A client with a
+     *                                credential provider is never persistent and cannot use address_resolver.
      * @param int|null $read_from Read strategy: READ_FROM_PRIMARY, READ_FROM_PREFER_REPLICA, etc. (default: READ_FROM_PRIMARY)
      * @param int|null $request_timeout Request timeout in milliseconds
      * @param array|null $reconnect_strategy Reconnection configuration
@@ -953,6 +973,8 @@ class ValkeyGlide
      *
      * This method triggers an immediate refresh of the IAM authentication token.
      * It is only available when the client was created with IAM authentication enabled.
+     * With a custom credential provider, the provider is called first and the new
+     * token is signed with the credentials it returns; a provider failure throws.
      *
      * @return string Returns "OK" on success
      * @throws Exception if IAM authentication is not enabled or the operation fails

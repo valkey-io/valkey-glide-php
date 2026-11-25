@@ -125,11 +125,12 @@ static int valkey_glide_cluster_create_connection(
     }
 
     /* Issue the connection request. */
-    AddressResolverCallback   resolver_cb   = NULL;
-    uint8_t*                  request_bytes = NULL;
-    size_t                    request_len   = 0;
-    const ConnectionResponse* conn_resp =
-        create_glide_cluster_client(&client_config, &resolver_cb, &request_bytes, &request_len);
+    AddressResolverCallback             resolver_cb   = NULL;
+    valkey_glide_credential_provider_t* provider      = NULL;
+    uint8_t*                            request_bytes = NULL;
+    size_t                              request_len   = 0;
+    const ConnectionResponse*           conn_resp     = create_glide_cluster_client(
+        &client_config, &resolver_cb, &provider, &request_bytes, &request_len);
 
     /* No response: building the request failed (an exception is pending) */
     if (!conn_resp) {
@@ -157,9 +158,10 @@ static int valkey_glide_cluster_create_connection(
         return FAILURE;
     } else {
         VALKEY_LOG_INFO("cluster_construct", "ValkeyGlide cluster client created successfully");
-        valkey_glide->glide_client = conn_resp->conn_ptr;
-        valkey_glide->client_pid   = getpid();
-        valkey_glide->resolver_cb  = resolver_cb;
+        valkey_glide->glide_client        = conn_resp->conn_ptr;
+        valkey_glide->client_pid          = getpid();
+        valkey_glide->resolver_cb         = resolver_cb;
+        valkey_glide->credential_provider = provider;
         if (persistent_key) {
             valkey_glide_persistent_store(
                 valkey_glide, persistent_key, client_config.base.database_id);

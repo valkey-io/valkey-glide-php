@@ -15,6 +15,7 @@
 
 #include "include/glide_bindings.h"
 #include "valkey_glide_address_resolver.h"
+#include "valkey_glide_credential_provider.h"
 
 /**
  * Validate that a client metadata string (lib_name or client_info_tag) contains
@@ -164,6 +165,7 @@ typedef struct {
     char*                       region;
     valkey_glide_service_type_t service_type;
     int                         refresh_interval_seconds; /* 0 means use default (300s) */
+    zval* credential_provider; /* PHP callable (borrowed), NULL for the default AWS chain */
 } valkey_glide_iam_config_t;
 
 typedef struct {
@@ -467,6 +469,9 @@ typedef struct {
     size_t   connection_request_len;
 
     AddressResolverCallback resolver_cb; /* NULL if no address resolver */
+
+    /* Custom IAM credential provider (iamConfig credentialProvider), NULL if none */
+    valkey_glide_credential_provider_t* credential_provider;
 
     /* Persistent client (persistent_id / $persistent), NULL if not persistent */
     valkey_glide_persistent_client_t* persistent;

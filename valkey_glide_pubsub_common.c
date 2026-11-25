@@ -468,6 +468,8 @@ struct CommandResult* pubsub_command(const void*          connection,
                                      const unsigned long* args_len) {
     valkey_glide_prefixed_args_t prefixed;
     struct CommandResult*        result;
+    /* Renew the custom IAM credentials the core will sign with, if due */
+    valkey_glide_credential_refresh_if_due(connection);
     if (valkey_glide_prefix_client_args(
             connection, command_type, arg_count, args, args_len, &prefixed)) {
         result = command(

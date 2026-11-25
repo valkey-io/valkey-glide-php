@@ -436,6 +436,16 @@ int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_pa
         /* Check for IAM config (mutually exclusive with password) */
         zval* iam_config_val = zend_hash_str_find(
             cred_ht, VALKEY_GLIDE_AUTH_IAM_CONFIG, sizeof(VALKEY_GLIDE_AUTH_IAM_CONFIG) - 1);
+        if ((!iam_config_val || Z_TYPE_P(iam_config_val) != IS_ARRAY) &&
+            zend_hash_str_exists(cred_ht,
+                                 VALKEY_GLIDE_IAM_CONFIG_CREDENTIAL_PROVIDER,
+                                 sizeof(VALKEY_GLIDE_IAM_CONFIG_CREDENTIAL_PROVIDER) - 1)) {
+            valkey_glide_cleanup_client_config(config);
+            zend_throw_exception(get_valkey_glide_exception_ce(),
+                                 "credentialProvider must be set inside iamConfig",
+                                 0);
+            return FAILURE;
+        }
         if (iam_config_val && Z_TYPE_P(iam_config_val) == IS_ARRAY) {
             HashTable* iam_ht = Z_ARRVAL_P(iam_config_val);
 
@@ -490,6 +500,30 @@ int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_pa
             } else {
                 config->credentials->iam_config->refresh_interval_seconds =
                     0; /* 0 means use default */
+            }
+
+            /* Parse the custom credential provider (optional, default AWS credential chain) */
+            zval* provider_val =
+                zend_hash_str_find_deref(iam_ht,
+                                         VALKEY_GLIDE_IAM_CONFIG_CREDENTIAL_PROVIDER,
+                                         sizeof(VALKEY_GLIDE_IAM_CONFIG_CREDENTIAL_PROVIDER) - 1);
+            if (provider_val && Z_TYPE_P(provider_val) != IS_NULL) {
+                if (!zend_is_callable(provider_val, 0, NULL)) {
+                    valkey_glide_cleanup_client_config(config);
+                    zend_throw_exception(get_valkey_glide_exception_ce(),
+                                         "iamConfig credentialProvider must be callable",
+                                         0);
+                    return FAILURE;
+                }
+                if (params->address_resolver && !Z_ISNULL_P(params->address_resolver)) {
+                    valkey_glide_cleanup_client_config(config);
+                    zend_throw_exception(
+                        get_valkey_glide_exception_ce(),
+                        "iamConfig credentialProvider cannot be combined with address_resolver",
+                        0);
+                    return FAILURE;
+                }
+                config->credentials->iam_config->credential_provider = provider_val;
             }
 
             /* Clear password when using IAM */
@@ -985,6 +1019,8 @@ PHP_MSHUTDOWN_FUNCTION(valkey_glide) {
 PHP_RSHUTDOWN_FUNCTION(valkey_glide) {
     /* Clients still open (in static properties, for example) are freed after this */
     valkey_glide_resolver_request_shutdown();
+    /* Credential provider callables are request memory; their clients get no new credentials */
+    valkey_glide_credential_request_shutdown();
     /* Clients closed inside a resolver callable that no create_client() call has
      * closed since; request shutdown has reset the callable count */
     valkey_glide_run_deferred_closes();
@@ -1399,8 +1435,10 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
     }
 
     /* Issue the connection request. */
-    AddressResolverCallback   resolver_cb = NULL;
-    const ConnectionResponse* conn_resp   = create_glide_client(&client_config, &resolver_cb);
+    AddressResolverCallback             resolver_cb = NULL;
+    valkey_glide_credential_provider_t* provider    = NULL;
+    const ConnectionResponse*           conn_resp =
+        create_glide_client(&client_config, &resolver_cb, &provider);
 
     /* Clean up temporary addresses array if we created it */
     if (created_addresses) {
@@ -1434,9 +1472,10 @@ static int valkey_glide_create_connection(valkey_glide_object* valkey_glide,
     }
 
     VALKEY_LOG_INFO("valkey_glide_create_connection", "ValkeyGlide client connected successfully");
-    valkey_glide->glide_client = conn_resp->conn_ptr;
-    valkey_glide->client_pid   = getpid();
-    valkey_glide->resolver_cb  = resolver_cb;
+    valkey_glide->glide_client        = conn_resp->conn_ptr;
+    valkey_glide->client_pid          = getpid();
+    valkey_glide->resolver_cb         = resolver_cb;
+    valkey_glide->credential_provider = provider;
     if (persistent_key) {
         valkey_glide_persistent_store(valkey_glide, persistent_key, client_config.database_id);
     }

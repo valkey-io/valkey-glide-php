@@ -1145,6 +1145,9 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
                                    .cmds      = (const struct CmdInfo* const*) cmd_infos,
                                    .is_atomic = (valkey_glide->batch_type == MULTI)};
 
+    /* Renew the custom IAM credentials the core will sign with, if due */
+    valkey_glide_credential_refresh_if_due(valkey_glide->glide_client);
+
     /* Execute via FFI batch() function */
     struct CommandResult* result = batch(valkey_glide->glide_client,
                                          0, /* callback_index (not used for sync) */
