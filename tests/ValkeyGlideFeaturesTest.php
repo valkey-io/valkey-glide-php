@@ -727,7 +727,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
 
     public function testPHPRedisStyleHostPort()
     {
-        // PHPRedis-style connections are not support with TLS.
+        // PHPRedis-style connections are not supported with TLS.
         $this->skipIfTlsEnabled();
 
         // Test PHPRedis-compatible connection with host and port
@@ -748,7 +748,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
 
     public function testPHPRedisStyleWithTimeout()
     {
-        // PHPRedis-style connections are not support with TLS.
+        // PHPRedis-style connections are not supported with TLS.
         $this->skipIfTlsEnabled();
 
         // Test PHPRedis-compatible connection with timeout parameter
@@ -768,7 +768,7 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
 
     public function testPHPRedisStyleConflictDetection()
     {
-        // PHPRedis-style connections are not support with TLS.
+        // PHPRedis-style connections are not supported with TLS.
         $this->skipIfTlsEnabled();
 
         // Test that mixing PHPRedis and ValkeyGlide parameters is detected
@@ -783,6 +783,64 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             $this->fail('Should throw exception for conflicting parameters');
         } catch (Exception $e) {
             $this->assertStringContains('Cannot specify both', $e->getMessage(), 'Exception should mention parameter conflict');
+        }
+    }
+
+    public function testPHPRedisStyleConnectTwiceThrows()
+    {
+        // PHPRedis-style connections are not supported with TLS.
+        $this->skipIfTlsEnabled();
+        if ($this->getAuth()) {
+            $this->markTestSkipped('This test connects without credentials');
+        }
+
+        // A second connect() on a connected client throws and keeps the first connection (#177)
+        $client = new ValkeyGlide();
+        $this->assertTrue($client->connect($this->getHost(), $this->getPort()));
+
+        try {
+            $id = $client->rawcommand('CLIENT', 'ID');
+            $this->assertIsInt($id);
+            $this->assertThrowsMatch($client, function ($c) {
+                $c->connect($this->getHost(), $this->getPort());
+            }, '/already connected/');
+            $this->assertEquals($id, $client->rawcommand('CLIENT', 'ID'));
+        } finally {
+            $client->close();
+        }
+    }
+
+    public function testPHPRedisStyleConnectFailureThrows()
+    {
+        // A PHPRedis-style connect() to an unreachable host throws (#177)
+        $client = new ValkeyGlide();
+        try {
+            $client->connect('nonexistent-host', 9999, 1.0);
+            $this->fail('connect() to an unreachable host should throw');
+        } catch (ValkeyGlideException $e) {
+            $this->assertStringContains('nonexistent-host:9999', $e->getMessage());
+        }
+    }
+
+    public function testPHPRedisStyleConnectFailureThrowsRedisException()
+    {
+        if (!class_exists('Redis', false)) {
+            if (PHP_VERSION_ID < 80300) {
+                $this->markTestSkipped('PHPRedis aliases require PHP 8.3+');
+            }
+            ValkeyGlide::registerPHPRedisAliases();
+        }
+        if (!is_a('Redis', ValkeyGlide::class, true)) {
+            $this->markTestSkipped('PHPRedis extension is loaded, so Redis is not an alias');
+        }
+
+        // The same failure through the PHPRedis aliases is a RedisException (#177)
+        $client = new Redis();
+        try {
+            $client->connect('nonexistent-host', 9999, 1.0);
+            $this->fail('connect() to an unreachable host should throw');
+        } catch (RedisException $e) {
+            $this->assertStringContains('nonexistent-host:9999', $e->getMessage());
         }
     }
 
@@ -2758,6 +2816,32 @@ class ValkeyGlideFeaturesTest extends ValkeyGlideBaseTest
             $this->assertFalse($result, 'DELIFEQ should return false when compression is enabled');
             $this->assertStringContains('incompatible with compression', (string) $client->getLastError());
             $this->assertEquals($data, $client->get($key), 'DELIFEQ should not delete the key when compression is enabled');
+        } finally {
+            $client->del($key);
+        }
+    }
+
+    public function testCompressionBlockedSetIfEq()
+    {
+        if (!$this->is_valkey || !$this->minVersionCheck('8.1.0')) {
+            $this->markTestSkipped('SET IFEQ requires Valkey 8.1.0+ (current: ' . $this->version . ')');
+        }
+
+        $client = $this->getCompressedClient();
+        // Keep the value below the compression threshold so a regression that removes the
+        // compression guard would make IFEQ match and overwrite the key.
+        $data = 'setifeq_data';
+        $key = 'compression_blocked_setifeq_' . uniqid();
+
+        try {
+            $client->set($key, $data);
+            $this->assertTrue($client->clearLastError());
+
+            $result = $client->set($key, 'new_value', ['IFEQ' => $data]);
+
+            $this->assertFalse($result, 'SET IFEQ should return false when compression is enabled');
+            $this->assertStringContains('incompatible with compression', (string) $client->getLastError());
+            $this->assertEquals($data, $client->get($key), 'SET IFEQ should not modify the key when compression is enabled');
         } finally {
             $client->del($key);
         }

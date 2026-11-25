@@ -1895,6 +1895,103 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         }
     }
 
+    /* PHPRedis RedisCluster-style constructor: $name is ignored, $seeds are the seed nodes (#177) */
+    public function testPhpRedisStyleConstructorWithNameAndSeeds()
+    {
+        // The PHPRedis-style constructor connects without TLS
+        $this->skipIfTlsEnabled();
+
+        $seeds  = $this->getClusterAddresses();
+        $key    = 'test_phpredis_style_seeds_' . uniqid();
+        $client = new ValkeyGlideCluster('any-cluster-name', $seeds, auth: $this->getAuth());
+
+        try {
+            $this->assertTrue($client->set($key, 'value'));
+            $this->assertEquals('value', $client->get($key));
+        } finally {
+            $client->del($key);
+            $client->close();
+        }
+    }
+
+    /* $read_timeout is the request timeout in seconds (#177) */
+    public function testPhpRedisStyleReadTimeoutIsRequestTimeout()
+    {
+        // The PHPRedis-style constructor connects without TLS
+        $this->skipIfTlsEnabled();
+
+        $seeds = $this->getClusterAddresses();
+
+        // A 150 ms DEBUG SLEEP finishes within a 500 ms $read_timeout...
+        $control = new ValkeyGlideCluster(null, $seeds, read_timeout: 0.5, auth: $this->getAuth());
+        try {
+            $this->assertTrue($control->rawcommand('test', 'DEBUG', 'SLEEP', '0.15'));
+        } finally {
+            $control->close();
+        }
+
+        // ...but outlasts a 50 ms $read_timeout
+        $client = new ValkeyGlideCluster(null, $seeds, read_timeout: 0.05, auth: $this->getAuth());
+        try {
+            $this->assertFalse($client->rawcommand('test', 'DEBUG', 'SLEEP', '0.15'));
+            $this->assertStringContains('timed out', (string) $client->getLastError());
+        } finally {
+            $client->close();
+            // Let the server finish sleeping before the next test
+            usleep(200000);
+        }
+    }
+
+    /* A keyed $auth array authenticates as that user, as $credentials does (#177) */
+    public function testPhpRedisStyleAuthKeyedArray()
+    {
+        // The PHPRedis-style constructor connects without TLS
+        $this->skipIfTlsEnabled();
+
+        $user  = 'glide_phpredis_auth_' . uniqid();
+        $admin = $this->newInstance();
+
+        try {
+            $admin->rawcommand('allNodes', 'ACL', 'SETUSER', $user, 'on', '>user_pass', '~*', '&*', '+@all');
+
+            $seeds  = $this->getClusterAddresses();
+            $client = new ValkeyGlideCluster(null, $seeds, auth: ['username' => $user, 'password' => 'user_pass']);
+            try {
+                $this->assertEquals($user, $client->rawcommand('test', 'ACL', 'WHOAMI'));
+            } finally {
+                $client->close();
+            }
+        } finally {
+            try {
+                $admin->rawcommand('allNodes', 'ACL', 'DELUSER', $user);
+            } finally {
+                $admin->close();
+            }
+        }
+    }
+
+    /* PHPRedis-style parameters can't be combined with $addresses (#177) */
+    public function testPhpRedisStyleConstructorConflicts()
+    {
+        $seeds = $this->getClusterAddresses();
+
+        $conflicts = [
+            '$seeds'        => fn() => new ValkeyGlideCluster(null, $seeds, addresses: $seeds),
+            '$name'         => fn() => new ValkeyGlideCluster('name', addresses: $seeds),
+            '$timeout'      => fn() => new ValkeyGlideCluster(timeout: 1.0, addresses: $seeds),
+            '$read_timeout' => fn() => new ValkeyGlideCluster(read_timeout: 1.0, addresses: $seeds),
+            '$auth'         => fn() => new ValkeyGlideCluster(auth: ['password' => 'x'], addresses: $seeds),
+        ];
+        foreach ($conflicts as $param => $construct) {
+            try {
+                $construct()->close();
+                $this->fail("$param with \$addresses should throw");
+            } catch (ValkeyGlideException $e) {
+                $this->assertStringContains('PHPRedis-style and ValkeyGlide-style', $e->getMessage());
+            }
+        }
+    }
+
     public function testOptSlaveFailoverRejected()
     {
         $client = $this->newInstance();
@@ -2640,6 +2737,32 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             $client->set($key, $data);
             $result = $client->append($key, ' suffix');
             $this->assertFalse($result, 'APPEND should return false when compression is enabled');
+        } finally {
+            $client->del($key);
+        }
+    }
+
+    public function testCompressionClusterBlockedSetIfEq()
+    {
+        if (!$this->is_valkey || !$this->minVersionCheck('8.1.0')) {
+            $this->markTestSkipped('SET IFEQ requires Valkey 8.1.0+ (current: ' . $this->version . ')');
+        }
+
+        $client = $this->getCompressedClusterClient();
+        // Keep the value below the compression threshold so a regression that removes the
+        // compression guard would make IFEQ match and overwrite the key.
+        $data = 'setifeq_data';
+        $key = 'compression_cluster_blocked_setifeq_' . uniqid();
+
+        try {
+            $client->set($key, $data);
+            $this->assertTrue($client->clearLastError());
+
+            $result = $client->set($key, 'new_value', ['IFEQ' => $data]);
+
+            $this->assertFalse($result, 'SET IFEQ should return false when compression is enabled');
+            $this->assertStringContains('incompatible with compression', (string) $client->getLastError());
+            $this->assertEquals($data, $client->get($key), 'SET IFEQ should not modify the key when compression is enabled');
         } finally {
             $client->del($key);
         }
