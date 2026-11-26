@@ -354,7 +354,7 @@ int valkey_glide_cluster_map_phpredis_params(valkey_glide_php_common_constructor
     }
 
     /* As in PHPRedis, a $timeout of 0 uses the default, though the defaults differ: 60 s in
-     * PHPRedis, advanced_config['connection_timeout'] or 250 ms here */
+     * PHPRedis, advanced_config['connection_timeout'] or 2 s here */
     if (!timeout_is_null && timeout > 0.0) {
         /* A timeout under 1 ms still sets one, rather than 0 */
         zend_long ms                       = (zend_long) (timeout * 1000);

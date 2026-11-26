@@ -602,6 +602,15 @@ class ConnectionRequestTest extends \TestSuite
         $this->assertEquals('us-east-1', $request->getClientAz());
     }
 
+    /* Without a connection timeout, the default is 2 s, as in the core and the other
+     * GLIDE clients */
+    public function testDefaultConnectionTimeout()
+    {
+        $this->assertEquals(2000, ClientConstructorMock::simulate_standalone_constructor()->getConnectionTimeout());
+        $this->assertEquals(2000, ClientConstructorMock::simulate_cluster_constructor()->getConnectionTimeout());
+        $this->assertEquals(2000, ClientConstructorMock::simulate_cluster_phpredis_constructor(timeout: 0.0)->getConnectionTimeout());
+    }
+
     public function testStandaloneAdvancedConfig()
     {
         $request = ClientConstructorMock::simulate_standalone_constructor(advanced_config: ['connection_timeout' => 999]);

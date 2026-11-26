@@ -328,7 +328,7 @@ class ValkeyGlideCluster
      * @param float|null $timeout               Connection timeout in seconds, in place of
      *                                          $advanced_config['connection_timeout']. 0 keeps
      *                                          $advanced_config['connection_timeout'] if it is set,
-     *                                          or else the default (250 ms).
+     *                                          or else the default (2 s).
      * @param float|null $read_timeout          Read timeout in seconds, in place of $request_timeout.
      *                                          0 keeps the default request timeout (5 s).
      * @param bool|null $persistent             Keep the client open after the request ends and reuse
