@@ -1108,6 +1108,12 @@ jobs:
           engine-version: "9.0"
           cluster-port-start: "9001"
 
+      - name: Generate the de_DE locale for the decimal-comma tests
+        run: |
+          # Without it setlocale() fails and the decimal-comma assertions are skipped
+          sudo locale-gen de_DE.UTF-8
+          locale -a | grep -i '^de_DE'
+
       - name: Run modules tests
         run: |
           php -n -d extension=$(pwd)/modules/valkey_glide.so tests/TestValkeyGlide.php --class=ValkeyGlideJsonTest --port=6389
@@ -1211,6 +1217,12 @@ jobs:
           echo "=== Final server status check ==="
           ps aux | grep -E "(valkey|redis)-server" | grep -v grep || echo "No valkey/redis-server processes found"
           echo "=== Valkey servers startup completed ==="
+
+      - name: Generate the de_DE locale for the decimal-comma tests
+        run: |
+          # Without it setlocale() fails and the decimal-comma assertions are skipped
+          sudo locale-gen de_DE.UTF-8
+          locale -a | grep -i '^de_DE'
 
       - name: Run modules tests
         run: |

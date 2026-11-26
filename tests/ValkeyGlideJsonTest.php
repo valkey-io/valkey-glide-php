@@ -355,6 +355,80 @@ class ValkeyGlideJsonTest extends ValkeyGlideBaseTest
         }
     }
 
+    public function testJsonNumIncrByExponentFloats()
+    {
+        $key = '{json}:' . uniqid();
+        try {
+            /* Numbers whose shortest form has an exponent: the exponent of 1.5e+20 must not lose
+             * its trailing 0 */
+            foreach ([1e20, 1.5e20, 1.5e-7, 2.5e-10, -1.25e100, 1e300, 1.5e-300] as $number) {
+                $this->valkey_glide->jsonSet($key, '$', '{"a": 0}');
+                $result = $this->valkey_glide->jsonNumIncrBy($key, '$.a', $number);
+                $this->assertEquals([$number], json_decode($result));
+            }
+
+            $this->valkey_glide->jsonSet($key, '$', '{"a": 1.5}');
+            $result = $this->valkey_glide->jsonNumIncrBy($key, '$.a', -1.25e100);
+            $this->assertEquals([1.5 + -1.25e100], json_decode($result));
+        } finally {
+            $this->valkey_glide->del($key);
+        }
+    }
+
+    public function testJsonNumMultByExponentFloats()
+    {
+        $key = '{json}:' . uniqid();
+        try {
+            foreach ([2.5e-10, 1.5e20, -1.25e100, 1.5e-7] as $number) {
+                $this->valkey_glide->jsonSet($key, '$', '{"a": 1}');
+                $result = $this->valkey_glide->jsonNumMultBy($key, '$.a', $number);
+                $this->assertEquals([$number], json_decode($result));
+            }
+
+            $this->valkey_glide->jsonSet($key, '$', '{"a": 4}');
+            $result = $this->valkey_glide->jsonNumMultBy($key, '$.a', 2.5e-10);
+            $this->assertEquals([4 * 2.5e-10], json_decode($result));
+        } finally {
+            $this->valkey_glide->del($key);
+        }
+    }
+
+    public function testJsonNumExponentFloatsInMulti()
+    {
+        $key = '{json}:' . uniqid();
+        try {
+            $this->valkey_glide->jsonSet($key, '$', '{"a": 0}');
+            $results = $this->valkey_glide->multi()
+                ->jsonNumIncrBy($key, '$.a', 1.5e20)
+                ->jsonNumMultBy($key, '$.a', 2.5e-30)
+                ->exec();
+            $this->assertEquals([1.5e20], json_decode($results[0]));
+            /* A product that is not a whole number, which json_decode would return as an int */
+            $this->assertEquals([1.5e20 * 2.5e-30], json_decode($results[1]));
+        } finally {
+            $this->valkey_glide->del($key);
+        }
+    }
+
+    public function testJsonNumIgnoresDecimalCommaLocale()
+    {
+        $locale = setlocale(LC_NUMERIC, 0);
+        if (setlocale(LC_NUMERIC, 'de_DE.UTF-8', 'de_DE', 'de_DE.utf8') === false) {
+            throw new TestSkippedException("No locale with a decimal comma is installed");
+        }
+
+        $key = '{json}:' . uniqid();
+        try {
+            /* Under a decimal-comma locale, %.17g sent "1,5" */
+            $this->valkey_glide->jsonSet($key, '$', '{"a": 1}');
+            $this->assertEquals([2.5], json_decode($this->valkey_glide->jsonNumIncrBy($key, '$.a', 1.5)));
+            $this->assertEquals([6.25], json_decode($this->valkey_glide->jsonNumMultBy($key, '$.a', 2.5)));
+        } finally {
+            setlocale(LC_NUMERIC, $locale);
+            $this->valkey_glide->del($key);
+        }
+    }
+
     public function testJsonToggle()
     {
         $key = '{json}:' . uniqid();
