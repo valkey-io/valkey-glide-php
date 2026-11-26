@@ -78,11 +78,13 @@ static char* valkey_glide_resolve_lib_name(const char* lib_name, const char* cli
 }
 
 /* Create a connection request in protobuf format. Made visible for testing. */
-uint8_t* create_connection_request(size_t*                                   len,
-                                   valkey_glide_base_client_configuration_t* config,
-                                   valkey_glide_periodic_checks_status_t     periodic_checks,
-                                   bool                                      is_cluster,
-                                   bool refresh_topology_from_initial_nodes) {
+uint8_t* create_connection_request(
+    size_t*                                               len,
+    valkey_glide_base_client_configuration_t*             config,
+    valkey_glide_periodic_checks_status_t                 periodic_checks,
+    const valkey_glide_periodic_checks_manual_interval_t* periodic_checks_manual,
+    bool                                                  is_cluster,
+    bool                                                  refresh_topology_from_initial_nodes) {
     /* Create a connection request */
     ConnectionRequest__ConnectionRequest conn_req = CONNECTION_REQUEST__CONNECTION_REQUEST__INIT;
 
@@ -239,14 +241,22 @@ uint8_t* create_connection_request(size_t*                                   len
         conn_req.database_id = 0;
     }
 
-    /* Set the periodic checks for cluster clients. Only an explicit disable is sent.
-     * Otherwise the periodic_checks oneof is left unset (NOT_SET) so the core applies
-     * its default topology check interval. Sending PeriodicChecksManualInterval with
-     * duration_in_sec = 0 made the core run topology checks back-to-back, burning CPU
-     * and flooding the cluster with CLUSTER SLOTS queries (issue #344). */
+    /* Set the periodic checks for cluster clients. Only an explicit disable or a
+     * user-set interval is sent. Otherwise the periodic_checks oneof is left unset
+     * (NOT_SET) so the core applies its default topology check interval. Sending
+     * PeriodicChecksManualInterval with duration_in_sec = 0 made the core run topology
+     * checks back-to-back, burning CPU and flooding the cluster with CLUSTER SLOTS
+     * queries (issue #344), so a manual interval is only sent when it is positive. */
     ConnectionRequest__PeriodicChecksDisabled periodic_check_disabled_info =
         CONNECTION_REQUEST__PERIODIC_CHECKS_DISABLED__INIT;
-    if (is_cluster && periodic_checks == VALKEY_GLIDE_PERIODIC_CHECKS_DISABLED) {
+    ConnectionRequest__PeriodicChecksManualInterval periodic_check_interval_info =
+        CONNECTION_REQUEST__PERIODIC_CHECKS_MANUAL_INTERVAL__INIT;
+    if (is_cluster && periodic_checks_manual && periodic_checks_manual->duration_in_sec > 0) {
+        periodic_check_interval_info.duration_in_sec = periodic_checks_manual->duration_in_sec;
+        conn_req.periodic_checks_manual_interval     = &periodic_check_interval_info;
+        conn_req.periodic_checks_case =
+            CONNECTION_REQUEST__CONNECTION_REQUEST__PERIODIC_CHECKS_PERIODIC_CHECKS_MANUAL_INTERVAL;
+    } else if (is_cluster && periodic_checks == VALKEY_GLIDE_PERIODIC_CHECKS_DISABLED) {
         conn_req.periodic_checks_disabled = &periodic_check_disabled_info;
         conn_req.periodic_checks_case =
             CONNECTION_REQUEST__CONNECTION_REQUEST__PERIODIC_CHECKS_PERIODIC_CHECKS_DISABLED;
@@ -371,16 +381,21 @@ uint8_t* create_connection_request(size_t*                                   len
 
 /* Create a Valkey Glide client or Cluster client using shared properties. */
 static const ConnectionResponse* create_base_glide_client(
-    valkey_glide_base_client_configuration_t* config,
-    valkey_glide_periodic_checks_status_t     periodic_checks,
-    bool                                      is_cluster,
-    bool                                      refresh_topology_from_initial_nodes,
-    AddressResolverCallback*                  out_resolver_cb,
-    uint8_t**                                 out_request,
-    size_t*                                   out_request_len) {
+    valkey_glide_base_client_configuration_t*             config,
+    valkey_glide_periodic_checks_status_t                 periodic_checks,
+    const valkey_glide_periodic_checks_manual_interval_t* periodic_checks_manual,
+    bool                                                  is_cluster,
+    bool                                                  refresh_topology_from_initial_nodes,
+    AddressResolverCallback*                              out_resolver_cb,
+    uint8_t**                                             out_request,
+    size_t*                                               out_request_len) {
     size_t   len;
-    uint8_t* request_bytes = create_connection_request(
-        &len, config, periodic_checks, is_cluster, refresh_topology_from_initial_nodes);
+    uint8_t* request_bytes = create_connection_request(&len,
+                                                       config,
+                                                       periodic_checks,
+                                                       periodic_checks_manual,
+                                                       is_cluster,
+                                                       refresh_topology_from_initial_nodes);
 
     if (!request_bytes) {
         return NULL;
@@ -445,8 +460,14 @@ static const ConnectionResponse* create_base_glide_client(
 /* Create a Valkey Glide client */
 const ConnectionResponse* create_glide_client(valkey_glide_base_client_configuration_t* config,
                                               AddressResolverCallback* out_resolver_cb) {
-    return create_base_glide_client(
-        config, VALKEY_GLIDE_PERIODIC_CHECKS_DISABLED, false, false, out_resolver_cb, NULL, NULL);
+    return create_base_glide_client(config,
+                                    VALKEY_GLIDE_PERIODIC_CHECKS_DISABLED,
+                                    NULL,
+                                    false,
+                                    false,
+                                    out_resolver_cb,
+                                    NULL,
+                                    NULL);
 }
 
 const ConnectionResponse* create_glide_cluster_client(
@@ -456,6 +477,7 @@ const ConnectionResponse* create_glide_cluster_client(
     size_t*                                      out_request_len) {
     return create_base_glide_client(&config->base,
                                     config->periodic_checks_status,
+                                    config->periodic_checks_manual,
                                     true,
                                     config->refresh_topology_from_initial_nodes,
                                     out_resolver_cb,

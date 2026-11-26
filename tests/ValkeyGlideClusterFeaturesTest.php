@@ -571,6 +571,38 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         $valkey_glide->close();
     }
 
+    public function testPersistentClientKeyIncludesPeriodicChecksInterval()
+    {
+        // A persistent client is only reused for the same periodic checks interval
+        $new_client = function ($periodic_checks) {
+            $params = [
+                'addresses'       => [['host' => $this->getHost(), 'port' => $this->getPort()]],
+                'use_tls'         => $this->getTLS(),
+                'credentials'     => $this->getAuth(),
+                'persistent'      => true,
+                'periodic_checks' => $periodic_checks,
+            ];
+            if ($this->getTLS()) {
+                $params['advanced_config'] = ['tls_config' => ['use_insecure_tls' => true]];
+            }
+            return new ValkeyGlideCluster(...$params);
+        };
+        // Releasing the object keeps its client for the next construction
+        $client_id = fn($periodic_checks) => $new_client($periodic_checks)->rawcommand('test', 'CLIENT', 'ID');
+
+        $configs = [['duration_in_sec' => 300], ['duration_in_sec' => 301], null];
+        try {
+            $id = $client_id($configs[0]);
+            $this->assertEquals($id, $client_id($configs[0]));
+            $this->assertNotEquals($id, $client_id($configs[1]));
+            $this->assertNotEquals($id, $client_id($configs[2]));
+        } finally {
+            foreach ($configs as $periodic_checks) {
+                $new_client($periodic_checks)->close();
+            }
+        }
+    }
+
     /**
      * Regression test for issue #344. With periodic checks enabled (the default) the
      * client used to send a manual interval of 0 seconds, so the core ran topology

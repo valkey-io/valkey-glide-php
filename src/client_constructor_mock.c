@@ -169,8 +169,12 @@ PHP_METHOD(ClientConstructorMock, simulate_standalone_constructor) {
 
     /* Build the connection request. */
     size_t   protobuf_message_len;
-    uint8_t* request_bytes = create_connection_request(
-        &protobuf_message_len, &client_config, VALKEY_GLIDE_PERIODIC_CHECKS_DISABLED, false, false);
+    uint8_t* request_bytes = create_connection_request(&protobuf_message_len,
+                                                       &client_config,
+                                                       VALKEY_GLIDE_PERIODIC_CHECKS_DISABLED,
+                                                       NULL,
+                                                       false,
+                                                       false);
 
     zval* php_request =
         build_php_connection_request(request_bytes, protobuf_message_len, &client_config);
@@ -195,19 +199,25 @@ PHP_METHOD(ClientConstructorMock, simulate_standalone_constructor) {
 /* Builds the connection request a ValkeyGlideCluster constructor would send for params and
  * returns it as a ConnectionRequest */
 static void simulate_cluster_request(valkey_glide_php_common_constructor_params_t* params,
-                                     zend_long                                     periodic_checks,
-                                     zend_bool periodic_checks_is_null,
-                                     zval*     return_value) {
-    bool addresses_allocated = _populate_addresses(&params->addresses);
-
+                                     HashTable* periodic_checks_ht,
+                                     zend_long  periodic_checks,
+                                     zend_bool  periodic_checks_is_null,
+                                     zval*      return_value) {
     /* Build cluster client configuration from individual parameters */
     valkey_glide_cluster_client_configuration_t client_config;
     memset(&client_config, 0, sizeof(client_config));
 
     /* Set periodic checks */
-    client_config.periodic_checks_status =
-        periodic_checks_is_null ? VALKEY_GLIDE_PERIODIC_CHECKS_ENABLED_DEFAULT : periodic_checks;
-    client_config.periodic_checks_manual = NULL;
+    valkey_glide_periodic_checks_manual_interval_t periodic_checks_manual;
+    if (valkey_glide_cluster_parse_periodic_checks(periodic_checks_ht,
+                                                   periodic_checks,
+                                                   periodic_checks_is_null,
+                                                   &client_config,
+                                                   &periodic_checks_manual) == FAILURE) {
+        return;
+    }
+
+    bool addresses_allocated = _populate_addresses(&params->addresses);
 
     /* Populate configuration parameters shared between client and cluster connections. */
     if (valkey_glide_build_client_config_base(params, &client_config.base, true) == FAILURE) {
@@ -236,6 +246,7 @@ static void simulate_cluster_request(valkey_glide_php_common_constructor_params_
         create_connection_request(&protobuf_message_len,
                                   &client_config.base,
                                   client_config.periodic_checks_status,
+                                  client_config.periodic_checks_manual,
                                   true,
                                   client_config.refresh_topology_from_initial_nodes);
 
@@ -261,6 +272,7 @@ static void simulate_cluster_request(valkey_glide_php_common_constructor_params_
 
 /* Simulates a ValkeyGlideCluster constructor */
 PHP_METHOD(ClientConstructorMock, simulate_cluster_constructor) {
+    HashTable*                                   periodic_checks_ht      = NULL;
     zend_long                                    periodic_checks         = 0;
     zend_bool                                    periodic_checks_is_null = 1;
     valkey_glide_php_common_constructor_params_t common_params;
@@ -275,7 +287,7 @@ PHP_METHOD(ClientConstructorMock, simulate_cluster_constructor) {
     Z_PARAM_LONG_OR_NULL(common_params.request_timeout, common_params.request_timeout_is_null)
     Z_PARAM_ARRAY_OR_NULL(common_params.reconnect_strategy)
     Z_PARAM_STRING_OR_NULL(common_params.client_name, common_params.client_name_len)
-    Z_PARAM_LONG_OR_NULL(periodic_checks, periodic_checks_is_null)
+    Z_PARAM_ARRAY_HT_OR_LONG_OR_NULL(periodic_checks_ht, periodic_checks, periodic_checks_is_null)
     Z_PARAM_STRING_OR_NULL(common_params.client_az, common_params.client_az_len)
     Z_PARAM_ARRAY_OR_NULL(common_params.advanced_config)
     Z_PARAM_BOOL_OR_NULL(common_params.lazy_connect, common_params.lazy_connect_is_null)
@@ -315,7 +327,7 @@ PHP_METHOD(ClientConstructorMock, simulate_cluster_constructor) {
         }
     }
     simulate_cluster_request(
-        &common_params, periodic_checks, periodic_checks_is_null, return_value);
+        &common_params, periodic_checks_ht, periodic_checks, periodic_checks_is_null, return_value);
 }
 
 /* Simulates a ValkeyGlideCluster constructor called with PHPRedis RedisCluster-style
@@ -363,7 +375,7 @@ PHP_METHOD(ClientConstructorMock, simulate_cluster_phpredis_constructor) {
         return;
     }
 
-    simulate_cluster_request(&common_params, 0, 1, return_value);
+    simulate_cluster_request(&common_params, NULL, 0, 1, return_value);
     zval_ptr_dtor(&auth_storage);
 }
 

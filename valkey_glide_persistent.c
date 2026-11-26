@@ -103,14 +103,16 @@ static zend_string* persistent_key(bool        is_cluster,
     return key.s;
 }
 
-bool valkey_glide_persistent_begin(valkey_glide_object*                      valkey_glide,
-                                   valkey_glide_base_client_configuration_t* config,
-                                   valkey_glide_periodic_checks_status_t     periodic_checks,
-                                   bool                                      is_cluster,
-                                   bool          refresh_topology_from_initial_nodes,
-                                   const char*   persistent_id,
-                                   size_t        persistent_id_len,
-                                   zend_string** out_key) {
+bool valkey_glide_persistent_begin(
+    valkey_glide_object*                                  valkey_glide,
+    valkey_glide_base_client_configuration_t*             config,
+    valkey_glide_periodic_checks_status_t                 periodic_checks,
+    const valkey_glide_periodic_checks_manual_interval_t* periodic_checks_manual,
+    bool                                                  is_cluster,
+    bool                                                  refresh_topology_from_initial_nodes,
+    const char*                                           persistent_id,
+    size_t                                                persistent_id_len,
+    zend_string**                                         out_key) {
     *out_key = NULL;
 
     /* An address resolver is a request-scoped PHP callable */
@@ -121,8 +123,12 @@ bool valkey_glide_persistent_begin(valkey_glide_object*                      val
     }
 
     size_t   len           = 0;
-    uint8_t* request_bytes = create_connection_request(
-        &len, config, periodic_checks, is_cluster, refresh_topology_from_initial_nodes);
+    uint8_t* request_bytes = create_connection_request(&len,
+                                                       config,
+                                                       periodic_checks,
+                                                       periodic_checks_manual,
+                                                       is_cluster,
+                                                       refresh_topology_from_initial_nodes);
     if (!request_bytes) {
         return false; /* the caller checks EG(exception) */
     }

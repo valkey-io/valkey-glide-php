@@ -149,7 +149,8 @@ class ClientConstructorMock
      * @param array|null $reconnect_strategy          Reconnection strategy ['num_of_retries' => 3, 'factor' => 2,
      *                                                'exponent_base' => 10, 'jitter_percent' => 15].
      * @param string|null $client_name                Client name identifier.
-     * @param int|null $periodic_checks               Periodic checks configuration.
+     * @param array|int|null $periodic_checks         Periodic checks configuration: a PERIODIC_CHECK_* constant
+     *                                                or ['duration_in_sec' => int].
      * @param string|null $client_az                  Client availability zone.
      * @param array|null $advanced_config             Advanced configuration ['connection_timeout' => 5000,
      *                                                'tls_config' => ['use_insecure_tls' => false]].
@@ -184,7 +185,7 @@ class ClientConstructorMock
         ?int $request_timeout = null,
         ?array $reconnect_strategy = null,
         ?string $client_name = null,
-        ?int $periodic_checks = ValkeyGlideCluster::PERIODIC_CHECK_ENABLED_DEFAULT_CONFIGS,
+        array|int|null $periodic_checks = ValkeyGlideCluster::PERIODIC_CHECK_ENABLED_DEFAULT_CONFIGS,
         ?string $client_az = null,
         ?array $advanced_config = null,
         ?bool $lazy_connect = null,

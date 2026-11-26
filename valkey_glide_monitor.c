@@ -224,7 +224,7 @@ PHP_METHOD(ValkeyGlideMonitor, __construct) {
     /* Serialize the config to protobuf bytes for the monitor connection. */
     size_t   req_len   = 0;
     uint8_t* req_bytes = create_connection_request(
-        &req_len, &client_config, VALKEY_GLIDE_PERIODIC_CHECKS_DISABLED, false, false);
+        &req_len, &client_config, VALKEY_GLIDE_PERIODIC_CHECKS_DISABLED, NULL, false, false);
 
     if (created_addresses)
         zval_ptr_dtor(&addresses_array);
