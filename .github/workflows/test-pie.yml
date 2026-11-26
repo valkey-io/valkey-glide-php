@@ -78,16 +78,12 @@ jobs:
         run: |
           mkdir -p web
 
-          # Determine the correct repository URL and reference for PRs vs direct pushes
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            REPO_URL="${{ github.event.pull_request.head.repo.clone_url }}"
-            REPO_REF="${{ github.event.pull_request.head.sha }}"
-            echo "Using PR head repository: $REPO_URL at $REPO_REF"
-          else
-            REPO_URL="${{ github.server_url }}/${{ github.repository }}"
-            REPO_REF="${{ github.sha }}"
-            echo "Using main repository: $REPO_URL at $REPO_REF"
-          fi
+          # Build the commit that actions/checkout checked out, which the tests below also run from. On
+          # pull_request that is the merge commit (refs/pull/N/merge), which is on no branch that Composer
+          # fetches from GitHub, so point Composer at the local checkout instead of a GitHub URL.
+          REPO_URL="$GITHUB_WORKSPACE"
+          REPO_REF="$(git -C "$GITHUB_WORKSPACE" rev-parse HEAD)"
+          echo "Using the checked-out repository: $REPO_URL at $REPO_REF"
 
           # Create packages.json manually
           cat > web/packages.json << EOF
