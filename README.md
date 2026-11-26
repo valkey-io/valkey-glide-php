@@ -40,7 +40,7 @@ The release of Valkey GLIDE was tested on the following platforms:
 
 Linux:
 
-- Ubuntu 20 (x86_64/amd64 and arm64/aarch64)
+- Ubuntu 24.04 (x86_64/amd64 and arm64/aarch64)
 
 Alpine Linux:
 
