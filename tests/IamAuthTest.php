@@ -299,4 +299,41 @@ class IamAuthTest extends ValkeyGlideBaseTest
             $this->restoreEnvironmentVariables();
         }
     }
+
+    /**
+     * Test 4: refreshIntervalSeconds Is Optional
+     *
+     * Purpose: Verify that an IAM client can be created without
+     * refreshIntervalSeconds, which the README documents as optional
+     * (default 300 seconds). The extension sends 0 for an omitted interval,
+     * which the core rejects unless the build maps it back to unset.
+     *
+     * Needs no TLS server: with lazy_connect the client is created
+     * without connecting, so this runs in plain CI.
+     */
+    public function testIamRefreshIntervalIsOptional()
+    {
+        try {
+            $this->setMockAwsCredentials();
+
+            $client = new ValkeyGlide();
+            $client->connect(
+                addresses: [self::TLS_ADDRESS_STANDALONE],
+                use_tls: true,
+                credentials: [
+                    'username' => 'default',
+                    'iamConfig' => [
+                        'clusterName' => 'test-cluster',
+                        'region' => 'us-east-1',
+                        'service' => ValkeyGlide::IAM_SERVICE_ELASTICACHE,
+                    ]
+                ],
+                advanced_config: ['tls_config' => ['use_insecure_tls' => true]],
+                lazy_connect: true
+            );
+            $this->assertTrue($client->close());
+        } finally {
+            $this->restoreEnvironmentVariables();
+        }
+    }
 }
