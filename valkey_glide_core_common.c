@@ -1520,44 +1520,21 @@ int parse_set_options(zval* options, core_options_t* opts) {
                     return 0;
                 }
             }
-            /* IFEQ / IFNE options - comparison value */
+            /* IFEQ / IFNE options - string comparison value. A later one replaces an earlier
+             * one. */
             else if (strcasecmp(opt, "IFEQ") == 0 || strcasecmp(opt, "IFNE") == 0) {
-                int is_ifeq = (strcasecmp(opt, "IFEQ") == 0);
-
-                /* Like PHPRedis, accept any scalar (string, int, float, bool) or null. Strings
-                 * are used in place; other types are converted to an owned string. */
-                if (Z_TYPE_P(z_option) == IS_ARRAY || Z_TYPE_P(z_option) == IS_OBJECT ||
-                    Z_TYPE_P(z_option) == IS_RESOURCE) {
+                if (Z_TYPE_P(z_option) != IS_STRING) {
                     return 0;
                 }
 
-                /* A later IFEQ/IFNE replaces an earlier one (last wins, as in PHPRedis) */
-                if (opts->if_value_owned) {
-                    zend_string_release(opts->if_value_owned);
-                    opts->if_value_owned = NULL;
-                }
-
-                if (Z_TYPE_P(z_option) == IS_STRING) {
-                    opts->if_value = Z_STRVAL_P(z_option);
-                    opts->if_len   = Z_STRLEN_P(z_option);
-                } else {
-                    opts->if_value_owned = zval_get_string(z_option);
-                    opts->if_value       = ZSTR_VAL(opts->if_value_owned);
-                    opts->if_len         = ZSTR_LEN(opts->if_value_owned);
-                }
-
-                opts->has_ifeq = is_ifeq;
-                opts->has_ifne = !is_ifeq;
+                opts->if_value = Z_STRVAL_P(z_option);
+                opts->if_len   = Z_STRLEN_P(z_option);
+                opts->has_ifeq = (strcasecmp(opt, "IFEQ") == 0);
+                opts->has_ifne = !opts->has_ifeq;
             }
         }
     }
     ZEND_HASH_FOREACH_END();
-
-    /* IFEQ/IFNE are mutually exclusive with NX/XX (PHPRedis rejects this combination too) */
-    if ((opts->has_ifeq || opts->has_ifne) && (opts->nx || opts->xx)) {
-        php_error_docref(NULL, E_WARNING, "IF clauses can't be combined with NX/XX");
-        return 0;
-    }
 
     return 1;
 }

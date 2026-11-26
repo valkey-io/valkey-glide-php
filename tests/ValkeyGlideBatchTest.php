@@ -261,19 +261,21 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
         $this->valkey_glide->set($key, 'value');
 
-        // Equal (not set), different (set), different with GET, non-string scalar, missing key (set)
+        // Equal (not set), different (set), different with GET, equal with expiry (not set),
+        // missing key (set)
         $results = $this->valkey_glide->multi()
             ->set($key, 'new1', ['IFNE' => 'value'])
             ->set($key, 'new1', ['IFNE' => 'other'])
             ->set($key, 'new2', ['IFNE' => 'other', 'GET'])
-            ->set($key, '7', ['IFNE' => 7])
+            ->set($key, 'new3', ['IFNE' => 'new2', 'EX' => 100])
             ->set($missingKey, 'created', ['IFNE' => 'other'])
             ->exec();
 
-        $this->assertEquals([false, true, 'new1', true, true], $results);
+        $this->assertEquals([false, true, 'new1', false, true], $results);
 
         // Verify server-side effects
-        $this->assertEquals('7', $this->valkey_glide->get($key));
+        $this->assertEquals('new2', $this->valkey_glide->get($key));
+        $this->assertEquals(-1, $this->valkey_glide->ttl($key));
         $this->assertEquals('created', $this->valkey_glide->get($missingKey));
 
         $this->valkey_glide->del($key, $missingKey);

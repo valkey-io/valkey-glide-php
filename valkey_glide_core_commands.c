@@ -1271,9 +1271,6 @@ int execute_set_command_internal(valkey_glide_object* valkey_glide,
     if (opts) {
         if (parse_set_options(opts, &args.options) == 0) {
             /* If parsing failed, return error */
-            if (args.options.if_value_owned) {
-                zend_string_release(args.options.if_value_owned);
-            }
             return 0;
         }
     }

@@ -3562,19 +3562,16 @@ class ValkeyGlide
      * ['KEEPTTL' => true]            ValkeyGlide will not update the key's current TTL.
      * ['XX']                         Only set the key if it already exists.
      * ['NX']                         Only set the key if it doesn't exist.
-     * ['IFEQ' => 'old']              Only set the key if its current value equals 'old'
-     *                                (Valkey 8.1+). Does not set a missing key.
-     * ['IFNE' => 'old']              Only set the key if its current value differs from 'old'
-     *                                (Valkey 9.2+). A missing key is set.
      * ['GET']                        Instead of returning `+OK` return the previous value of the
      *                                key or NULL if the key didn't exist.
-     * ['IFEQ' => 'value']            Only set the key if its current value equals `value`.
-     *                                Not supported with compression enabled.
+     * ['IFEQ' => 'value']            Only set the key if its current value equals `value`
+     *                                (Valkey 8.1+). Does not set a missing key. `value` must be
+     *                                a string. Not supported with compression enabled.
+     * ['IFNE' => 'value']            Only set the key if its current value differs from `value`
+     *                                (Valkey 9.2+). Sets a missing key. `value` must be a
+     *                                string. Not supported with compression enabled.
      *
-     * IFEQ and IFNE are mutually exclusive with each other (the last one given is used) and
-     * with NX/XX (a warning is raised and false is returned), as in PHPRedis. They can be
-     * combined with GET and the expiry options. The comparison value may be a string or any
-     * scalar, which is converted to a string. They are not supported with compression enabled.
+     * Only one of IFEQ and IFNE is used; if both are given, the last one applies.
      *
      * @return ValkeyGlide|string|bool True if the key was set or false on failure.
      *

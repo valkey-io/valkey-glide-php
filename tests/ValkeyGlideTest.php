@@ -1045,52 +1045,50 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
         // Expiry options can be combined
         $this->assertTrue($this->valkey_glide->set('foo', 'bar6', ['IFNE' => 'bar', 'EX' => 100]));
-        $ttl = $this->valkey_glide->ttl('foo');
-        $this->assertTrue($ttl > 0 && $ttl <= 100);
-
-        // Non-string scalar comparison values are converted to strings (PHPRedis behaviour)
-        $this->assertTrue($this->valkey_glide->set('num', '1'));
-        $this->assertFalse($this->valkey_glide->set('num', '2', ['IFNE' => 1]));
-        $this->assertTrue($this->valkey_glide->set('num', '2', ['IFNE' => 2]));
+        $this->assertBetween($this->valkey_glide->ttl('foo'), 1, 100);
 
         $this->valkey_glide->del('foo');
-        $this->valkey_glide->del('num');
     }
 
-    /* IFEQ/IFNE can't be combined with NX/XX or with array, object or resource comparison values */
+    /* IFEQ/IFNE take only string comparison values; NX/XX combinations are rejected by the server */
     public function testValkeyIfEqIfNeInvalidCombinations()
     {
         if (! $this->is_valkey || ! $this->minVersionCheck('8.1.0')) {
             $this->markTestSkipped();
         }
 
+        $conds = $this->minVersionCheck('9.2.0') ? ['IFEQ', 'IFNE'] : ['IFEQ'];
         $this->valkey_glide->del('foo');
-        $this->assertTrue($this->valkey_glide->set('foo', 'bar'));
 
-        foreach (['IFEQ', 'IFNE'] as $cond) {
+        foreach ($conds as $cond) {
             foreach (['NX', 'XX'] as $flag) {
+                $this->assertTrue($this->valkey_glide->set('foo', 'bar'));
+                $this->assertTrue($this->valkey_glide->clearLastError());
                 $warning = '';
                 set_error_handler(function (int $errno, string $errstr) use (&$warning): bool {
                     $warning = $errstr;
                     return true;
                 }, E_WARNING);
-                $result = $this->valkey_glide->set('foo', 'baz', [$cond => 'x', $flag]);
+                $result = $this->valkey_glide->set('foo', 'baz', [$cond => 'bar', $flag]);
                 restore_error_handler();
 
                 $this->assertFalse($result, "$cond $flag");
-                $this->assertTrue(str_contains($warning, "IF clauses can't be combined with NX/XX"), "$cond $flag");
+                $this->assertEquals('', $warning, "$cond $flag");
+                $this->assertStringContains('syntax error', (string) $this->valkey_glide->getLastError());
                 $this->assertEquals('bar', $this->valkey_glide->get('foo'), "$cond $flag");
             }
-            $this->assertFalse(@$this->valkey_glide->set('foo', 'baz', [$cond => ['x']]));
         }
 
-        // Unsupported comparison values are rejected without sending, also when passed by reference
+        // Non-string comparison values are rejected without sending, also when passed by reference
         $resource = tmpfile();
-        $unsupported = ['array' => ['x'], 'object' => new stdClass(), 'resource' => $resource];
-        foreach (['IFEQ', 'IFNE'] as $cond) {
+        $unsupported = [
+            'int' => 42, 'float' => 1.5, 'true' => true, 'false' => false, 'null' => null,
+            'array' => ['x'], 'object' => new stdClass(), 'resource' => $resource,
+        ];
+        foreach ($conds as $cond) {
             foreach ($unsupported as $type => $value) {
-                // Store the string the value would convert to for IFEQ (arrays and resources), and
-                // another value for IFNE, so a SET that reached the server would overwrite the key
+                // Store a value the condition would match if the SET reached the server: the
+                // converted string for IFEQ, a different string for IFNE
                 $current = ($cond === 'IFEQ' && $type !== 'object') ? @strval($value) : 'current';
                 $this->assertTrue($this->valkey_glide->set('foo', $current));
 
@@ -1101,11 +1099,15 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
         fclose($resource);
 
-        // IFEQ with a non-string scalar is converted to a string
-        $this->assertTrue($this->valkey_glide->set('foo', '42'));
-        $this->assertTrue($this->valkey_glide->set('foo', 'baz', ['IFEQ' => 42]));
+        if (in_array('IFNE', $conds)) {
+            // When both IFEQ and IFNE are given, the last one applies
+            $this->assertTrue($this->valkey_glide->set('foo', 'bar'));
+            $this->assertFalse($this->valkey_glide->set('foo', 'baz', ['IFEQ' => 'bar', 'IFNE' => 'bar']));
+            $this->assertEquals('bar', $this->valkey_glide->get('foo'));
+            $this->assertTrue($this->valkey_glide->set('foo', 'baz', ['IFNE' => 'bar', 'IFEQ' => 'bar']));
+            $this->assertEquals('baz', $this->valkey_glide->get('foo'));
+        }
 
-        $this->assertEquals('baz', $this->valkey_glide->get('foo'));
         $this->valkey_glide->del('foo');
     }
 
