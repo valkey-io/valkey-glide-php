@@ -510,6 +510,7 @@ A kept client is reused only by a request that uses the same configuration (and,
 - `close()` closes it.
 - It is never reused or closed by a process other than the one that created it (`fork()`).
 - It is not kept when an `address_resolver` is configured.
+- Its read routing is fixed when it is created: on a persistent client, `setOption(ValkeyGlideCluster::OPT_SLAVE_FAILOVER, ...)` fails (returns false, see `getLastError()`) unless the mode matches the routing it already has (with an AZ-affinity `read_from`, it always fails). Set read routing with the constructor's `read_from` instead, which is also part of the configuration that decides whether a kept client is reused.
 
 The ini setting `valkey_glide.max_persistent_clients` (default `32`) limits how many clients each process keeps (each thread, in a thread-safe (ZTS) build such as FrankenPHP: four threads can keep up to 4 × 32 clients). When it is reached, the least recently used client that no object is using is closed to make room (for example after a password rotation, the client with the old password); if all kept clients are in use, the new client is closed at the end of the request as usual. `0` disables persistent clients.
 
