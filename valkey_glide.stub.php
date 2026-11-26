@@ -459,7 +459,8 @@ class ValkeyGlide
      *
      * @param string|null $host Hostname
      * @param int|null $port Port number (default: 6379, used with $host)
-     * @param float|null $timeout Connection timeout in seconds
+     * @param float|null $timeout Request timeout in seconds, in place of $request_timeout
+     *                           (PHPRedis-style; unlike PHPRedis, not the connection timeout)
      * @param string|null $persistent_id Keep the client open after the request ends and reuse it
      *                                   in later requests of the same worker process (e.g.
      *                                   PHP-FPM) that use the same ID and configuration. See
