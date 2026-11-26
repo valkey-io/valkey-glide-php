@@ -196,6 +196,11 @@ uint8_t* create_connection_request(size_t*                                   len
     }
 
     conn_req.lazy_connect = config->lazy_connect;
+
+    /* The core defaults TCP_NODELAY to on, but the build turns its optional field into a plain
+     * bool (utils/patch_proto_and_rust.py), where unset reads as false. Set it explicitly. */
+    conn_req.tcp_nodelay = true;
+
     /* Map read_from configuration */
     if (config->read_from == VALKEY_GLIDE_READ_FROM_PRIMARY) {
         conn_req.read_from = CONNECTION_REQUEST__READ_FROM__Primary;

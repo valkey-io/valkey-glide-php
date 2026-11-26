@@ -602,6 +602,14 @@ class ConnectionRequestTest extends \TestSuite
         $this->assertEquals('us-east-1', $request->getClientAz());
     }
 
+    /* The core defaults TCP_NODELAY to on; builds can't leave the field unset, so the extension
+     * sends it */
+    public function testTcpNodelayIsSet()
+    {
+        $this->assertTrue(ClientConstructorMock::simulate_standalone_constructor()->getTcpNodelay());
+        $this->assertTrue(ClientConstructorMock::simulate_cluster_constructor()->getTcpNodelay());
+    }
+
     public function testStandaloneAdvancedConfig()
     {
         $request = ClientConstructorMock::simulate_standalone_constructor(advanced_config: ['connection_timeout' => 999]);

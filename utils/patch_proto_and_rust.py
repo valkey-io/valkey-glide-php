@@ -126,8 +126,12 @@ def patch_rust_types_rs(rust_types_file):
         # that follow it (e.g. `credentials_provider: None,`). Idempotent: once
         # patched the field reads `refresh_interval_seconds: Some(...)` and no
         # longer matches the bare-shorthand pattern below.
-        refresh_pattern = r'\brefresh_interval_seconds,'
-        refresh_replacement = 'refresh_interval_seconds: Some(refresh_interval_seconds),'
+        # 0 is the value of an unset field and never a valid interval, so it
+        # maps to None and the core's default interval applies. Also matches the
+        # `Some(refresh_interval_seconds)` form an earlier version of this script
+        # wrote, so an already-patched tree is upgraded.
+        refresh_pattern = r'\brefresh_interval_seconds(?:: Some\(refresh_interval_seconds\))?,'
+        refresh_replacement = 'refresh_interval_seconds: none_if_zero(refresh_interval_seconds),'
         if re.search(refresh_pattern, new_content):
             if not needs_patching:
                 create_backup(rust_types_file)
@@ -303,7 +307,7 @@ def verify_rust_patch(rust_types_file):
         read_only_fixed = 'let read_only = value.read_only;' in content
         pubsub_fixed = 'if value.pubsub_reconciliation_interval_ms != 0 { Some(value.pubsub_reconciliation_interval_ms) } else { None }' in content
         jitter_fixed = 'Some(strategy.jitter_percent)' in content
-        refresh_fixed = 'refresh_interval_seconds: Some(refresh_interval_seconds)' in content
+        refresh_fixed = 'refresh_interval_seconds: none_if_zero(refresh_interval_seconds)' in content
         compression_fixed = 'Some(proto_config.compression_level)' in content
         max_decompressed_fixed = 'if proto_config.max_decompressed_size != 0' in content
         eviction_fixed = '.enum_value()' in content and '.and_then(|enum_or_unknown|' not in content
