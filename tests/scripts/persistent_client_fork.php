@@ -74,6 +74,6 @@ unlink($report);
 echo json_encode([
     'child_exited_cleanly' => $exited,
     'reconnecting_child_exited_cleanly' => $reconnect_exited,
-    'child_discarded_fork' => ctype_digit($discarded) ? (int) $discarded : $discarded,
+    'child_discarded_fork' => preg_match('/^[0-9]+$/', $discarded) ? (int) $discarded : $discarded,
     'parent_reused' => (string) $client_id($connect()) === (string) $parent_id,
 ]);
