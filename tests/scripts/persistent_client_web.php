@@ -1,13 +1,15 @@
 <?php
 
 /*
- * Router for the PHP built-in web server, used by testPersistentClientAcrossRequests.
+ * Router for the PHP built-in web server, used by testPersistentClientAcrossRequests and
+ * testPersistentClientStatistics.
  * One server process handles every request, so a persistent client kept by one
  * request is visible to the next, as in a PHP-FPM worker.
  *
  * Query parameters: cluster, host, port (required), persistent, empty_id, pconnect,
- * pconnect_id, pconnect_all, timeout, action.
- * Prints JSON with the server-side CLIENT ID of the connection the request used.
+ * pconnect_id, pconnect_all, timeout, action, stats.
+ * Prints JSON with the server-side CLIENT ID of the connection the request used and,
+ * with stats, the persistent-client counters of getStatistics() at the end of the request.
  */
 
 final class PersistentClientHolder
@@ -37,11 +39,12 @@ $timeout    = isset($_GET['timeout']) ? (int) $_GET['timeout'] : null;
 $action     = $_GET['action'] ?? '';
 $key        = '{persistent}:watched';
 
-$connect = function () use ($is_cluster, $host, $port, $persistent, $empty_id, $pconnect, $pconnect_id, $pconnect_all, $timeout) {
+$connect = function (?int $request_timeout = null) use ($is_cluster, $host, $port, $persistent, $empty_id, $pconnect, $pconnect_id, $pconnect_all, $timeout) {
+    $request_timeout ??= $timeout;
     if ($is_cluster) {
         return new ValkeyGlideCluster(
             addresses: [['host' => $host, 'port' => $port]],
-            request_timeout: $timeout,
+            request_timeout: $request_timeout,
             persistent: $persistent
         );
     }
@@ -56,12 +59,12 @@ $connect = function () use ($is_cluster, $host, $port, $persistent, $empty_id, $
         return $client;
     }
     if ($pconnect) {
-        $client->pconnect(addresses: [['host' => $host, 'port' => $port]], request_timeout: $timeout);
+        $client->pconnect(addresses: [['host' => $host, 'port' => $port]], request_timeout: $request_timeout);
         return $client;
     }
     $client->connect(
         addresses: [['host' => $host, 'port' => $port]],
-        request_timeout: $timeout,
+        request_timeout: $request_timeout,
         persistent_id: $empty_id ? '' : ($persistent ? 'persistent_test' : null)
     );
     return $client;
@@ -124,6 +127,11 @@ switch ($action) {
         $out['other_id'] = $client_id($other);
         $other->close();
         break;
+    case 'other_config':
+        /* Another configuration while this request holds the kept client */
+        $other = $connect(($timeout ?? 5000) + 1);
+        $client_id($other);
+        break;
     case 'static':
         PersistentClientHolder::$client = $client;
         break;
@@ -160,6 +168,14 @@ switch ($action) {
         $client->watch($key);
         PersistentClientHolder::$client = $client;
         break;
+}
+
+if (($_GET['stats'] ?? '0') === '1') {
+    $out['stats'] = array_filter(
+        $client->getStatistics(),
+        fn ($key) => str_starts_with($key, 'persistent_clients_'),
+        ARRAY_FILTER_USE_KEY
+    );
 }
 
 echo json_encode($out);

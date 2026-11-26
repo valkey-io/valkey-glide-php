@@ -859,6 +859,26 @@ class ValkeyGlide
      *   - total_bytes_decompressed: Total bytes after decompression
      *   - compression_skipped_count: Number of times compression was skipped (value too small)
      *
+     *   Persistent-client counters, for this process only (this thread in a ZTS build). A forked
+     *   child starts with its parent's values, and its persistent_clients_kept includes inherited
+     *   clients it cannot use until they are replaced or evicted. All but persistent_clients_kept
+     *   only increase:
+     *   - persistent_clients_kept: Persistent clients currently kept (idle or in use)
+     *   - persistent_clients_created: New clients kept as persistent clients
+     *   - persistent_clients_reused: Times a kept client was reused instead of connecting
+     *   - persistent_clients_busy: Times a kept client was busy (in use by another object), so a
+     *     client that is not kept was used instead
+     *   - persistent_clients_not_kept: New clients not kept because valkey_glide.max_persistent_clients
+     *     was reached and every kept client was in use
+     *   - persistent_clients_evicted: Idle clients closed to make room at valkey_glide.max_persistent_clients
+     *   - persistent_clients_closed: Kept clients closed by close()
+     *   - persistent_clients_discarded_state: Kept clients closed at the end of a request that changed
+     *     connection state (reset(), subscribe(), raw SELECT or AUTH, ...)
+     *   - persistent_clients_discarded_restore: Kept clients closed because UNWATCH or selecting the
+     *     configured database again failed at the end of a request
+     *   - persistent_clients_discarded_fork: Kept clients dropped (replaced, or removed at the limit)
+     *     because they were inherited through fork()
+     *
      * @example
      * $stats = $client->getStatistics();
      * echo "Compression ratio: " . ($stats['total_original_bytes'] / $stats['total_bytes_compressed']) . ":1\n";

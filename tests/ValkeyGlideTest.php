@@ -10575,17 +10575,12 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         $client->close();
     }
 
-    /* Clients created with persistent_id / $persistent survive the request and are
-     * reused by the next one in the same process, as in a PHP-FPM worker */
-    public function testPersistentClientAcrossRequests()
+    /* PHP's built-in web server with persistent_client_web.php as its router. One server
+     * process handles every request, so each request sees the clients kept by earlier
+     * ones, as in a PHP-FPM worker. Returns [$start(array $ini), $stop($server),
+     * $get(array $query)]; $get returns the decoded JSON reply */
+    private function persistentClientWebServer(): array
     {
-        if ($this->getTLS() || $this->getAuth()) {
-            $this->markTestSkipped('The web server helper connects without TLS or auth');
-        }
-        if (!function_exists('proc_open')) {
-            $this->markTestSkipped('proc_open is not available');
-        }
-
         $is_cluster = $this->valkey_glide instanceof ValkeyGlideCluster;
 
         /* Find a free port for the PHP built-in web server */
@@ -10612,7 +10607,6 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
             proc_terminate($server);
             proc_close($server);
         };
-        $server = $start();
 
         /* Returns the decoded JSON reply; fails the test on an error page */
         $context = stream_context_create(['http' => ['ignore_errors' => true, 'timeout' => 10]]);
@@ -10632,6 +10626,23 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
             $this->assertTrue(false, 'The web server did not answer');
             return ['id' => null];
         };
+        return [$start, $stop, $get];
+    }
+
+    /* Clients created with persistent_id / $persistent survive the request and are
+     * reused by the next one in the same process, as in a PHP-FPM worker */
+    public function testPersistentClientAcrossRequests()
+    {
+        if ($this->getTLS() || $this->getAuth()) {
+            $this->markTestSkipped('The web server helper connects without TLS or auth');
+        }
+        if (!function_exists('proc_open')) {
+            $this->markTestSkipped('proc_open is not available');
+        }
+
+        $is_cluster = $this->valkey_glide instanceof ValkeyGlideCluster;
+        [$start, $stop, $get] = $this->persistentClientWebServer();
+        $server = $start();
         $id = fn (array $query = []) => $get($query)['id'];
 
         try {
@@ -10778,6 +10789,111 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         }
     }
 
+    /* The persistent-client counters of getStatistics(), in order */
+    private const PERSISTENT_CLIENT_STATISTICS = [
+        'persistent_clients_kept', 'persistent_clients_created', 'persistent_clients_reused',
+        'persistent_clients_busy', 'persistent_clients_not_kept', 'persistent_clients_evicted',
+        'persistent_clients_closed', 'persistent_clients_discarded_state',
+        'persistent_clients_discarded_restore', 'persistent_clients_discarded_fork',
+    ];
+
+    /* getStatistics() has the persistent-client counters, as integers, in every process */
+    public function testPersistentClientStatisticsKeys()
+    {
+        $stats = $this->valkey_glide->getStatistics();
+        foreach (self::PERSISTENT_CLIENT_STATISTICS as $key) {
+            $this->assertTrue(is_int($stats[$key] ?? null), "$key is missing or not an integer");
+        }
+    }
+
+    /* getStatistics() counts, per process, how persistent clients are kept, reused and
+     * closed. The web helper reads the counters at the end of the request, before the
+     * client is released, so a discard at release shows up in the next request */
+    public function testPersistentClientStatistics()
+    {
+        if ($this->getTLS() || $this->getAuth()) {
+            $this->markTestSkipped('The web server helper connects without TLS or auth');
+        }
+        if (!function_exists('proc_open')) {
+            $this->markTestSkipped('proc_open is not available');
+        }
+
+        [$start, $stop, $get] = $this->persistentClientWebServer();
+        $keys = self::PERSISTENT_CLIENT_STATISTICS;
+        $zero = array_fill_keys($keys, 0);
+        /* Every counter, in order: the given ones, 0 for the others */
+        $expect = fn (array $counters) => array_merge($zero, $counters);
+        /* The counters of the fresh server process */
+        $stats = function (array $query = []) use ($get, $keys) {
+            $reply = $get($query + ['stats' => '1']);
+            $this->assertEquals($keys, array_keys($reply['stats'] ?? []));
+            return $reply['stats'] ?? [];
+        };
+
+        $server = $start();
+        try {
+            /* Created and kept, then reused by the next request */
+            $this->assertEquals(
+                $expect(['persistent_clients_kept' => 1, 'persistent_clients_created' => 1]),
+                $stats()
+            );
+            $this->assertEquals(
+                $expect(['persistent_clients_kept' => 1, 'persistent_clients_created' => 1,
+                         'persistent_clients_reused' => 1]),
+                $stats()
+            );
+
+            /* A second object with the same configuration gets a client that is not kept */
+            $this->assertEquals(
+                $expect(['persistent_clients_kept' => 1, 'persistent_clients_created' => 1,
+                         'persistent_clients_reused' => 2, 'persistent_clients_busy' => 1]),
+                $stats(['action' => 'two'])
+            );
+
+            /* reset() changes connection state: the client is closed when the request ends */
+            $stats(['action' => 'reset']);
+            $this->assertEquals(
+                $expect(['persistent_clients_kept' => 1, 'persistent_clients_created' => 2,
+                         'persistent_clients_reused' => 3, 'persistent_clients_busy' => 1,
+                         'persistent_clients_discarded_state' => 1]),
+                $stats()
+            );
+
+            /* close() closes it at once */
+            $this->assertEquals(
+                $expect(['persistent_clients_kept' => 0, 'persistent_clients_created' => 2,
+                         'persistent_clients_reused' => 4, 'persistent_clients_busy' => 1,
+                         'persistent_clients_closed' => 1, 'persistent_clients_discarded_state' => 1]),
+                $stats(['action' => 'close'])
+            );
+
+            /* At valkey_glide.max_persistent_clients=1, a new configuration evicts the idle
+             * client; one that arrives while the kept client is in use is not kept */
+            $stop($server);
+            $server = $start(['valkey_glide.max_persistent_clients=1']);
+            $stats();
+            $this->assertEquals(
+                $expect(['persistent_clients_kept' => 1, 'persistent_clients_created' => 2,
+                         'persistent_clients_evicted' => 1]),
+                $stats(['timeout' => 1234])
+            );
+            $this->assertEquals(
+                $expect(['persistent_clients_kept' => 1, 'persistent_clients_created' => 2,
+                         'persistent_clients_reused' => 1, 'persistent_clients_evicted' => 1,
+                         'persistent_clients_not_kept' => 1]),
+                $stats(['timeout' => 1234, 'action' => 'other_config'])
+            );
+
+            /* With persistent clients disabled every counter stays 0 */
+            $stop($server);
+            $server = $start(['valkey_glide.max_persistent_clients=0']);
+            $stats();
+            $this->assertEquals($zero, $stats());
+        } finally {
+            $stop($server);
+        }
+    }
+
     /* A forked child must not close (or reuse) a persistent client it inherited */
     public function testPersistentClientAcrossFork()
     {
@@ -10802,7 +10918,11 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         if (str_contains($out, 'pcntl_fork')) {
             $this->markTestSkipped('pcntl is not available');
         }
-        $this->assertEquals(['child_exited_cleanly' => true, 'parent_reused' => true], json_decode($out, true));
+        /* The child replaced the client it inherited, and counted it as discarded */
+        $this->assertEquals(
+            ['child_exited_cleanly' => true, 'child_discarded_fork' => 1, 'parent_reused' => true],
+            json_decode($out, true)
+        );
     }
 
     public function testEmptyMultiExec()

@@ -1063,6 +1063,7 @@ unsigned long get_min_compressed_size(void);
         add_assoc_long(return_value, "total_bytes_decompressed", stats.total_bytes_decompressed); \
         add_assoc_long(                                                                           \
             return_value, "compression_skipped_count", stats.compression_skipped_count);          \
+        valkey_glide_persistent_add_statistics(return_value);                                     \
     }
 
 #endif /* VALKEY_GLIDE_COMMANDS_COMMON_H */
