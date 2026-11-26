@@ -587,27 +587,19 @@ static int execute_json_num_command(
         return 0;
     }
 
-    char   num_buf[64];
-    size_t num_len = snprintf(num_buf, sizeof(num_buf), "%.17g", number);
-    /* Strip trailing zeros after decimal point for cleaner output */
-    if (strchr(num_buf, '.')) {
-        char* p = num_buf + num_len - 1;
-        while (*p == '0') {
-            p--;
-        }
-        if (*p == '.') {
-            p--;
-        }
-        num_len          = (size_t) (p - num_buf + 1);
-        num_buf[num_len] = '\0';
-    }
+    /* Shortest form that reads back as the same double, with '.' whatever the locale: %.17g
+     * followed LC_NUMERIC, and stripping its trailing zeros cut the exponent of 1.5e+20 */
+    size_t num_len;
+    char*  num_str = double_to_string(number, &num_len);
 
-    uintptr_t     cmd_args[3] = {(uintptr_t) key, (uintptr_t) path, (uintptr_t) num_buf};
+    uintptr_t     cmd_args[3] = {(uintptr_t) key, (uintptr_t) path, (uintptr_t) num_str};
     unsigned long cmd_lens[3] = {key_len, path_len, num_len};
 
     if (valkey_glide->is_in_batch_mode) {
+        /* buffer_command_for_batch() copies the arguments */
         int res = buffer_command_for_batch(
             valkey_glide, cmd_type, cmd_args, cmd_lens, 3, NULL, process_json_get_result);
+        efree(num_str);
         if (res) {
             ZVAL_COPY(return_value, object);
             return 1;
@@ -617,6 +609,7 @@ static int execute_json_num_command(
 
     CommandResult* result =
         execute_command(valkey_glide->glide_client, cmd_type, 3, cmd_args, cmd_lens);
+    efree(num_str);
 
     if (result) {
         if (result->command_error) {
