@@ -743,10 +743,19 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
      */
     private function waitForShardNumSub(string $channel, int $expected, int $timeout_sec = 5): int
     {
+        return $this->waitForNumSub('shardnumsub', $channel, $expected, $timeout_sec);
+    }
+
+    /**
+     * Poll PUBSUB $subcommand (NUMSUB or SHARDNUMSUB) until $channel reports
+     * $expected subscribers or the timeout elapses. Returns the last observed count.
+     */
+    private function waitForNumSub(string $subcommand, string $channel, int $expected, int $timeout_sec = 5): int
+    {
         $count    = -1;
         $deadline = time() + $timeout_sec;
         do {
-            $map   = $this->numsubToMap($this->valkey_glide->pubsub('shardnumsub', [$channel]));
+            $map   = $this->numsubToMap($this->valkey_glide->pubsub($subcommand, [$channel]));
             $count = $map[$channel] ?? -1;
             if ($count === $expected) {
                 break;
@@ -806,6 +815,78 @@ class ValkeyGlideClusterPubSubTest extends ValkeyGlideClusterBaseTest
             $this->assertEquals(0, $this->waitForShardNumSub($channel, 0));
         } finally {
             $this->stopNativeShardSubscriber($handle);
+        }
+    }
+
+    /**
+     * PUBSUB NUMSUB: reports a regular subscribe() subscriber in cluster mode.
+     * The server counts a subscriber only on the node it is connected to, so the
+     * client must query every node and sum the counts per channel.
+     *
+     * @see https://valkey.io/commands/pubsub-numsub/
+     */
+    public function testPubSubNumSub()
+    {
+        $suffix      = uniqid();
+        $channel     = 'test_numsub_' . $suffix;
+        $idle        = 'test_numsub_idle_' . $suffix;
+        $sync_file   = tempnam(sys_get_temp_dir(), 'sync_');
+        $unsub_file  = tempnam(sys_get_temp_dir(), 'unsub_');
+        $error_file  = $unsub_file . '.error';
+        @unlink($sync_file);
+        @unlink($unsub_file);
+
+        // No subscribers yet: every requested channel is reported with count 0.
+        $map = $this->numsubToMap($this->valkey_glide->pubsub('numsub', [$channel, $idle]));
+        $this->assertEquals(0, $map[$channel] ?? null);
+        $this->assertEquals(0, $map[$idle] ?? null);
+
+        // The subscriber unsubscribes from the channel on the first message it receives.
+        $cmd = $this->buildSubscriberCommand(
+            __DIR__ . '/scripts/subscriber_unsubscribe_cluster.php',
+            $this->getHost(),
+            $this->getPort(),
+            $channel,
+            $sync_file,
+            $unsub_file
+        );
+        $proc = proc_open($cmd, [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']], $pipes);
+
+        try {
+            $this->assertTrue($this->waitForFile($sync_file), 'Subscriber should signal ready');
+            if (file_exists($error_file)) {
+                $this->fail('Subscriber script error: ' . file_get_contents($error_file));
+            }
+
+            $this->assertEquals(
+                1,
+                $this->waitForNumSub('numsub', $channel, 1),
+                'NUMSUB should report the subscribe() subscriber'
+            );
+
+            $map = $this->numsubToMap($this->valkey_glide->pubsub('numsub', [$channel, $idle]));
+            $this->assertEquals(1, $map[$channel] ?? null);
+            $this->assertEquals(0, $map[$idle] ?? null, 'Unrelated channel should stay at 0');
+
+            // SHARDNUMSUB (Valkey/Redis 7.0+) must not count a regular subscriber.
+            if ($this->minVersionCheck('7.0.0')) {
+                $shard = $this->numsubToMap($this->valkey_glide->pubsub('shardnumsub', [$channel]));
+                $this->assertEquals(0, $shard[$channel] ?? null, 'SHARDNUMSUB must not count regular subscribers');
+            }
+
+            // Release the subscriber; its count must drop back to 0.
+            $this->valkey_glide->publish($channel, 'trigger');
+            $this->assertTrue($this->waitForFile($unsub_file), 'Subscriber should receive the message and unsubscribe');
+            $this->assertEquals(0, $this->waitForNumSub('numsub', $channel, 0));
+        } finally {
+            foreach ($pipes as $pipe) {
+                @fclose($pipe);
+            }
+            @proc_terminate($proc);
+            @proc_close($proc);
+            @unlink($sync_file);
+            @unlink($unsub_file);
+            @unlink($error_file);
         }
     }
 
