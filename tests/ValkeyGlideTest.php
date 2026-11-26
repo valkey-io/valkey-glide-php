@@ -7541,13 +7541,13 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertFalse($this->valkey_glide->eval('return redis.call("NOSUCHCOMMAND")'));
         $this->assertNotEquals($err, $this->valkey_glide->getLastError());
 
-        // NOSCRIPT errors keep their RESP code prefix (PHPRedis-compatible consumers
-        // like Symfony Lock RedisStore rely on it to reload missing scripts)
+        // NOSCRIPT errors are the server's own text, as in PHPRedis (consumers like
+        // Symfony Lock RedisStore check the NOSCRIPT prefix to reload missing scripts)
         $this->valkey_glide->clearLastError();
         $this->assertFalse($this->valkey_glide->evalsha(str_repeat('a', 40)));
         $err = $this->valkey_glide->getLastError();
         $this->assertIsString($err);
-        $this->assertPatternMatch('/^NOSCRIPT/', $err);
+        $this->assertPatternMatch('/^NOSCRIPT No matching script\./', $err);
 
         // Clean up
         $this->assertTrue($this->valkey_glide->clearLastError());

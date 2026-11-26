@@ -1021,13 +1021,12 @@ ZEND_GET_MODULE(valkey_glide)
  * a new error overwrites the previous one; successful commands do not clear it.
  *
  * glide-core (redis-rs) reformats server errors as
- * "An error was signalled by the server: - <ErrorKind>: <detail>". PHPRedis-compatible
- * consumers pattern-match the raw RESP error code instead (e.g. Symfony Lock RedisStore
- * checks str_starts_with($err, 'NOSCRIPT') to reload missing scripts), so strip the
- * glide prefix and restore the RESP code for the error kinds that lose it. */
+ * "An error was signalled by the server: - <ErrorKind>: <detail>", so strip the glide
+ * prefix. glide-core returns a NOSCRIPT reply as the server's own text
+ * ("NOSCRIPT <detail>"), which PHPRedis-compatible consumers pattern-match (e.g. Symfony
+ * Lock RedisStore checks str_starts_with($err, 'NOSCRIPT') to reload missing scripts). */
 void valkey_glide_set_last_error(valkey_glide_object* valkey_glide, const char* msg) {
     static const char server_prefix[] = "An error was signalled by the server: - ";
-    static const char noscript_kind[] = "NoScriptError: ";
 
     if (!valkey_glide || !msg) {
         return;
@@ -1036,11 +1035,6 @@ void valkey_glide_set_last_error(valkey_glide_object* valkey_glide, const char* 
 
     if (strncmp(msg, server_prefix, sizeof(server_prefix) - 1) == 0) {
         msg += sizeof(server_prefix) - 1;
-        if (strncmp(msg, noscript_kind, sizeof(noscript_kind) - 1) == 0) {
-            msg += sizeof(noscript_kind) - 1;
-            valkey_glide->last_error = zend_strpprintf(0, "NOSCRIPT %s", msg);
-            return;
-        }
     }
     valkey_glide->last_error = zend_string_init(msg, strlen(msg), 0);
 }
