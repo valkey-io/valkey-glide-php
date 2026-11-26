@@ -1321,4 +1321,90 @@ class ValkeyGlideSearchTest extends ValkeyGlideBaseTest
             $this->getClient()->ftDropIndex($idx);
         }
     }
+
+    /* ── Float arguments ───────────────────────────────────────────── */
+
+    /**
+     * Run FT.AGGREGATE with $value as PARAMS p and APPLY "$p": the server returns the parameter
+     * as it received it.
+     */
+    private function aggregateParamAsSent(string $idx, float $value): string
+    {
+        $result = $this->getClient()->ftAggregate(
+            (new FtAggregateBuilder())
+                ->index($idx)
+                ->query('@tag:{a}')
+                ->params(['p' => $value])
+                ->apply('$p', 'v')
+        );
+        $this->assertIsArray($result);
+        $this->assertCount(1, $result);
+        $pos = array_search('v', $result[0]);
+        $this->assertTrue($pos !== false);
+        return (string) ($result[0][$pos + 1] ?? '');
+    }
+
+    public function testFtAggregateParamsExactFloats()
+    {
+        $this->skipIfModuleNotAvailable();
+        $prefix = '{' . uniqid() . '}:';
+        $idx = $prefix . 'idx';
+        $this->getClient()->ftCreate(
+            (new FtCreateBuilder())
+                ->index($idx)
+                ->on('HASH')
+                ->prefix([$prefix])
+                ->addField(new FtTagField('tag'))
+        );
+        try {
+            $this->getClient()->hSet($prefix . '1', 'tag', 'a');
+            usleep(self::INDEX_SYNC_DELAY_US);
+
+            /* Shortest form that reads back as the same double, including exponent forms; these
+             * were rounded to the precision INI setting (14 significant digits) */
+            $expected = [
+                '0.12345678901234568' => 0.12345678901234568,
+                '0.30000000000000004' => 0.1 + 0.2,
+                '1234567' => 1234567.0,
+                '1.0e+20' => 1e20,
+                '1.5e-7' => 1.5e-7,
+                '-1.25e+100' => -1.25e100,
+            ];
+            foreach ($expected as $sent => $value) {
+                $this->assertEquals((string) $sent, $this->aggregateParamAsSent($idx, $value));
+            }
+        } finally {
+            $this->getClient()->ftDropIndex($idx);
+        }
+    }
+
+    public function testFtAggregateParamsIgnoreDecimalCommaLocale()
+    {
+        $this->skipIfModuleNotAvailable();
+        $prefix = '{' . uniqid() . '}:';
+        $idx = $prefix . 'idx';
+        $this->getClient()->ftCreate(
+            (new FtCreateBuilder())
+                ->index($idx)
+                ->on('HASH')
+                ->prefix([$prefix])
+                ->addField(new FtTagField('tag'))
+        );
+
+        $locale = setlocale(LC_NUMERIC, 0);
+        try {
+            if (setlocale(LC_NUMERIC, 'de_DE.UTF-8', 'de_DE', 'de_DE.utf8') === false) {
+                throw new TestSkippedException("No locale with a decimal comma is installed");
+            }
+            $this->getClient()->hSet($prefix . '1', 'tag', 'a');
+            usleep(self::INDEX_SYNC_DELAY_US);
+
+            /* The extension formats the float the same way under a decimal-comma locale */
+            $this->assertEquals('2.5', $this->aggregateParamAsSent($idx, 2.5));
+            $this->assertEquals('1.5e-7', $this->aggregateParamAsSent($idx, 1.5e-7));
+        } finally {
+            setlocale(LC_NUMERIC, $locale);
+            $this->getClient()->ftDropIndex($idx);
+        }
+    }
 }
