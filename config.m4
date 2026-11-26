@@ -447,7 +447,7 @@ if test "$PHP_VALKEY_GLIDE" != "no"; then
       if ldd --version 2>&1 | grep -q musl || test -f /etc/alpine-release; then
         MUSL_RUSTFLAGS="-C target-feature=-crt-static"
       fi
-      cd valkey-glide/ffi && GLIDE_NAME=GlidePHP GLIDE_VERSION="$GLIDE_PHP_VERSION" CARGO_HOME="$CARGO_HOME_DIR" PATH="$CARGO_DIR:$PATH" RUSTFLAGS="${RUSTFLAGS:+$RUSTFLAGS }$MUSL_RUSTFLAGS" CARGO_BUILD_JOBS=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo "4") ../../cargo build --release && CARGO_HOME="$CARGO_HOME_DIR" PATH="$CARGO_DIR:$PATH" ../../cbindgen --output ../../include/glide_bindings.h && cd ../.. || AC_MSG_ERROR([Rust build or header generation failed])
+      cd valkey-glide/ffi && GLIDE_NAME=GlidePHP GLIDE_VERSION="$GLIDE_PHP_VERSION" CARGO_HOME="$CARGO_HOME_DIR" PATH="$CARGO_DIR:$PATH" RUSTFLAGS="${RUSTFLAGS:+$RUSTFLAGS }$MUSL_RUSTFLAGS" CARGO_BUILD_JOBS=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo "4") ../../cargo build --release --locked && CARGO_HOME="$CARGO_HOME_DIR" PATH="$CARGO_DIR:$PATH" ../../cbindgen --output ../../include/glide_bindings.h && cd ../.. || AC_MSG_ERROR([Rust build or header generation failed])
       
       dnl Add include guards to the generated header immediately
       if test -f "include/glide_bindings.h"; then

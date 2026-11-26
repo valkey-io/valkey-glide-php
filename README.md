@@ -225,7 +225,7 @@ php -r "if (extension_loaded('valkey_glide')) echo 'SUCCESS: Extension loaded!';
     ```bash
     python3 utils/patch_proto_and_rust.py
     cd valkey-glide/ffi
-    cargo build --release
+    cargo build --release --locked
     cd ../../
     ```
 

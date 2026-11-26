@@ -217,7 +217,7 @@ Before starting this step, make sure you've installed all software requirements.
     # Build the FFI library that the PHP extension depends on
     python3 utils/patch_proto_and_rust.py
     cd valkey-glide/ffi
-    cargo build --release
+    cargo build --release --locked
     cd ../../
     ```
 

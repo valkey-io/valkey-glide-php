@@ -92,7 +92,7 @@ valkey-glide/ffi/target/release/libglide_ffi.a: ensure-submodules
 			GLIDE_NAME=$(GLIDE_NAME) GLIDE_VERSION=$(GLIDE_VERSION) \
 			RUSTFLAGS="$${RUSTFLAGS:+$$RUSTFLAGS }$$EXTRA_RUSTFLAGS" \
 			CARGO_BUILD_JOBS=$$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo "4") \
-			cargo build --release && cd ../..; \
+			cargo build --release --locked && cd ../..; \
 		fi; \
 	else \
 		echo "FFI library already exists, skipping cargo build"; \
