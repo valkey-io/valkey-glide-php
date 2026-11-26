@@ -84,8 +84,8 @@ abstract class ValkeyGlideBaseTest extends TestSuite
     private static $debug_logged = false;
     private static $version_logged = false;
 
-    /* Connection timeout (ms) for the suites' clients. The 250 ms default leaves
-     * a cluster client about 750 ms to connect, which a busy CI runner can miss */
+    /* Connection timeout (ms) for the suites' clients, set explicitly so the suites
+     * don't depend on the default */
     protected const CONNECTION_TIMEOUT_MS = 2000;
     public function __construct($host, $port, $auth, $tls)
     {

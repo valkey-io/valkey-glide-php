@@ -488,6 +488,22 @@ echo "PING result: " . $pingResult . "\n";
 $client->close();
 ```
 
+### Timeouts
+
+| Timeout | Default | Set with |
+|---|---|---|
+| Connection: how long to wait for a connection, including the TLS handshake | 2 s | `advanced_config: ['connection_timeout' => ms]`, or `ValkeyGlideCluster`'s PHPRedis-style `$timeout` in seconds |
+| Request: how long to wait for a command's response | 5 s | `request_timeout: ms`, `ValkeyGlideCluster`'s PHPRedis-style `$read_timeout` in seconds, or `ValkeyGlide::connect()`'s PHPRedis-style `$timeout` in seconds |
+
+A connection that takes longer fails with an error such as `connection attempt timed out`. Raise the connection timeout for a slow network or a busy host, or lower it to fail faster when a server is down:
+
+```php
+$cluster = new ValkeyGlideCluster(
+    addresses: [['host' => 'localhost', 'port' => 7001]],
+    advanced_config: ['connection_timeout' => 5000] // 5 s
+);
+```
+
 ### Persistent Clients (PHP-FPM)
 
 By default a client is closed at the end of the request. In PHP-FPM and other long-lived worker processes, a persistent client stays open and later requests in the same process reuse it, instead of connecting (and, for clusters, discovering the topology) on every request.
