@@ -10910,7 +10910,7 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
             $this->getHost(),
             (string) $this->getPort()
         );
-        [$status, $out] = $this->runHelperProcess($cmd, __FUNCTION__);
+        [$status, $out, $err] = $this->runHelperProcess($cmd, __FUNCTION__);
         if ($status === null) {
             return;
         }
@@ -10918,9 +10918,19 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
         if (str_contains($out, 'pcntl_fork')) {
             $this->markTestSkipped('pcntl is not available');
         }
-        /* The child replaced the client it inherited, and counted it as discarded */
+        if (!is_array(json_decode($out, true))) {
+            $this->assert("%s: helper printed no JSON\nstdout: %s\nstderr: %s", __FUNCTION__, $out, $err);
+            return;
+        }
+        /* A child that exits with the inherited client listed leaves the parent's client
+         * alone; a child that replaces it counts it as discarded */
         $this->assertEquals(
-            ['child_exited_cleanly' => true, 'child_discarded_fork' => 1, 'parent_reused' => true],
+            [
+                'child_exited_cleanly' => true,
+                'reconnecting_child_exited_cleanly' => true,
+                'child_discarded_fork' => 1,
+                'parent_reused' => true,
+            ],
             json_decode($out, true)
         );
     }
