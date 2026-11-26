@@ -77,6 +77,10 @@ void valkey_glide_persistent_store(valkey_glide_object* valkey_glide,
  * connection state; any other client is closed. */
 void valkey_glide_release_client(valkey_glide_object* valkey_glide, bool closing);
 
+/* Add the persistent-client counters of this process (thread under ZTS) to
+ * the getStatistics() array. */
+void valkey_glide_persistent_add_statistics(zval* stats);
+
 /* Note that the object changed connection-level state that a later request
  * must not inherit, so its persistent client is not reused. */
 void valkey_glide_mark_connection_state_changed(valkey_glide_object* valkey_glide);

@@ -46,6 +46,22 @@ ZEND_TLS zend_long persistent_client_count = 0;
  * compared between entries of this process: inherited ones count as oldest. */
 ZEND_TLS zend_ulong persistent_client_clock = 0;
 
+/* Monotonic counters reported by getStatistics(), per process like
+ * persistent_client_count (a forked child starts from its parent's values). */
+typedef struct {
+    zend_long created;           /* new client kept */
+    zend_long reused;            /* kept client attached to a new object */
+    zend_long busy;              /* kept client busy: an unkept client was used instead */
+    zend_long not_kept;          /* limit reached and every kept client in use */
+    zend_long evicted;           /* least recently used idle client closed at the limit */
+    zend_long closed;            /* kept client closed by close() */
+    zend_long discarded_state;   /* closed: the request changed connection state */
+    zend_long discarded_restore; /* closed: UNWATCH or restoring the database failed */
+    zend_long discarded_fork;    /* dropped: inherited through fork() (replaced or evicted) */
+} valkey_glide_persistent_stats_t;
+
+ZEND_TLS valkey_glide_persistent_stats_t persistent_stats = {0};
+
 /* Free an entry, closing its client only in the process that created it: a
  * forked child does not have the Rust runtime threads behind the handle. */
 static void persistent_client_free(valkey_glide_persistent_client_t* entry) {
@@ -137,9 +153,11 @@ bool valkey_glide_persistent_begin(valkey_glide_object*                      val
         if (entry->pid != getpid()) {
             /* Inherited through fork: unusable here; replace it */
             zend_hash_del(&EG(persistent_list), key);
+            persistent_stats.discarded_fork++;
         } else if (entry->in_use) {
             /* Used by another object in this request: give this one its own client */
             VALKEY_LOG_DEBUG("persistent_client", "Persistent client in use; using a new client");
+            persistent_stats.busy++;
             zend_string_release(key);
             return false;
         } else {
@@ -155,6 +173,7 @@ bool valkey_glide_persistent_begin(valkey_glide_object*                      val
             /* Commands look the object (and its OPT_PREFIX) up from the handle */
             valkey_glide_prefix_track_client(entry->client, valkey_glide);
             VALKEY_LOG_DEBUG("persistent_client", "Reusing persistent client");
+            persistent_stats.reused++;
             return true;
         }
     }
@@ -171,6 +190,7 @@ bool valkey_glide_persistent_begin(valkey_glide_object*                      val
 static bool persistent_evict_idle_client(void) {
     zend_string*   oldest_key  = NULL;
     zend_ulong     oldest_used = 0;
+    bool           oldest_fork = false;
     pid_t          pid         = getpid();
     zend_string*   key;
     zend_resource* res;
@@ -187,6 +207,7 @@ static bool persistent_evict_idle_client(void) {
         if (!oldest_key || used < oldest_used) {
             oldest_key  = key;
             oldest_used = used;
+            oldest_fork = entry->pid != pid;
         }
     }
     ZEND_HASH_FOREACH_END();
@@ -199,6 +220,11 @@ static bool persistent_evict_idle_client(void) {
     VALKEY_LOG_DEBUG("persistent_client", "Closing the least recently used persistent client");
     /* Runs persistent_client_dtor, which closes and frees the entry */
     zend_hash_del(&EG(persistent_list), oldest_key);
+    if (oldest_fork) {
+        persistent_stats.discarded_fork++;
+    } else {
+        persistent_stats.evicted++;
+    }
     return true;
 }
 
@@ -216,6 +242,7 @@ void valkey_glide_persistent_store(valkey_glide_object* valkey_glide,
     if (persistent_client_count >= max_clients && !persistent_evict_idle_client()) {
         VALKEY_LOG_WARN("persistent_client",
                         "valkey_glide.max_persistent_clients reached; client will not be kept");
+        persistent_stats.not_kept++;
         zend_string_release(key);
         return;
     }
@@ -232,6 +259,7 @@ void valkey_glide_persistent_store(valkey_glide_object* valkey_glide,
     zend_register_persistent_resource(
         ZSTR_VAL(key), ZSTR_LEN(key), entry, le_valkey_glide_persistent);
     persistent_client_count++;
+    persistent_stats.created++;
 
     valkey_glide->persistent          = entry;
     valkey_glide->persistent_key      = key;
@@ -265,25 +293,33 @@ static bool persistent_client_select(const void* client, zend_long database_id) 
     return ok;
 }
 
-static void persistent_release(valkey_glide_object* valkey_glide, bool discard) {
+static void persistent_release(valkey_glide_object* valkey_glide, bool closing) {
     valkey_glide_persistent_client_t* entry = valkey_glide->persistent;
+    /* Counter of the reason the client is not kept, if it is not */
+    zend_long* discard = NULL;
 
     entry->in_use = false;
     if (entry->pid != getpid()) {
         /* Object inherited through fork: never touch the client from here */
-        discard = true;
-    } else if (!discard) {
-        if (valkey_glide->persistent_watching) {
-            discard = !persistent_client_unwatch(entry->client);
+        discard = &persistent_stats.discarded_fork;
+    } else if (closing) {
+        discard = &persistent_stats.closed;
+    } else if (valkey_glide->persistent_dirty) {
+        discard = &persistent_stats.discarded_state;
+    } else {
+        if (valkey_glide->persistent_watching && !persistent_client_unwatch(entry->client)) {
+            discard = &persistent_stats.discarded_restore;
         }
-        if (!discard && valkey_glide->persistent_selected) {
-            discard = !persistent_client_select(entry->client, entry->database_id);
+        if (!discard && valkey_glide->persistent_selected &&
+            !persistent_client_select(entry->client, entry->database_id)) {
+            discard = &persistent_stats.discarded_restore;
         }
     }
 
     if (entry->listed) {
         entry->last_used = ++persistent_client_clock;
         if (discard) {
+            (*discard)++;
             /* Runs persistent_client_dtor, which frees the entry */
             zend_hash_del(&EG(persistent_list), valkey_glide->persistent_key);
         }
@@ -311,11 +347,25 @@ void valkey_glide_release_client(valkey_glide_object* valkey_glide, bool closing
     valkey_glide_prefix_untrack_client(valkey_glide->glide_client);
 
     if (valkey_glide->persistent) {
-        persistent_release(valkey_glide, closing || valkey_glide->persistent_dirty);
+        persistent_release(valkey_glide, closing);
         return;
     }
 
     valkey_glide_close_client(valkey_glide);
+}
+
+void valkey_glide_persistent_add_statistics(zval* stats) {
+    add_assoc_long(stats, "persistent_clients_kept", persistent_client_count);
+    add_assoc_long(stats, "persistent_clients_created", persistent_stats.created);
+    add_assoc_long(stats, "persistent_clients_reused", persistent_stats.reused);
+    add_assoc_long(stats, "persistent_clients_busy", persistent_stats.busy);
+    add_assoc_long(stats, "persistent_clients_not_kept", persistent_stats.not_kept);
+    add_assoc_long(stats, "persistent_clients_evicted", persistent_stats.evicted);
+    add_assoc_long(stats, "persistent_clients_closed", persistent_stats.closed);
+    add_assoc_long(stats, "persistent_clients_discarded_state", persistent_stats.discarded_state);
+    add_assoc_long(
+        stats, "persistent_clients_discarded_restore", persistent_stats.discarded_restore);
+    add_assoc_long(stats, "persistent_clients_discarded_fork", persistent_stats.discarded_fork);
 }
 
 void valkey_glide_mark_connection_state_changed(valkey_glide_object* valkey_glide) {

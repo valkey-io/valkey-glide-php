@@ -598,6 +598,9 @@ class ValkeyGlideCluster
     public function close(): bool;
 
     /**
+     * Same keys as ValkeyGlide::getStatistics, including the persistent_clients_* counters,
+     * which cover the persistent clients of both classes in this process (thread under ZTS).
+     *
      * @see ValkeyGlide::getStatistics
      */
     public function getStatistics(): array;

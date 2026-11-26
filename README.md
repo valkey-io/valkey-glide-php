@@ -513,6 +513,8 @@ A kept client is reused only by a request that uses the same configuration (and,
 
 The ini setting `valkey_glide.max_persistent_clients` (default `32`) limits how many clients each process keeps (each thread, in a thread-safe (ZTS) build such as FrankenPHP: four threads can keep up to 4 × 32 clients). When it is reached, the least recently used client that no object is using is closed to make room (for example after a password rotation, the client with the old password); if all kept clients are in use, the new client is closed at the end of the request as usual. `0` disables persistent clients.
 
+`getStatistics()` reports how persistent clients are used in the current process (thread, in a ZTS build): `persistent_clients_kept` is the number kept now; `persistent_clients_created`, `persistent_clients_reused` and `persistent_clients_busy` (a kept client was busy, so a client that is not kept was used instead) count how requests got their client; `persistent_clients_not_kept` and `persistent_clients_evicted` count the effects of `valkey_glide.max_persistent_clients`; and `persistent_clients_closed`, `persistent_clients_discarded_state`, `persistent_clients_discarded_restore` and `persistent_clients_discarded_fork` count kept clients closed by `close()`, after a connection-state change, after a failed `UNWATCH` or database restore, and after `fork()`. Read them at the end of a request, or log them periodically per worker, to see why requests open new connections.
+
 ## Building & Testing
 
 Development instructions for local building & testing the package are in the [DEVELOPER.md](DEVELOPER.md) file.
