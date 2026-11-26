@@ -574,12 +574,19 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
     public function testPersistentClientKeyIncludesPeriodicChecksInterval()
     {
         // A persistent client is only reused for the same periodic checks interval
-        $new_client = fn($periodic_checks) => new ValkeyGlideCluster(
-            addresses: [['host' => $this->getHost(), 'port' => $this->getPort()]],
-            credentials: $this->getAuth(),
-            persistent: true,
-            periodic_checks: $periodic_checks,
-        );
+        $new_client = function ($periodic_checks) {
+            $params = [
+                'addresses'       => [['host' => $this->getHost(), 'port' => $this->getPort()]],
+                'use_tls'         => $this->getTLS(),
+                'credentials'     => $this->getAuth(),
+                'persistent'      => true,
+                'periodic_checks' => $periodic_checks,
+            ];
+            if ($this->getTLS()) {
+                $params['advanced_config'] = ['tls_config' => ['use_insecure_tls' => true]];
+            }
+            return new ValkeyGlideCluster(...$params);
+        };
         // Releasing the object keeps its client for the next construction
         $client_id = fn($periodic_checks) => $new_client($periodic_checks)->rawcommand('test', 'CLIENT', 'ID');
 
