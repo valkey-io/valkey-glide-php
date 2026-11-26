@@ -18,6 +18,14 @@ inputs:
   github-token:
     description: "GitHub token for API access (optional, uses github.token if not provided)"
     required: false
+  os:
+    description: "Host OS from the build matrix: ubuntu or macos"
+    required: false
+    default: "ubuntu"
+  target:
+    description: "Rust target from the build matrix, for example aarch64-apple-darwin"
+    required: false
+    default: "x86_64-unknown-linux-gnu"
 
 runs:
   using: "composite"
@@ -29,6 +37,8 @@ runs:
         php-version: ${{ inputs.php-version }}
         engine-version: ${{ inputs.engine-version }}
         github-token: ${{ github.token }}
+        os: ${{ inputs.os }}
+        target: ${{ inputs.target }}
 
     - name: Generate PHP protobuf classes for testing
       shell: bash
@@ -106,7 +116,7 @@ runs:
         fi
 
     - name: Configure APT retries
-      if: steps.package-info.outputs.is-rc != 'true'
+      if: steps.package-info.outputs.is-rc != 'true' && inputs.os == 'ubuntu'
       uses: ./.github/actions/configure-apt-retries
 
     - name: Setup PHP
@@ -117,8 +127,12 @@ runs:
         extensions: tokenizer, json, ctype, iconv, mbstring, simplexml
         tools: none
 
+    - name: Install build dependencies (macOS)
+      if: steps.package-info.outputs.is-rc != 'true' && inputs.os == 'macos'
+      uses: ./.github/actions/install-macos-build-deps
+
     - name: Install system dependencies
-      if: steps.package-info.outputs.is-rc != 'true'
+      if: steps.package-info.outputs.is-rc != 'true' && inputs.os == 'ubuntu'
       shell: bash
       run: |
         echo "=== Installing system dependencies for PECL testing ==="
@@ -139,8 +153,8 @@ runs:
       if: steps.package-info.outputs.is-rc != 'true'
       uses: ./.github/actions/install-shared-dependencies
       with:
-        os: ubuntu
-        target: x86_64-unknown-linux-gnu
+        os: ${{ inputs.os }}
+        target: ${{ inputs.target }}
         engine-version: ${{ inputs.engine-version }}
         github-token: ${{ inputs.github-token || github.token }}
 
@@ -156,7 +170,7 @@ runs:
         echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
     - name: Setup sccache for cross-user Rust caching
-      if: steps.package-info.outputs.is-rc != 'true'
+      if: steps.package-info.outputs.is-rc != 'true' && inputs.os == 'ubuntu'
       shell: bash
       run: |
         echo "=== Setting up sccache for cross-user Rust compilation caching ==="
@@ -182,7 +196,7 @@ runs:
         echo "sccache setup complete"
 
     - name: Setup Cargo cache for root user
-      if: steps.package-info.outputs.is-rc != 'true'
+      if: steps.package-info.outputs.is-rc != 'true' && inputs.os == 'ubuntu'
       shell: bash
       run: |
         echo "=== Setting up Cargo cache for root user ==="
@@ -253,11 +267,28 @@ runs:
 
         # Install the package using PECL (this tests the real user experience)
         # Use all available CPU cores for compilation
-        export MAKEFLAGS="-j$(nproc)"
-        export CARGO_BUILD_JOBS=$(nproc)
+        export MAKEFLAGS="-j$(getconf _NPROCESSORS_ONLN)"
+        export CARGO_BUILD_JOBS=$(getconf _NPROCESSORS_ONLN)
 
-        sudo env "MAKEFLAGS=-j$(nproc)" "CARGO_BUILD_JOBS=$(nproc)" pecl install -f "$PACKAGE_FILE" 2>&1 | tee pecl_install.log
-        PECL_EXIT_CODE=$?
+        # Where pecl unpacks and builds, for the failure diagnostics below
+        PEAR_DIR=/tmp/pear
+        # The step runs with -e and pipefail; keep going on failure so the diagnostics below run
+        set +e
+        if [ "$RUNNER_OS" = "macOS" ]; then
+          # setup-php leaves PEAR's temp directory unwritable for the runner user, so give pecl its own
+          PEAR_DIR="$RUNNER_TEMP/pear"
+          for dir in temp download cache; do
+            mkdir -p "$PEAR_DIR/$dir"
+            # pear, not pecl: pecl applies config-set to its channel, which rejects these settings
+            pear config-set "${dir}_dir" "$PEAR_DIR/$dir"
+          done
+          # setup-php's PHP on macOS is owned by the runner user, and root has no Rust toolchain
+          pecl install -f "$PACKAGE_FILE" 2>&1 | tee pecl_install.log
+        else
+          sudo env "MAKEFLAGS=-j$(getconf _NPROCESSORS_ONLN)" "CARGO_BUILD_JOBS=$(getconf _NPROCESSORS_ONLN)" pecl install -f "$PACKAGE_FILE" 2>&1 | tee pecl_install.log
+        fi
+        PECL_EXIT_CODE=${PIPESTATUS[0]}
+        set -e
 
         if [ $PECL_EXIT_CODE -ne 0 ]; then
           echo "=== PECL install failed, checking logs ==="
@@ -266,7 +297,11 @@ runs:
           cat pecl_install.log
           
           echo "=== Checking for basic build files ==="
-          ls -la /tmp/pear/ 2>/dev/null || echo "No /tmp/pear directory found"
+          if [ -d "$PEAR_DIR/temp" ]; then
+            ls -laR "$PEAR_DIR/temp" | head -100 || true
+          else
+            echo "No $PEAR_DIR/temp directory found"
+          fi
           
           exit 1
         fi
@@ -310,9 +345,10 @@ runs:
           if [ -f "$SO_FILE" ]; then
             echo "Extension file exists: $SO_FILE"
             echo "All library dependencies:"
-            ldd "$SO_FILE"
+            if command -v ldd >/dev/null; then LIBS="ldd"; else LIBS="otool -L"; fi
+            $LIBS "$SO_FILE"
             echo "Protobuf dependencies:"
-            ldd "$SO_FILE" | grep protobuf || echo "No protobuf dependencies found"
+            $LIBS "$SO_FILE" | grep protobuf || echo "No protobuf dependencies found"
             echo "Checking for protobuf-c library:"
             ldconfig -p | grep protobuf-c || echo "protobuf-c library not found in system"
             echo "Checking if protobuf_c_empty_string symbol exists in system libraries:"
@@ -352,10 +388,10 @@ runs:
           echo "=== PECL installation failed ==="
           
           echo "=== Checking PECL logs ==="
-          cat /tmp/pear/install/valkey_glide*/make.log 2>/dev/null || echo "No make.log found"
+          cat "$PEAR_DIR"/install/valkey_glide*/make.log 2>/dev/null || echo "No make.log found"
           
           echo "=== Checking for build errors ==="
-          ls -la /tmp/pear/install/ 2>/dev/null || echo "No install directory found"
+          ls -la "$PEAR_DIR/install/" 2>/dev/null || echo "No install directory found"
           
           exit 1
         fi
@@ -388,12 +424,25 @@ runs:
         composer install --no-interaction --prefer-dist --optimize-autoloader
         echo "Composer install completed"
 
+    # The module servers only serve the JSON and search tests, which run elsewhere; macOS runners have no Docker
     - name: Start Valkey servers via Docker
-      if: steps.package-info.outputs.is-rc != 'true'
+      if: steps.package-info.outputs.is-rc != 'true' && runner.os == 'Linux'
       uses: ./valkey-glide/.github/actions/start-valkey-docker
       with:
         engine-version: ${{ inputs.engine-version }}
         cluster-port-start: "9001"
+
+    # The tests, and the child processes they start, run PHP with -n and load the extension by name, which
+    # looks in PHP's compiled-in extension directory. Homebrew's PHP on macOS installs extensions elsewhere.
+    - name: Make the extension loadable with php -n (macOS)
+      if: steps.package-info.outputs.is-rc != 'true' && runner.os == 'macOS'
+      shell: bash
+      run: |
+        # Homebrew doesn't create the compiled-in directory for every PHP version
+        DEFAULT_DIR=$(php -n -r 'echo ini_get("extension_dir");')
+        mkdir -p "$DEFAULT_DIR"
+        INSTALLED_DIR=$(php-config --extension-dir)
+        [ "$INSTALLED_DIR" -ef "$DEFAULT_DIR" ] || ln -sf "$INSTALLED_DIR/valkey_glide.so" "$DEFAULT_DIR/"
 
     - name: Run PHP Extension Tests
       if: steps.package-info.outputs.is-rc != 'true'

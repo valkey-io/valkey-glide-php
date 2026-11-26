@@ -29,6 +29,9 @@ Software Dependencies
 - autotools (autoconf, automake, libtool)
 - pkg-config
 - protoc (protobuf compiler) >= v3.20.0
+- protoc-c (`protobuf-c-compiler`) and the protobuf-c library (`libprotobuf-c-dev`)
+- python3
+- libffi headers (`libffi-dev` or `libffi-devel`)
 - openssl
 - openssl-dev
 - rustup
@@ -135,6 +138,22 @@ pip3 install ziglang
 cargo install --locked cargo-zigbuild
 ```
 
+#### Supported platforms
+
+CI checks these platforms. PHP versions are those in `.github/json_matrices/supported-languages-versions.json`
+(currently 8.2 to 8.6).
+
+| Platform                 | Build and tests | PIE and PECL install from source | `pie install` of the latest release |
+| :----------------------- | :-------------: | :------------------------------: | :---------------------------------: |
+| Ubuntu 24.04 x86_64      |   PR, nightly   |           PR, nightly            |               nightly               |
+| Ubuntu 24.04 aarch64     |     nightly     |             nightly              |               nightly               |
+| Ubuntu 26.04 x86_64      |                 |                                  |               nightly               |
+| macOS 15 arm64 (Silicon) |     nightly     |             nightly              |               nightly               |
+
+The release install runs on the oldest and newest PHP version the release supports. Other Linux distributions may
+work; [validate an install in a container](#validating-an-install-in-a-container)
+before relying on one.
+
 #### Installing from Packagist
 
 You can use pie to install the extension from the Packagist repository.
@@ -192,6 +211,32 @@ Verify the installation:
 php -m | grep valkey_glide
 php -r "if (extension_loaded('valkey_glide')) echo 'SUCCESS: Extension loaded!'; else echo 'ERROR: Extension not loaded';"
 ```
+
+#### Validating an install in a container
+
+To check that `pie install` builds and loads the extension on a Linux distribution you don't run, use Docker. This
+installs a released version on Ubuntu 24.04; change the image (for example `ubuntu:26.04`) or `VERSION` as needed:
+
+<!-- validate-pie-install:start -->
+```bash
+docker run --rm -e VERSION=1.2.0 ubuntu:24.04 bash -euxc '
+  export DEBIAN_FRONTEND=noninteractive
+  apt-get update
+  apt-get install -y --no-install-recommends ca-certificates curl git unzip gcc make autoconf automake libtool \
+    pkg-config libssl-dev libffi-dev protobuf-compiler protobuf-c-compiler libprotobuf-c-dev python3 php-cli php-dev
+  curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
+  . "$HOME/.cargo/env"
+  cargo install --locked cbindgen
+  curl -fsSL https://github.com/php/pie/releases/latest/download/pie.phar -o /usr/local/bin/pie
+  chmod +x /usr/local/bin/pie
+  pie install --no-interaction "valkey-io/valkey-glide-php:$VERSION"
+  php -r "exit(extension_loaded(\"valkey_glide\") ? 0 : 1);"
+  php -r "echo phpversion(\"valkey_glide\"), PHP_EOL;"
+'
+```
+<!-- validate-pie-install:end -->
+
+The build compiles the Rust core, so it takes several minutes. On Apple silicon, Docker runs the arm64 image natively.
 
 #### Steps for building and installing from source
 

@@ -14,6 +14,20 @@ on:
         description: "Run the full engine, host, and language version matrix"
         type: boolean
         default: false
+      full-host-matrix:
+        description: "Run on every host, with the engines and language versions of a partial matrix"
+        type: boolean
+        default: false
+  workflow_call:
+    inputs:
+      full-matrix:
+        description: "Run the full engine, host, and language version matrix"
+        type: boolean
+        default: false
+      full-host-matrix:
+        description: "Run on every host, with the engines and language versions of a partial matrix"
+        type: boolean
+        default: false
 
 jobs:
   validate-version:
@@ -40,8 +54,10 @@ jobs:
         uses: ./.github/workflows/create-test-matrices
         with:
           language-name: php
-          # Run full test matrix if job started by cron or it was explicitly specified by a person who triggered the workflow
-          run-full-matrix: ${{ github.event.inputs.full-matrix == 'true' || github.event_name == 'schedule' }}
+          # A caller (the nightly workflow) or a person who triggered the workflow can ask for the full matrix,
+          # or for every host only
+          run-full-matrix: ${{ inputs.full-matrix == true }}
+          run-full-host-matrix: ${{ inputs.full-host-matrix == true }}
 
   test-pecl-install:
     name: PECL Tests - ${{ matrix.php }}, EngineVersion - ${{ matrix.engine.version }}, Target - ${{ matrix.host.TARGET }}
@@ -72,6 +88,8 @@ jobs:
           php-version: ${{ matrix.php }}
           engine-version: ${{ matrix.engine.version }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          os: ${{ matrix.host.OS }}
+          target: ${{ matrix.host.TARGET }}
 
       - uses: Swatinem/rust-cache@eedcf2fb1c22f010a0eb66b92f378c110977f266 # v2
         with:
@@ -93,3 +111,5 @@ jobs:
         with:
           php-version: ${{ matrix.php }}
           engine-version: ${{ matrix.engine.version }}
+          os: ${{ matrix.host.OS }}
+          target: ${{ matrix.host.TARGET }}
