@@ -56,14 +56,16 @@ void valkey_glide_persistent_minit(int module_number);
  * the new client must not be kept (address resolver configured, the kept client
  * is in use by another object, ...). The caller must check EG(exception).
  */
-bool valkey_glide_persistent_begin(valkey_glide_object*                      valkey_glide,
-                                   valkey_glide_base_client_configuration_t* config,
-                                   valkey_glide_periodic_checks_status_t     periodic_checks,
-                                   bool                                      is_cluster,
-                                   bool          refresh_topology_from_initial_nodes,
-                                   const char*   persistent_id,
-                                   size_t        persistent_id_len,
-                                   zend_string** out_key);
+bool valkey_glide_persistent_begin(
+    valkey_glide_object*                                  valkey_glide,
+    valkey_glide_base_client_configuration_t*             config,
+    valkey_glide_periodic_checks_status_t                 periodic_checks,
+    const valkey_glide_periodic_checks_manual_interval_t* periodic_checks_manual,
+    bool                                                  is_cluster,
+    bool                                                  refresh_topology_from_initial_nodes,
+    const char*                                           persistent_id,
+    size_t                                                persistent_id_len,
+    zend_string**                                         out_key);
 
 /* Keep the object's freshly created client under `key` (takes ownership),
  * unless the per-process (per-thread under ZTS) limit is reached and every kept client is in use.

@@ -309,7 +309,7 @@ typedef struct {
 } valkey_glide_advanced_base_client_configuration_t;
 
 typedef struct {
-    int duration_in_sec;
+    uint32_t duration_in_sec; /* Always positive */
 } valkey_glide_periodic_checks_manual_interval_t;
 
 typedef struct {
@@ -399,6 +399,15 @@ int  valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_p
                                            valkey_glide_base_client_configuration_t*     config,
                                            bool                                          is_cluster);
 void valkey_glide_cleanup_client_config(valkey_glide_base_client_configuration_t* config);
+
+/* Parses ValkeyGlideCluster's $periodic_checks (an array sets the interval, an int is a
+ * PERIODIC_CHECK_* constant); see valkey_glide_cluster.c */
+int valkey_glide_cluster_parse_periodic_checks(
+    HashTable*                                      interval_ht,
+    zend_long                                       periodic_checks,
+    zend_bool                                       periodic_checks_is_null,
+    valkey_glide_cluster_client_configuration_t*    config,
+    valkey_glide_periodic_checks_manual_interval_t* manual_storage);
 
 #if PHP_VERSION_ID < 80000
 #define Z_PARAM_ARRAY_HT_OR_NULL(dest) Z_PARAM_ARRAY_HT_EX(dest, 1, 0)

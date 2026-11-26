@@ -43,6 +43,7 @@
 static int valkey_glide_cluster_create_connection(
     valkey_glide_object*                         valkey_glide,
     valkey_glide_php_common_constructor_params_t common_params,
+    HashTable*                                   periodic_checks_ht,
     zend_long                                    periodic_checks,
     zend_bool                                    periodic_checks_is_null,
     zend_bool                                    persistent) {
@@ -78,9 +79,14 @@ static int valkey_glide_cluster_create_connection(
     memset(&client_config, 0, sizeof(client_config));
 
     /* Set periodic checks */
-    client_config.periodic_checks_status =
-        periodic_checks_is_null ? VALKEY_GLIDE_PERIODIC_CHECKS_ENABLED_DEFAULT : periodic_checks;
-    client_config.periodic_checks_manual = NULL;
+    valkey_glide_periodic_checks_manual_interval_t periodic_checks_manual;
+    if (valkey_glide_cluster_parse_periodic_checks(periodic_checks_ht,
+                                                   periodic_checks,
+                                                   periodic_checks_is_null,
+                                                   &client_config,
+                                                   &periodic_checks_manual) == FAILURE) {
+        return FAILURE;
+    }
 
     /* Populate configuration parameters shared between client and cluster connections. */
     if (valkey_glide_build_client_config_base(&common_params, &client_config.base, true) ==
@@ -107,6 +113,7 @@ static int valkey_glide_cluster_create_connection(
             valkey_glide_persistent_begin(valkey_glide,
                                           &client_config.base,
                                           client_config.periodic_checks_status,
+                                          client_config.periodic_checks_manual,
                                           true,
                                           client_config.refresh_topology_from_initial_nodes,
                                           "",
@@ -290,6 +297,64 @@ static int phpredis_auth_to_credentials(zval* auth, zval* out) {
     return SUCCESS;
 }
 
+/* Parses the $periodic_checks constructor parameter into config. null or
+ * PERIODIC_CHECK_ENABLED_DEFAULT_CONFIGS leaves the interval to the core (60 seconds),
+ * PERIODIC_CHECK_DISABLED turns the checks off, and ['duration_in_sec' => int] sets the interval:
+ * config->periodic_checks_manual then points to manual_storage, which must outlive config.
+ * Returns FAILURE, with an exception thrown, on any other value. The interval must be positive
+ * (0 made the core run topology checks back-to-back, see issue #344) and fit the uint32 the core
+ * takes. */
+int valkey_glide_cluster_parse_periodic_checks(
+    HashTable*                                      interval_ht,
+    zend_long                                       periodic_checks,
+    zend_bool                                       periodic_checks_is_null,
+    valkey_glide_cluster_client_configuration_t*    config,
+    valkey_glide_periodic_checks_manual_interval_t* manual_storage) {
+    const char* error_message = NULL;
+
+    config->periodic_checks_status = VALKEY_GLIDE_PERIODIC_CHECKS_ENABLED_DEFAULT;
+    config->periodic_checks_manual = NULL;
+
+    if (interval_ht) {
+        zval* duration =
+            zend_hash_str_find(interval_ht, "duration_in_sec", strlen("duration_in_sec"));
+        if (duration) {
+            ZVAL_DEREF(duration);
+        }
+        if (!duration || zend_hash_num_elements(interval_ht) != 1 ||
+            Z_TYPE_P(duration) != IS_LONG) {
+            error_message =
+                "periodic_checks interval must be ['duration_in_sec' => int], with no other keys.";
+        } else if (Z_LVAL_P(duration) <= 0 || (uint64_t) Z_LVAL_P(duration) > UINT32_MAX) {
+            error_message =
+                "periodic_checks 'duration_in_sec' must be a positive integer no greater than "
+                "4294967295; use ValkeyGlideCluster::PERIODIC_CHECK_DISABLED to turn periodic "
+                "checks off.";
+        } else {
+            manual_storage->duration_in_sec = (uint32_t) Z_LVAL_P(duration);
+            config->periodic_checks_manual  = manual_storage;
+        }
+    } else if (!periodic_checks_is_null) {
+        if (periodic_checks == VALKEY_GLIDE_PERIODIC_CHECKS_ENABLED_DEFAULT ||
+            periodic_checks == VALKEY_GLIDE_PERIODIC_CHECKS_DISABLED) {
+            config->periodic_checks_status =
+                (valkey_glide_periodic_checks_status_t) periodic_checks;
+        } else {
+            error_message =
+                "periodic_checks must be "
+                "ValkeyGlideCluster::PERIODIC_CHECK_ENABLED_DEFAULT_CONFIGS, "
+                "ValkeyGlideCluster::PERIODIC_CHECK_DISABLED or ['duration_in_sec' => int].";
+        }
+    }
+
+    if (error_message) {
+        VALKEY_LOG_ERROR("cluster_construct", error_message);
+        zend_throw_exception(get_valkey_glide_exception_ce(), error_message, 0);
+        return FAILURE;
+    }
+    return SUCCESS;
+}
+
 /* Maps the PHPRedis RedisCluster-style constructor parameters onto params: $seeds are the
  * addresses, $timeout the connection timeout, $read_timeout the request timeout (both in seconds)
  * and $auth the credentials. A PHPRedis-style parameter conflicts with the GLIDE-style parameter
@@ -423,6 +488,8 @@ PHP_METHOD(ValkeyGlideCluster, __construct) {
     zval*     client_side_cache       = NULL;
     zval*     address_resolver        = NULL;
     zval*     circuit_breaker         = NULL;
+    /* An array sets the interval, an int is a PERIODIC_CHECK_* constant */
+    HashTable* periodic_checks_ht = NULL;
 
     valkey_glide_php_common_constructor_params_t common_params;
     valkey_glide_init_common_constructor_params(&common_params);
@@ -444,7 +511,7 @@ PHP_METHOD(ValkeyGlideCluster, __construct) {
     Z_PARAM_LONG_OR_NULL(request_timeout, request_timeout_is_null)
     Z_PARAM_ARRAY_OR_NULL(reconnect_strategy)
     Z_PARAM_STRING_OR_NULL(client_name, client_name_len)
-    Z_PARAM_LONG_OR_NULL(periodic_checks, periodic_checks_is_null)
+    Z_PARAM_ARRAY_HT_OR_LONG_OR_NULL(periodic_checks_ht, periodic_checks, periodic_checks_is_null)
     Z_PARAM_STRING_OR_NULL(client_az, client_az_len)
     Z_PARAM_ARRAY_OR_NULL(advanced_config)
     Z_PARAM_BOOL_OR_NULL(lazy_connect, lazy_connect_is_null)
@@ -523,6 +590,7 @@ PHP_METHOD(ValkeyGlideCluster, __construct) {
     /* Call helper function to create cluster connection */
     valkey_glide_cluster_create_connection(valkey_glide,
                                            common_params,
+                                           periodic_checks_ht,
                                            periodic_checks,
                                            periodic_checks_is_null,
                                            !persistent_is_null && persistent);

@@ -175,7 +175,9 @@ class ValkeyGlideCluster
 
                     /**
                    *  @var int
-         * Enables the periodic checks with the default configurations.
+         * Enables the periodic checks with the default configurations: the core checks the
+         * cluster topology every 60 seconds. To set another interval, pass
+         * ['duration_in_sec' => int] as $periodic_checks.
          */
     public const   PERIODIC_CHECK_ENABLED_DEFAULT_CONFIGS = 0;
 
@@ -363,7 +365,12 @@ class ValkeyGlideCluster
      * @param array|null $reconnect_strategy    Reconnection strategy ['num_of_retries' => 3, 'factor' => 2,
      *                                          'exponent_base' => 10, 'jitter_percent' => 15].
      * @param string|null $client_name          Client name identifier.
-     * @param int|null $periodic_checks         Periodic checks configuration.
+     * @param array|int|null $periodic_checks   Periodic cluster topology checks:
+     *                                          - null or PERIODIC_CHECK_ENABLED_DEFAULT_CONFIGS: check every
+     *                                            60 seconds (the core's default).
+     *                                          - PERIODIC_CHECK_DISABLED: no periodic checks.
+     *                                          - ['duration_in_sec' => 300]: check at this interval, in seconds.
+     *                                            Must be a positive integer no greater than 4294967295.
      * @param string|null $client_az            Client availability zone.
      * @param array|null $advanced_config       Advanced configuration options:
      *                                          - 'connection_timeout' => 5000 (milliseconds)
@@ -452,7 +459,7 @@ class ValkeyGlideCluster
         ?int $request_timeout = null,
         ?array $reconnect_strategy = null,
         ?string $client_name = null,
-        ?int $periodic_checks = null,
+        array|int|null $periodic_checks = null,
         ?string $client_az = null,
         ?array $advanced_config = null,
         ?bool $lazy_connect = null,

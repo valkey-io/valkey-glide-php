@@ -697,6 +697,66 @@ class ConnectionRequestTest extends \TestSuite
         $this->assertEquals('', $request->getPeriodicChecks());
     }
 
+    public function testClusterPeriodicChecksManualInterval()
+    {
+        foreach ([1, 300, 4294967295] as $interval) {
+            $request = ClientConstructorMock::simulate_cluster_constructor(
+                periodic_checks: ['duration_in_sec' => $interval]
+            );
+
+            $this->assertEquals('periodic_checks_manual_interval', $request->getPeriodicChecks());
+            $this->assertFalse($request->hasPeriodicChecksDisabled());
+            /* The protobuf runtime reads a uint32 above 2^31 - 1 as a negative int */
+            $this->assertEquals($interval, $request->getPeriodicChecksManualInterval()->getDurationInSec() & 0xFFFFFFFF);
+        }
+    }
+
+    /* An interval of 0 made the core run topology checks back-to-back (issue #344), and one
+     * above the core's uint32 would wrap, so both are rejected rather than sent */
+    public function testClusterPeriodicChecksManualIntervalInvalid()
+    {
+        $out_of_range = [
+            ['duration_in_sec' => 0],
+            ['duration_in_sec' => -1],
+            ['duration_in_sec' => 4294967296],
+            ['duration_in_sec' => PHP_INT_MAX],
+        ];
+        foreach ($out_of_range as $periodic_checks) {
+            $this->assertThrowsMatch($periodic_checks, function ($periodic_checks) {
+                ClientConstructorMock::simulate_cluster_constructor(periodic_checks: $periodic_checks);
+            }, "/^periodic_checks 'duration_in_sec' must be a positive integer/");
+        }
+
+        $wrong_shape = [
+            /* Not an integer */
+            ['duration_in_sec' => '300'],
+            ['duration_in_sec' => 300.0],
+            ['duration_in_sec' => null],
+            ['duration_in_sec' => true],
+            /* Missing or extra keys */
+            [],
+            [300],
+            ['duration' => 300],
+            ['duration_in_sec' => 300, 'jitter' => 1],
+        ];
+        foreach ($wrong_shape as $periodic_checks) {
+            $this->assertThrowsMatch($periodic_checks, function ($periodic_checks) {
+                ClientConstructorMock::simulate_cluster_constructor(periodic_checks: $periodic_checks);
+            }, "/^periodic_checks interval must be \\['duration_in_sec' => int\\]/");
+        }
+    }
+
+    /* An integer other than the PERIODIC_CHECK_* constants is rejected, so an interval passed as
+     * a bare integer does not silently fall back to the default */
+    public function testClusterPeriodicChecksUnknownConstant()
+    {
+        foreach ([-1, 2, 60, 300] as $periodic_checks) {
+            $this->assertThrowsMatch($periodic_checks, function ($periodic_checks) {
+                ClientConstructorMock::simulate_cluster_constructor(periodic_checks: $periodic_checks);
+            }, '/^periodic_checks must be ValkeyGlideCluster::PERIODIC_CHECK_ENABLED_DEFAULT_CONFIGS/');
+        }
+    }
+
     public function testStandalonePeriodicChecksNotSet()
     {
         $request = ClientConstructorMock::simulate_standalone_constructor();
