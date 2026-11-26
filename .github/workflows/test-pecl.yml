@@ -85,7 +85,7 @@ jobs:
           echo "=== Pre-populating Rust registry cache ==="
           # This will download all dependencies to ~/.cargo/registry
           cd valkey-glide/ffi
-          cargo fetch
+          cargo fetch --locked
           echo "Registry cache populated"
 
       - name: Test PECL Package Installation
