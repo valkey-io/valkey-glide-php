@@ -2768,6 +2768,33 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         }
     }
 
+    public function testCompressionClusterBlockedSetIfNe()
+    {
+        if (!$this->is_valkey || !$this->minVersionCheck('9.2.0')) {
+            $this->markTestSkipped('SET IFNE requires Valkey 9.2.0+ (current: ' . $this->version . ')');
+        }
+
+        $client = $this->getCompressedClusterClient();
+
+        // Compare against a different value, so a regression that removes the compression guard
+        // would make IFNE match and overwrite the key.
+        $data = 'setifne_data';
+        $key = 'compression_cluster_blocked_setifne_' . uniqid();
+
+        try {
+            $client->set($key, $data);
+            $this->assertTrue($client->clearLastError());
+
+            $result = $client->set($key, 'new_value', ['IFNE' => 'other_value']);
+
+            $this->assertFalse($result, 'SET IFNE should return false when compression is enabled');
+            $this->assertStringContains('incompatible with compression', (string) $client->getLastError());
+            $this->assertEquals($data, $client->get($key), 'SET IFNE should not modify the key when compression is enabled');
+        } finally {
+            $client->del($key);
+        }
+    }
+
     public function testCompressionClusterBlockedGetrange()
     {
         $client = $this->getCompressedClusterClient();

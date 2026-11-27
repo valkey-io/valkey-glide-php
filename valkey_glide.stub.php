@@ -3565,14 +3565,22 @@ class ValkeyGlide
      * ['GET']                        Instead of returning `+OK` return the previous value of the
      *                                key or NULL if the key didn't exist.
      * ['IFEQ' => 'value']            Only set the key if its current value equals `value`.
-     *                                Not supported with compression enabled.
+     *                                Since Valkey 8.1.0. Does not set a missing key. `value`
+     *                                must be a string. Not supported with compression enabled.
+     * ['IFNE' => 'value']            Only set the key if its current value differs from `value`.
+     *                                Since Valkey 9.2.0. Sets a missing key. `value` must be a
+     *                                string. Not supported with compression enabled.
+     *
+     * Only one of IFEQ and IFNE is used; if both are given, the last one applies.
      *
      * @return ValkeyGlide|string|bool True if the key was set or false on failure.
      *
      * @see https://valkey.io/commands/set
      * @see https://valkey.io/commands/setex
+     * @see https://glide.valkey.io/concepts/client-features/compression/
      *
      * @example $valkey_glide->set('key', 'value');
+     * @example $valkey_glide->set('key', 'new', ['IFNE' => 'old']);
      * @example $valkey_glide->set('key', 'expires_in_60_seconds', 60);
      */
     public function set(string $key, mixed $value, mixed $options = null): ValkeyGlide|string|bool;

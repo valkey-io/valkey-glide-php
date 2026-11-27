@@ -69,8 +69,8 @@ typedef struct {
 
 /* Common command options */
 typedef struct {
-    char*  ifeq_value; /* IFEQ comparison value */
-    size_t ifeq_len;   /* IFEQ value length */
+    char*  if_value; /* IFEQ/IFNE comparison value */
+    size_t if_len;   /* IFEQ/IFNE value length */
     long   expire_seconds;
     long   expire_milliseconds;
     long   expire_at_seconds;      /* EXAT - expire at unix timestamp in seconds */
@@ -93,7 +93,8 @@ typedef struct {
     int    bybit;         /* BYBIT flag for bit commands */
     int    approximate;   /* ~ flag for approximate operations */
     int    persist;       /* PERSIST flag for GETEX commands */
-    int    has_ifeq;      /* IFEQ flag */
+    int    has_ifeq;      /* IFEQ flag: SET only if the current value equals if_value */
+    int    has_ifne;      /* IFNE flag: SET only if the current value differs from if_value */
 } core_options_t;
 
 /* Argument allocation type */
