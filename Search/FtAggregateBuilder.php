@@ -30,8 +30,13 @@ namespace ValkeyGlide\Search;
  */
 class FtAggregateBuilder
 {
+    use FtPipelineClauses;
+
     private ?string $indexName = null;
     private ?string $queryStr = null;
+    private bool $addScores = false;
+    private ?string $scorer = null;
+    private ?array $withCursor = null;
 
     /**
      * Flat token list built incrementally.
@@ -117,105 +122,91 @@ class FtAggregateBuilder
     /**
      * Load fields from the document.
      *
-     * Pass ['*'] to load all fields, or a list of field names.
+     * Pass ['*'] to load all fields, or a list of field identifiers.
+     * Each entry is either a plain field identifier (string) or a
+     * LoadField to rename it via AS (valkey-search 1.3.0; requires
+     * search.emulate-release >= 1.3.0 to take effect -- see LoadField's
+     * docstring). The emitted count is a token budget, not an entry
+     * count: a LoadField with an alias contributes 3 tokens (field, AS,
+     * alias) against the budget, matching the server's own accounting.
      *
-     * @param array $fields Field names (prefixed with @ or not).
+     * @param array<string|LoadField> $fields
+     *
+     * @throws \ValkeyGlideException if an entry is neither a string nor a
+     *         LoadField.
      */
     public function load(array $fields): self
     {
-        $this->tokens[] = 'LOAD';
         if ($fields === ['*']) {
+            $this->tokens[] = 'LOAD';
             $this->tokens[] = '*';
-        } else {
-            $this->tokens[] = (string) count($fields);
-            foreach ($fields as $field) {
-                $this->tokens[] = $field;
-            }
+            return $this;
         }
-        return $this;
-    }
-
-    /**
-     * Add a GROUPBY clause with optional reducers.
-     *
-     * @param array       $fields   Fields to group by (e.g. ['@condition']).
-     * @param FtReducer[] $reducers Reducer definitions built with FtReducer.
-     */
-    public function groupBy(array $fields, array $reducers = []): self
-    {
-        $this->tokens[] = 'GROUPBY';
-        $this->tokens[] = (string) count($fields);
+        $entryTokens = [];
         foreach ($fields as $field) {
-            $this->tokens[] = $field;
-        }
-        foreach ($reducers as $reducer) {
-            $this->tokens[] = 'REDUCE';
-            foreach ($reducer->toTokens() as $token) {
-                $this->tokens[] = $token;
+            if ($field instanceof LoadField) {
+                foreach ($field->toTokens() as $t) {
+                    $entryTokens[] = $t;
+                }
+            } elseif (is_string($field)) {
+                $entryTokens[] = $field;
+            } else {
+                throw new \ValkeyGlideException('FtAggregateBuilder::load: each field must be a string or a LoadField');
             }
         }
-        return $this;
-    }
-
-    /**
-     * Add a SORTBY clause.
-     *
-     * @param array    $fieldOrders Associative array: ['@field' => 'ASC|DESC', ...].
-     * @param int|null $max         Optional MAX limit for partial sorting.
-     */
-    public function sortBy(array $fieldOrders, ?int $max = null): self
-    {
-        $this->tokens[] = 'SORTBY';
-        $this->tokens[] = (string) (count($fieldOrders) * 2);
-        foreach ($fieldOrders as $field => $order) {
-            $this->tokens[] = $field;
-            $this->tokens[] = strtoupper($order);
-        }
-        if ($max !== null) {
-            $this->tokens[] = 'MAX';
-            $this->tokens[] = (string) $max;
+        $this->tokens[] = 'LOAD';
+        $this->tokens[] = (string) count($entryTokens);
+        foreach ($entryTokens as $t) {
+            $this->tokens[] = $t;
         }
         return $this;
     }
 
     /**
-     * Add an APPLY clause.
+     * Expose the relevance score as a pipeline field named `__score`
+     * (valkey-search 1.3.0). Reachable afterward like any other pipeline
+     * field, from load(), apply(), sortBy() or a reducer expression.
      *
-     * @param string $expression The expression to compute.
-     * @param string $alias      The output property name.
+     * Emitted after the query's DIALECT token, matching the server's own
+     * tail-of-pipeline placement for this option.
      */
-    public function apply(string $expression, string $alias): self
+    public function addScores(bool $addScores = true): self
     {
-        $this->tokens[] = 'APPLY';
-        $this->tokens[] = $expression;
-        $this->tokens[] = 'AS';
-        $this->tokens[] = $alias;
+        $this->addScores = $addScores;
         return $this;
     }
 
     /**
-     * Add a FILTER clause.
-     *
-     * @param string $expression The filter expression.
+     * Set the scoring function used to compute `__score` (valkey-search
+     * 1.3.0). `'BM25STD'` is the only value currently registered by the
+     * server. Has no visible effect unless combined with addScores().
      */
-    public function filter(string $expression): self
+    public function scorer(string $scorer): self
     {
-        $this->tokens[] = 'FILTER';
-        $this->tokens[] = $expression;
+        $this->scorer = $scorer;
         return $this;
     }
 
     /**
-     * Add a LIMIT clause.
+     * Request a paged reply instead of the whole result set at once
+     * (valkey-search 1.3.0). Paged replies become `[rows, cursor_id]`;
+     * pass `cursor_id` to `$client->ftCursorRead()`/`ftCursorDel()` to
+     * fetch subsequent pages or discard the cursor early. The cluster
+     * client always routes a paged query, and every subsequent FT.CURSOR
+     * READ/DEL against it, to the PRIMARY of the index's slot. A standalone
+     * client follows its ReadFrom configuration: with READ_FROM_PREFER_REPLICA
+     * or an AZ-affinity strategy the cursor can be opened on a replica, and
+     * ftCursorRead()/ftCursorDel() then fail with `Cursor: not found`. Use
+     * READ_FROM_PRIMARY for cursor queries on a standalone client; see
+     * valkey-glide#7860.
      *
-     * @param int $offset Starting offset.
-     * @param int $count  Number of results.
+     * @param int|null $count   Rows to return per page.
+     * @param int|null $maxIdle How long (ms) the cursor may sit idle
+     *                          before the server discards it.
      */
-    public function limit(int $offset, int $count): self
+    public function withCursor(?int $count = null, ?int $maxIdle = null): self
     {
-        $this->tokens[] = 'LIMIT';
-        $this->tokens[] = (string) $offset;
-        $this->tokens[] = (string) $count;
+        $this->withCursor = ['count' => $count, 'maxidle' => $maxIdle];
         return $this;
     }
 
@@ -237,10 +228,37 @@ class FtAggregateBuilder
             throw new \ValkeyGlideException('FtAggregateBuilder: query is required');
         }
 
+        $tokens = $this->tokens;
+        if ($this->addScores) {
+            $tokens[] = 'ADDSCORES';
+        }
+        if ($this->scorer !== null) {
+            $tokens[] = 'SCORER';
+            $tokens[] = $this->scorer;
+        }
+        if ($this->withCursor !== null) {
+            $tokens[] = 'WITHCURSOR';
+            if ($this->withCursor['count'] !== null) {
+                $tokens[] = 'COUNT';
+                $tokens[] = (string) $this->withCursor['count'];
+            }
+            if ($this->withCursor['maxidle'] !== null) {
+                $tokens[] = 'MAXIDLE';
+                $tokens[] = (string) $this->withCursor['maxidle'];
+            }
+        }
+
         return [
             'index'   => $this->indexName,
             'query'   => $this->queryStr,
-            'options' => empty($this->tokens) ? null : $this->tokens,
+            'options' => empty($tokens) ? null : $tokens,
         ];
+    }
+
+    protected function appendPipelineTokens(string ...$tokens): void
+    {
+        foreach ($tokens as $token) {
+            $this->tokens[] = $token;
+        }
     }
 }
