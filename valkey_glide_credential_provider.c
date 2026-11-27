@@ -185,6 +185,10 @@ uintptr_t valkey_glide_credential_provider_id(const valkey_glide_credential_prov
     return provider->id;
 }
 
+zval* valkey_glide_credential_provider_callable(valkey_glide_credential_provider_t* provider) {
+    return provider && provider->has_callable ? &provider->callable : NULL;
+}
+
 static void provider_unlist(valkey_glide_credential_provider_t* provider) {
     if (!provider->listed) {
         return;
@@ -318,8 +322,6 @@ bool valkey_glide_credential_provider_fetch(valkey_glide_credential_provider_t* 
     zval retval;
     ZVAL_UNDEF(&retval);
     int call_result = call_user_function(NULL, NULL, &provider->callable, &retval, 0, NULL);
-    callable_depth--;
-    provider->in_call = false;
 
     const char*         error = NULL;
     credential_entry_t* entry = NULL;
@@ -330,7 +332,11 @@ bool valkey_glide_credential_provider_fetch(valkey_glide_credential_provider_t* 
     } else {
         error = parse_result(&retval, provider->id, &entry);
     }
+    /* Destroying the result can run a destructor that closes the client. The guards stay up
+     * until then, so the close is deferred (free_pending) and the provider stays valid */
     zval_ptr_dtor(&retval);
+    callable_depth--;
+    provider->in_call = false;
 
     bool installed = false;
     if (!error && !provider->free_pending) {
@@ -410,6 +416,16 @@ void valkey_glide_credential_refresh_if_due(const void* glide_client) {
     }
     /* A failure keeps the previous snapshot; the command still runs */
     valkey_glide_credential_provider_fetch(provider, false);
+}
+
+bool valkey_glide_credential_client_has_provider(const void* glide_client) {
+    if (!thread_providers) {
+        return false;
+    }
+    valkey_glide_object* valkey_glide = valkey_glide_prefix_find_object(glide_client);
+    return valkey_glide && valkey_glide->credential_provider &&
+           valkey_glide->credential_provider->has_callable &&
+           valkey_glide->credential_provider->pid == getpid();
 }
 
 void valkey_glide_credential_provider_free(valkey_glide_credential_provider_t* provider) {

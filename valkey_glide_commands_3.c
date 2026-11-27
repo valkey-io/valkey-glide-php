@@ -1088,6 +1088,14 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
         return 0;
     }
 
+    /* Renew the custom IAM credentials the core will sign with, if due. The provider callable
+     * can run PHP code that re-enters this client and consumes or discards the batch, so this
+     * comes before any batch state is read */
+    valkey_glide_credential_refresh_if_due(valkey_glide->glide_client);
+    if (!valkey_glide->glide_client) {
+        return 0;
+    }
+
     /* Check if we're in batch mode and have buffered commands */
     if (!valkey_glide->is_in_batch_mode) {
         ZVAL_FALSE(return_value);
@@ -1144,9 +1152,6 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
     struct BatchInfo batch_info = {.cmd_count = valkey_glide->command_count,
                                    .cmds      = (const struct CmdInfo* const*) cmd_infos,
                                    .is_atomic = (valkey_glide->batch_type == MULTI)};
-
-    /* Renew the custom IAM credentials the core will sign with, if due */
-    valkey_glide_credential_refresh_if_due(valkey_glide->glide_client);
 
     /* Execute via FFI batch() function */
     struct CommandResult* result = batch(valkey_glide->glide_client,

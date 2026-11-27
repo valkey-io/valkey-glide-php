@@ -739,6 +739,12 @@ bool valkey_glide_set_failover(valkey_glide_object* valkey_glide, zval* value) {
         valkey_glide_set_last_error(valkey_glide, "OPT_SLAVE_FAILOVER: client is closed");
         return false;
     }
+    /* A pending command may hold this handle while a credential provider callable runs */
+    if (valkey_glide_credential_in_callable()) {
+        valkey_glide_set_last_error(
+            valkey_glide, "OPT_SLAVE_FAILOVER cannot be changed inside a credentialProvider call");
+        return false;
+    }
     /* Standalone clients have no read routing to change; PHPRedis Redis also rejects this option */
     if (!instanceof_function(valkey_glide->std.ce, get_valkey_glide_cluster_ce())) {
         return false;
@@ -1526,8 +1532,9 @@ void valkey_glide_close_client(valkey_glide_object* valkey_glide) {
     valkey_glide->glide_client = NULL;
     /* The snapshot goes now: a core call after this gets no credentials. Freed
      * when the callable returns if this runs inside it */
-    valkey_glide_credential_provider_free(valkey_glide->credential_provider);
-    valkey_glide->credential_provider = NULL;
+    valkey_glide_credential_provider_t* provider = valkey_glide->credential_provider;
+    valkey_glide->credential_provider            = NULL;
+    valkey_glide_credential_provider_free(provider);
     /* Inside a resolver callable the core would drop the client without
      * waiting for its threads, which may still call its resolver: close both
      * once no callable runs. Inside a credential provider callable, the PHP

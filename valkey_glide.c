@@ -115,6 +115,18 @@ PHP_METHOD(ValkeyGlideCluster, __construct);
 //     PHP_ME(ValkeyGlide, __construct, arginfo_class_ValkeyGlide___construct, ZEND_ACC_PUBLIC |
 //     ZEND_ACC_CTOR)
 //         PHP_FE_END};
+/* Report the credential provider callable to the cycle collector: it is held outside the
+ * object's properties, so a callable that captures its own client would otherwise never be
+ * collected before request shutdown */
+static HashTable* valkey_glide_get_gc(zend_object* object, zval** table, int* n) {
+    valkey_glide_object* valkey_glide =
+        (valkey_glide_object*) ((char*) object - offsetof(valkey_glide_object, std));
+    zval* callable = valkey_glide_credential_provider_callable(valkey_glide->credential_provider);
+    *table         = callable;
+    *n             = callable ? 1 : 0;
+    return zend_std_get_properties(object);
+}
+
 zend_object* create_valkey_glide_object(zend_class_entry* ce) {
     valkey_glide_object* valkey_glide =
         ecalloc(1, sizeof(valkey_glide_object) + zend_object_properties_size(ce));
@@ -127,6 +139,7 @@ zend_object* create_valkey_glide_object(zend_class_entry* ce) {
            sizeof(valkey_glide_object_handlers));
     valkey_glide_object_handlers.offset   = offsetof(valkey_glide_object, std);
     valkey_glide_object_handlers.free_obj = free_valkey_glide_object;
+    valkey_glide_object_handlers.get_gc   = valkey_glide_get_gc;
     /* A copy would share the GLIDE client handle and batch state */
     valkey_glide_object_handlers.clone_obj = NULL;
     valkey_glide->std.handlers             = &valkey_glide_object_handlers;
@@ -147,6 +160,7 @@ zend_object* create_valkey_glide_cluster_object(zend_class_entry* ce)  // TODO c
            sizeof(valkey_glide_cluster_object_handlers));
     valkey_glide_cluster_object_handlers.offset   = offsetof(valkey_glide_object, std);
     valkey_glide_cluster_object_handlers.free_obj = free_valkey_glide_object;
+    valkey_glide_cluster_object_handlers.get_gc   = valkey_glide_get_gc;
     /* A copy would share the GLIDE client handle and batch state */
     valkey_glide_cluster_object_handlers.clone_obj = NULL;
     valkey_glide->std.handlers                     = &valkey_glide_cluster_object_handlers;

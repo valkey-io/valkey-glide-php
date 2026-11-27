@@ -39,6 +39,10 @@ valkey_glide_credential_provider_t* valkey_glide_credential_provider_create(
 /* The client_id to pass to create_client_with_credential_provider() */
 uintptr_t valkey_glide_credential_provider_id(const valkey_glide_credential_provider_t* provider);
 
+/* The callable the provider holds, NULL if none: for the client's get_gc handler, so PHP can
+ * collect a client that its own callable references */
+zval* valkey_glide_credential_provider_callable(valkey_glide_credential_provider_t* provider);
+
 /*
  * Call the callable now and replace the snapshot. With throw_on_error a failure
  * throws ValkeyGlideException; otherwise the exception is cleared and the
@@ -53,6 +57,10 @@ bool valkey_glide_credential_provider_fetch(valkey_glide_credential_provider_t* 
  * thread has no provider.
  */
 void valkey_glide_credential_refresh_if_due(const void* glide_client);
+
+/* Whether the client that owns glide_client has a provider whose callable can still run, so a
+ * long wait must wake up to renew its snapshot. */
+bool valkey_glide_credential_client_has_provider(const void* glide_client);
 
 /*
  * Remove the snapshot from the registry (a later core call gets no credentials)
