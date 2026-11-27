@@ -468,6 +468,8 @@ struct CommandResult* pubsub_command(const void*          connection,
                                      const unsigned long* args_len) {
     valkey_glide_prefixed_args_t prefixed;
     struct CommandResult*        result;
+    /* Renew the custom IAM credentials the core will sign with, if due */
+    valkey_glide_credential_refresh_if_due(connection);
     if (valkey_glide_prefix_client_args(
             connection, command_type, arg_count, args, args_len, &prefixed)) {
         result = command(
@@ -496,11 +498,25 @@ static void subscribe_blocking_loop(uintptr_t connection, enum RequestType unsub
     while (info->is_active && zend_hash_num_elements(info->subscribed_channels) > 0) {
         pubsub_message* msg = NULL;
 
+        /* Renew the custom IAM credentials the core signs reconnects with, if due. Without the
+         * queue mutex: the provider callable can take any time */
+        valkey_glide_credential_refresh_if_due((const void*) connection);
+        /* The provider callable may have closed clients: release them now, not at shutdown */
+        valkey_glide_run_deferred_closes();
+        if (!info->is_active || zend_hash_num_elements(info->subscribed_channels) == 0) {
+            break;
+        }
+
         mutex_lock(&info->queue_mutex);
         while (!info->queue_head && info->is_active &&
                zend_hash_num_elements(info->subscribed_channels) > 0 &&
                !pubsub_drop_report_due(info, time(NULL))) {
-            if (info->dropped_count != info->reported_drops) {
+            if (valkey_glide_credential_client_has_provider((const void*) connection)) {
+                /* Wake up in time for the next renewal */
+                if (cond_timedwait(&info->queue_cond, &info->queue_mutex, 1000) != 0) {
+                    break;
+                }
+            } else if (info->dropped_count != info->reported_drops) {
                 /* Drops are pending but the once-per-second limit is not up yet;
                  * no later drop signals again, so wake up in time to report them */
                 cond_timedwait(&info->queue_cond, &info->queue_mutex, 1000);

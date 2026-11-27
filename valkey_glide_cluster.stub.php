@@ -152,6 +152,15 @@ class ValkeyGlideCluster
     public const IAM_CONFIG_REFRESH_INTERVAL = 'refreshIntervalSeconds';
 
     /**
+     * @var string
+     * IAM config key for a custom credential provider: a callable returning
+     * ['accessKeyId' => string, 'secretAccessKey' => string,
+     *  'sessionToken' => ?string, 'expiresAt' => ?int (Unix epoch milliseconds)].
+     * Without it the default AWS credential chain is used.
+     */
+    public const IAM_CONFIG_CREDENTIAL_PROVIDER = 'credentialProvider';
+
+    /**
      * Compression Backend Constants
      */
 
@@ -355,9 +364,11 @@ class ValkeyGlideCluster
      *                                              ValkeyGlide::IAM_CONFIG_CLUSTER_NAME => 'my-cluster',
      *                                              ValkeyGlide::IAM_CONFIG_REGION => 'us-east-1',
      *                                              ValkeyGlide::IAM_CONFIG_SERVICE => ValkeyGlide::IAM_SERVICE_ELASTICACHE,
-     *                                              ValkeyGlide::IAM_CONFIG_REFRESH_INTERVAL => 300 // optional, defaults to 300
+     *                                              ValkeyGlide::IAM_CONFIG_REFRESH_INTERVAL => 300, // optional, defaults to 300
+     *                                              ValkeyGlide::IAM_CONFIG_CREDENTIAL_PROVIDER => $callable // optional
      *                                            ]]
      *                                          Note: username is REQUIRED for IAM authentication.
+     *                                          See ValkeyGlide::connect() for the credential provider contract.
      * @param int|null $read_from               Read strategy for the client (default: READ_FROM_PRIMARY).
      * @param int|null $request_timeout         Request timeout in milliseconds.
      * @param array|null $reconnect_strategy    Reconnection strategy ['num_of_retries' => 3, 'factor' => 2,

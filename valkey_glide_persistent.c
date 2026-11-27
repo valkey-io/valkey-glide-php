@@ -120,6 +120,14 @@ bool valkey_glide_persistent_begin(valkey_glide_object*                      val
         return false;
     }
 
+    /* So is a custom IAM credential provider, and the request does not identify it */
+    if (config->credentials && config->credentials->iam_config &&
+        config->credentials->iam_config->credential_provider) {
+        VALKEY_LOG_DEBUG("persistent_client",
+                         "Credential provider configured; client will not be persistent");
+        return false;
+    }
+
     size_t   len           = 0;
     uint8_t* request_bytes = create_connection_request(
         &len, config, periodic_checks, is_cluster, refresh_topology_from_initial_nodes);

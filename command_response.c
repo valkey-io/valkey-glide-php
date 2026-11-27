@@ -334,6 +334,9 @@ CommandResult* execute_command_with_route(const void*          glide_client,
         args_len = prefixed.args_len;
     }
 
+    /* Renew the custom IAM credentials the core will sign with, if due */
+    valkey_glide_credential_refresh_if_due(glide_client);
+
     /* Create OTEL span for tracing */
     uint64_t span_ptr = valkey_glide_create_span(command_type);
 
@@ -390,6 +393,9 @@ CommandResult* execute_command(const void*          glide_client,
         args     = prefixed.args;
         args_len = prefixed.args_len;
     }
+
+    /* Renew the custom IAM credentials the core will sign with, if due */
+    valkey_glide_credential_refresh_if_due(glide_client);
 
     /* Create OTEL span for tracing */
     uint64_t span_ptr = valkey_glide_create_span(command_type);

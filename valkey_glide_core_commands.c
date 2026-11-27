@@ -369,6 +369,25 @@ uint8_t* create_connection_request(size_t*                                   len
     return buffer;
 }
 
+/* Create the core client, with the credential provider callback when there is a provider */
+static const ConnectionResponse* create_core_client(const uint8_t*                      request,
+                                                    size_t                              request_len,
+                                                    const ClientType*                   client_type,
+                                                    AddressResolverCallback             resolver_cb,
+                                                    valkey_glide_credential_provider_t* provider) {
+    if (!provider) {
+        return create_client(
+            request, request_len, client_type, valkey_glide_pubsub_callback, resolver_cb, 0);
+    }
+    return create_client_with_credential_provider(request,
+                                                  request_len,
+                                                  client_type,
+                                                  valkey_glide_pubsub_callback,
+                                                  resolver_cb,
+                                                  valkey_glide_credential_provider_id(provider),
+                                                  valkey_glide_credential_callback);
+}
+
 /* Create a Valkey Glide client or Cluster client using shared properties. */
 static const ConnectionResponse* create_base_glide_client(
     valkey_glide_base_client_configuration_t* config,
@@ -376,13 +395,30 @@ static const ConnectionResponse* create_base_glide_client(
     bool                                      is_cluster,
     bool                                      refresh_topology_from_initial_nodes,
     AddressResolverCallback*                  out_resolver_cb,
+    valkey_glide_credential_provider_t**      out_provider,
     uint8_t**                                 out_request,
     size_t*                                   out_request_len) {
+    *out_provider = NULL;
+
+    /* A custom credential provider is called once now, on the PHP thread: the core
+     * signs the first IAM token with that snapshot while it creates the client */
+    valkey_glide_credential_provider_t* provider = NULL;
+    if (config->credentials && config->credentials->iam_config &&
+        config->credentials->iam_config->credential_provider) {
+        provider = valkey_glide_credential_provider_create(
+            config->credentials->iam_config->credential_provider,
+            config->credentials->iam_config->refresh_interval_seconds);
+        if (!provider) {
+            return NULL; /* exception pending */
+        }
+    }
+
     size_t   len;
     uint8_t* request_bytes = create_connection_request(
         &len, config, periodic_checks, is_cluster, refresh_topology_from_initial_nodes);
 
     if (!request_bytes) {
+        valkey_glide_credential_provider_free(provider);
         return NULL;
     }
 
@@ -406,12 +442,21 @@ static const ConnectionResponse* create_base_glide_client(
 
     /* Create the client with pubsub callback registered at creation time.
      * client_id is passed to the address resolver callback - we use 0 since PHP's
-     * resolver slot mechanism handles routing callbacks to the correct client. */
-    const ConnectionResponse* conn_resp = create_client(
-        request_bytes, len, &client_type, valkey_glide_pubsub_callback, address_resolver_cb, 0);
+     * resolver slot mechanism handles routing callbacks to the correct client.
+     * With a credential provider it is the provider's id, which the credential
+     * callback uses to find the snapshot (no resolver is allowed with one). */
+    const ConnectionResponse* conn_resp =
+        create_core_client(request_bytes, len, &client_type, address_resolver_cb, provider);
     /* The resolver may have closed clients while it ran. Releasing their
      * callables can run destructors; an exception one throws stays pending */
     valkey_glide_run_deferred_closes();
+
+    /* The provider lives as long as the client; without one it is not needed */
+    if (conn_resp && !conn_resp->connection_error_message) {
+        *out_provider = provider;
+    } else {
+        valkey_glide_credential_provider_free(provider);
+    }
 
     /* Hand the request bytes to the caller if asked, otherwise free them */
     if (out_request && conn_resp && !conn_resp->connection_error_message) {
@@ -444,14 +489,22 @@ static const ConnectionResponse* create_base_glide_client(
 
 /* Create a Valkey Glide client */
 const ConnectionResponse* create_glide_client(valkey_glide_base_client_configuration_t* config,
-                                              AddressResolverCallback* out_resolver_cb) {
-    return create_base_glide_client(
-        config, VALKEY_GLIDE_PERIODIC_CHECKS_DISABLED, false, false, out_resolver_cb, NULL, NULL);
+                                              AddressResolverCallback*             out_resolver_cb,
+                                              valkey_glide_credential_provider_t** out_provider) {
+    return create_base_glide_client(config,
+                                    VALKEY_GLIDE_PERIODIC_CHECKS_DISABLED,
+                                    false,
+                                    false,
+                                    out_resolver_cb,
+                                    out_provider,
+                                    NULL,
+                                    NULL);
 }
 
 const ConnectionResponse* create_glide_cluster_client(
     valkey_glide_cluster_client_configuration_t* config,
     AddressResolverCallback*                     out_resolver_cb,
+    valkey_glide_credential_provider_t**         out_provider,
     uint8_t**                                    out_request,
     size_t*                                      out_request_len) {
     return create_base_glide_client(&config->base,
@@ -459,6 +512,7 @@ const ConnectionResponse* create_glide_cluster_client(
                                     true,
                                     config->refresh_topology_from_initial_nodes,
                                     out_resolver_cb,
+                                    out_provider,
                                     out_request,
                                     out_request_len);
 }
@@ -685,6 +739,12 @@ bool valkey_glide_set_failover(valkey_glide_object* valkey_glide, zval* value) {
         valkey_glide_set_last_error(valkey_glide, "OPT_SLAVE_FAILOVER: client is closed");
         return false;
     }
+    /* A pending command may hold this handle while a credential provider callable runs */
+    if (valkey_glide_credential_in_callable()) {
+        valkey_glide_set_last_error(
+            valkey_glide, "OPT_SLAVE_FAILOVER cannot be changed inside a credentialProvider call");
+        return false;
+    }
     /* Standalone clients have no read routing to change; PHPRedis Redis also rejects this option */
     if (!instanceof_function(valkey_glide->std.ce, get_valkey_glide_cluster_ce())) {
         return false;
@@ -770,12 +830,12 @@ bool valkey_glide_set_failover(valkey_glide_object* valkey_glide, zval* value) {
     client_type.tag = SyncClient;
 
     /* Reuse the object's resolver slot; it is tied to the PHP callable, not to the core client */
-    const ConnectionResponse* conn_resp = create_client(request_bytes,
-                                                        request_len,
-                                                        &client_type,
-                                                        valkey_glide_pubsub_callback,
-                                                        valkey_glide->resolver_cb,
-                                                        0);
+    /* And its credential provider: the request has the IAM config but not the callable */
+    const ConnectionResponse* conn_resp = create_core_client(request_bytes,
+                                                             request_len,
+                                                             &client_type,
+                                                             valkey_glide->resolver_cb,
+                                                             valkey_glide->credential_provider);
 
     /* The resolver may have closed this client while it ran, queueing the resolver the new
      * client uses: close the new client before the queue frees it */
@@ -1446,7 +1506,7 @@ typedef struct deferred_close {
 ZEND_TLS deferred_close_t* g_deferred_closes = NULL;
 
 void valkey_glide_run_deferred_closes(void) {
-    if (valkey_glide_resolver_in_callable()) {
+    if (valkey_glide_resolver_in_callable() || valkey_glide_credential_in_callable()) {
         return;
     }
     /* Closing a client can run PHP code that defers another close */
@@ -1470,10 +1530,16 @@ void valkey_glide_close_client(valkey_glide_object* valkey_glide) {
         glide_client = valkey_glide->glide_client;
     }
     valkey_glide->glide_client = NULL;
+    /* The snapshot goes now: a core call after this gets no credentials. Freed
+     * when the callable returns if this runs inside it */
+    valkey_glide_credential_provider_t* provider = valkey_glide->credential_provider;
+    valkey_glide->credential_provider            = NULL;
+    valkey_glide_credential_provider_free(provider);
     /* Inside a resolver callable the core would drop the client without
      * waiting for its threads, which may still call its resolver: close both
-     * once no callable runs */
-    if (valkey_glide_resolver_in_callable()) {
+     * once no callable runs. Inside a credential provider callable, the PHP
+     * thread may be about to make a core call with this client */
+    if (valkey_glide_resolver_in_callable() || valkey_glide_credential_in_callable()) {
         if (glide_client || valkey_glide->resolver_cb) {
             deferred_close_t* deferred = emalloc(sizeof(*deferred));
             deferred->glide_client     = glide_client;
@@ -2977,6 +3043,21 @@ void execute_refresh_iam_token(zval* object, zval* return_value, zend_class_entr
                              "Invalid client object or client connection handle is NULL",
                              0);
         return;
+    }
+
+    /* A custom credential provider is called first, so the new token is signed
+     * with the credentials it returns now */
+    if (valkey_glide->credential_provider) {
+        bool fetched =
+            valkey_glide_credential_provider_fetch(valkey_glide->credential_provider, true);
+        if (!fetched || !valkey_glide->glide_client) {
+            /* The callable failed, or closed the client */
+            valkey_glide_run_deferred_closes();
+            if (!EG(exception)) {
+                zend_throw_exception(get_valkey_glide_exception_ce(), "Client is closed", 0);
+            }
+            return;
+        }
     }
 
     /* Call FFI function */

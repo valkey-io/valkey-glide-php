@@ -140,14 +140,18 @@ void free_command_response(CommandResponse* command_response_ptr);
 void free_command_result(CommandResult* command_result_ptr);
 
 /* Helper functions for Valkey Glide integration */
+/* out_provider receives the client's custom IAM credential provider, NULL if none; the caller
+ * stores it in valkey_glide_object.credential_provider. */
 const ConnectionResponse* create_glide_client(valkey_glide_base_client_configuration_t* config,
-                                              AddressResolverCallback* out_resolver_cb);
+                                              AddressResolverCallback*             out_resolver_cb,
+                                              valkey_glide_credential_provider_t** out_provider);
 
 /* out_request and out_request_len receive the serialized connection request on success (caller
  * frees with efree()); pass NULL for both to discard it. */
 const ConnectionResponse* create_glide_cluster_client(
     valkey_glide_cluster_client_configuration_t* config,
     AddressResolverCallback*                     out_resolver_cb,
+    valkey_glide_credential_provider_t**         out_provider,
     uint8_t**                                    out_request,
     size_t*                                      out_request_len);
 
