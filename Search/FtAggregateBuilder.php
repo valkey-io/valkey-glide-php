@@ -137,8 +137,8 @@ class FtAggregateBuilder
      */
     public function load(array $fields): self
     {
-        $this->tokens[] = 'LOAD';
         if ($fields === ['*']) {
+            $this->tokens[] = 'LOAD';
             $this->tokens[] = '*';
             return $this;
         }
@@ -154,6 +154,7 @@ class FtAggregateBuilder
                 throw new \ValkeyGlideException('FtAggregateBuilder::load: each field must be a string or a LoadField');
             }
         }
+        $this->tokens[] = 'LOAD';
         $this->tokens[] = (string) count($entryTokens);
         foreach ($entryTokens as $t) {
             $this->tokens[] = $t;

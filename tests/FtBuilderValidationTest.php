@@ -86,6 +86,13 @@ class FtBuilderValidationTest extends TestSuite
         $aggregate = (new FtAggregateBuilder())->index('idx')->query('*')
             ->load(['a', new LoadField('b', 'bb')])->toArray();
         $this->assertEquals(['LOAD', '4', 'a', 'b', 'AS', 'bb'], array_slice($aggregate['options'], 0, 6));
+
+        $retried = (new FtAggregateBuilder())->index('idx')->query('*');
+        try {
+            $retried->load([['as' => 'orphan']]);
+        } catch (\ValkeyGlideException $e) {
+        }
+        $this->assertEquals(['LOAD', '1', 'title'], array_slice($retried->load(['title'])->toArray()['options'], 0, 3));
     }
 
     public function testWithSortKeysWithoutSortByIsDeprecated(): void
