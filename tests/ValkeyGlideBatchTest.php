@@ -787,7 +787,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
     public function testHSetExKeyConditionsBatch()
     {
         if (!$this->minVersionCheck('9.1.0')) {
-            $this->markTestSkipped('HSETEX key-level NX/XX requires Valkey 9.1.0+');
+            $this->markTestSkipped('HSETEX key NX/XX conditions require Valkey 9.1.0+');
             return;
         }
 
@@ -828,7 +828,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
         $this->assertEquals(1, $results[0]);
         $this->assertEquals(1, $results[1]);
-        $this->assertEquals(0, $results[2]); // f1 exists, field-level NX
+        $this->assertEquals(0, $results[2]); // f1 exists, field NX
         $this->assertEquals(1, $results[3]);
         $this->assertEquals(1, $results[4]); // legacy named arguments
         $this->valkey_glide->del($key);

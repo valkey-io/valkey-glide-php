@@ -316,7 +316,6 @@ cleanup:
 // Unified parameter preparation with configurable components
 typedef struct {
     bool needs_expiry;
-    bool needs_condition;
     bool needs_fields_keyword;
 } h_arg_config_t;
 
@@ -333,8 +332,6 @@ static int prepare_h_args_unified(h_command_args_t*     args,
 
     // Calculate argument count
     int arg_count = 1;  // key
-    if (config->needs_condition && args->mode)
-        arg_count++;
     if (config->needs_expiry && args->expiry > 0)
         arg_count += 2;  // unit + value
     if (config->needs_fields_keyword)
@@ -354,12 +351,6 @@ static int prepare_h_args_unified(h_command_args_t*     args,
     (*args_len_out)[arg_idx] = args->key_len;
     arg_idx++;
 
-    // Add condition
-    if (config->needs_condition && args->mode) {
-        (*args_out)[arg_idx]     = (uintptr_t) args->mode;
-        (*args_len_out)[arg_idx] = strlen(args->mode);
-        arg_idx++;
-    }
 
     // Add expiry
     if (config->needs_expiry && args->expiry > 0) {
@@ -440,9 +431,9 @@ int prepare_h_hfe_args(h_command_args_t* args,
 
     // key [NX|XX] [FNX|FXX] [EX n|PX n|EXAT n|PXAT n|KEEPTTL] FIELDS count field value ...
     int arg_count = 1;
-    if (args->key_mode)
+    if (args->hsetex_key_condition)
         arg_count++;
-    if (args->mode)
+    if (args->hsetex_field_condition)
         arg_count++;
     if (keepttl)
         arg_count++;
@@ -462,15 +453,15 @@ int prepare_h_hfe_args(h_command_args_t* args,
     (*args_len_out)[arg_idx] = args->key_len;
     arg_idx++;
 
-    // Key-level condition precedes the field-level condition
-    if (args->key_mode) {
-        (*args_out)[arg_idx]     = (uintptr_t) args->key_mode;
-        (*args_len_out)[arg_idx] = strlen(args->key_mode);
+    // The key condition precedes the field condition
+    if (args->hsetex_key_condition) {
+        (*args_out)[arg_idx]     = (uintptr_t) args->hsetex_key_condition;
+        (*args_len_out)[arg_idx] = strlen(args->hsetex_key_condition);
         arg_idx++;
     }
-    if (args->mode) {
-        (*args_out)[arg_idx]     = (uintptr_t) args->mode;
-        (*args_len_out)[arg_idx] = strlen(args->mode);
+    if (args->hsetex_field_condition) {
+        (*args_out)[arg_idx]     = (uintptr_t) args->hsetex_field_condition;
+        (*args_len_out)[arg_idx] = strlen(args->hsetex_field_condition);
         arg_idx++;
     }
 
@@ -532,7 +523,7 @@ int prepare_h_expire_args(h_command_args_t* args,
     int arg_count = 1;  // key
     if (args->expiry > 0)
         arg_count++;  // expiry value (no EX keyword for HEXPIRE)
-    if (args->mode)
+    if (args->hexpire_condition)
         arg_count++;              // condition
     arg_count += 2;               // "FIELDS" + count
     arg_count += args->fv_count;  // fields
@@ -564,9 +555,9 @@ int prepare_h_expire_args(h_command_args_t* args,
     }
 
     // Add condition (NX/XX directly, no prefix for HEXPIRE)
-    if (args->mode) {
-        (*args_out)[arg_idx]     = (uintptr_t) args->mode;
-        (*args_len_out)[arg_idx] = strlen(args->mode);
+    if (args->hexpire_condition) {
+        (*args_out)[arg_idx]     = (uintptr_t) args->hexpire_condition;
+        (*args_len_out)[arg_idx] = strlen(args->hexpire_condition);
         arg_idx++;
     }
 
@@ -602,8 +593,7 @@ int prepare_h_field_only_args(h_command_args_t* args,
                               unsigned long**   args_len_out,
                               char***           allocated_strings,
                               int*              allocated_count) {
-    h_arg_config_t config = {
-        .needs_expiry = false, .needs_condition = false, .needs_fields_keyword = true};
+    h_arg_config_t config = {.needs_expiry = false, .needs_fields_keyword = true};
     return prepare_h_args_unified(
         args, args_out, args_len_out, allocated_strings, allocated_count, &config);
 }
@@ -2436,11 +2426,9 @@ static int execute_hash_expiry_command(zval*             object,
     const char* final_condition = condition_str ? condition_str : condition;
 
     // Validate field count based on command type
-    if (cmd_type == HSetEx && (num_args < 2 || num_args % 2 != 0)) {
-        return 0;  // HSetEx needs field-value pairs
-    } else if ((cmd_type == HExpire || cmd_type == HPExpire || cmd_type == HExpireAt ||
-                cmd_type == HPExpireAt) &&
-               num_args < 1) {
+    if ((cmd_type == HExpire || cmd_type == HPExpire || cmd_type == HExpireAt ||
+         cmd_type == HPExpireAt) &&
+        num_args < 1) {
         return 0;  // The HEXPIRE family needs at least one field
     }
 
@@ -2449,15 +2437,15 @@ static int execute_hash_expiry_command(zval*             object,
         return 0;
     }
 
-    h_command_args_t hargs = {0};
-    hargs.key              = key;
-    hargs.key_len          = key_len;
-    hargs.field_values     = args;
-    hargs.fv_count         = num_args;
-    hargs.is_array_arg     = 0;
-    hargs.expiry           = (long long) expiry;
-    hargs.expiry_type      = (char*) expiry_type;
-    hargs.mode             = (char*) final_condition;
+    h_command_args_t hargs  = {0};
+    hargs.key               = key;
+    hargs.key_len           = key_len;
+    hargs.field_values      = args;
+    hargs.fv_count          = num_args;
+    hargs.is_array_arg      = 0;
+    hargs.expiry            = (long long) expiry;
+    hargs.expiry_type       = (char*) expiry_type;
+    hargs.hexpire_condition = final_condition;
 
     if (execute_h_simple_command(
             valkey_glide, cmd_type, &hargs, NULL, response_type, return_value)) {
@@ -2498,8 +2486,8 @@ static int execute_hexpire_with_condition(zval*             object,
  * Parse the hSetEx $expiry array into hargs. Entry names are case-insensitive:
  *   'EX' | 'PX' | 'EXAT' | 'PXAT' => int   expiry (non-negative)
  *   'KEEPTTL'                             keep the existing TTL
- *   'FNX' | 'FXX'                         field-level condition
- *   'NX'  | 'XX'                          key-level condition (Valkey 9.1+)
+ *   'FNX' | 'FXX'                         field condition
+ *   'NX'  | 'XX'                          key condition (Valkey 9.1+)
  * Unknown, malformed or conflicting entries are rejected so a typo can't turn a
  * conditional write into an unconditional one. Returns 1 on success, 0 otherwise.
  */
@@ -2563,16 +2551,17 @@ static int parse_hsetex_expiry_options(HashTable* opts, h_command_args_t* hargs)
             hargs->expiry_type = "KEEPTTL";
         } else if (zend_string_equals_literal_ci(flag, "FNX") ||
                    zend_string_equals_literal_ci(flag, "FXX")) {
-            if (hargs->mode) {
+            if (hargs->hsetex_field_condition) {
                 return 0;
             }
-            hargs->mode = zend_string_equals_literal_ci(flag, "FNX") ? "FNX" : "FXX";
+            hargs->hsetex_field_condition =
+                zend_string_equals_literal_ci(flag, "FNX") ? "FNX" : "FXX";
         } else if (zend_string_equals_literal_ci(flag, "NX") ||
                    zend_string_equals_literal_ci(flag, "XX")) {
-            if (hargs->key_mode) {
+            if (hargs->hsetex_key_condition) {
                 return 0;
             }
-            hargs->key_mode = zend_string_equals_literal_ci(flag, "NX") ? "NX" : "XX";
+            hargs->hsetex_key_condition = zend_string_equals_literal_ci(flag, "NX") ? "NX" : "XX";
         } else {
             return 0;
         }
@@ -2743,11 +2732,11 @@ static int hsetex_legacy_send(zval*       object,
         return 0;
     }
 
-    h_command_args_t hargs = {0};
-    hargs.key              = key;
-    hargs.key_len          = key_len;
-    hargs.field_values     = &fields;
-    hargs.mode             = condition;
+    h_command_args_t hargs       = {0};
+    hargs.key                    = key;
+    hargs.key_len                = key_len;
+    hargs.field_values           = &fields;
+    hargs.hsetex_field_condition = condition;
     if (expiry > 0) {  // a non-positive timeout sends no expiry
         hargs.expiry_type = expiry_type ? expiry_type : "EX";
         hargs.expiry      = (long long) expiry;

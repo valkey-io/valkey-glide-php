@@ -1967,7 +1967,7 @@ class ValkeyGlide
      *
      * @param string     $key    The key of the hash.
      * @param array      $fields The fields to set, as field => value.
-     * @param array|null $expiry Optional expiration and conditions (case-insensitive):
+     * @param array|null $expiry Optional expiration and conditions:
      *                           - 'EX', 'PX', 'EXAT' or 'PXAT' => int: expiry. At most one of
      *                             these or 'KEEPTTL'.
      *                           - 'KEEPTTL': keep the fields' existing TTL.
@@ -1996,7 +1996,7 @@ class ValkeyGlide
      *
      * @param string $key The key of the hash.
      * @param int $milliseconds The expiration time in milliseconds.
-     * @param string|null $mode Optional field-level condition: 'NX' or 'XX'.
+     * @param string|null $mode Optional field condition: 'NX' or 'XX'.
      * @param string $field The field name.
      * @param mixed $value The field value.
      * @param mixed $fields_and_vals Additional field-value pairs.

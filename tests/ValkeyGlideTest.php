@@ -5677,13 +5677,13 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     }
 
     /**
-     * Test HSETEX key-level NX/XX conditions (Valkey 9.1+), alone and combined
-     * with field-level conditions, using the PHPRedis hSetEx signature.
+     * Test HSETEX key NX/XX conditions (Valkey 9.1+), alone and combined
+     * with field conditions, using the PHPRedis hSetEx signature.
      */
     public function testHSetExKeyConditions()
     {
         if (!$this->minVersionCheck('9.1.0')) {
-            $this->markTestSkipped('HSETEX key-level NX/XX requires Valkey 9.1.0 or higher');
+            $this->markTestSkipped('HSETEX key NX/XX conditions require Valkey 9.1.0 or higher');
             return;
         }
 
@@ -5712,12 +5712,12 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         // Names are case-insensitive, as in PHPRedis
         $this->assertEquals(0, $this->valkey_glide->hSetEx($key, ['f1' => 'x'], ['nx', 'ex' => 60]));
 
-        // Key-level XX + field-level FNX: f1 exists -> fails; f2 is new -> succeeds
+        // Key XX + field FNX: f1 exists -> fails; f2 is new -> succeeds
         $this->assertEquals(0, $this->valkey_glide->hSetEx($key, ['f1' => 'x'], ['XX', 'FNX', 'EX' => 60]));
         $this->assertEquals(1, $this->valkey_glide->hSetEx($key, ['f2' => 'v2'], ['XX', 'FNX', 'EX' => 60]));
         $this->assertEquals('v3', $this->valkey_glide->hGet($key, 'f1'));
 
-        // Key-level NX + field-level FXX on a missing key -> fails, nothing created
+        // Key NX + field FXX on a missing key -> fails, nothing created
         $this->assertEquals(0, $this->valkey_glide->hSetEx($missing, ['f1' => 'v1'], ['NX', 'FXX']));
         $this->assertEquals(0, $this->valkey_glide->exists($missing));
 
@@ -5924,7 +5924,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->assertEquals(1, $r);
         $this->assertCount(2, $msgs);
 
-        // Field-level conditions: NX/XX mean FNX/FXX in the legacy form
+        // Field conditions: NX/XX mean FNX/FXX in the legacy form
         [$r] = $this->callCollectingDeprecations(fn() => $this->valkey_glide->hSetEx($key, 60, 'NX', 'f1', 'x'));
         $this->assertEquals(0, $r); // f1 exists
         [$r] = $this->callCollectingDeprecations(fn() => $this->valkey_glide->hSetEx($key, 60, 'NX', 'f3', 'v3'));

@@ -50,20 +50,21 @@ typedef struct _h_command_args_t {
     zval*         fields;       /* Array of field names */
     zval*         field_values; /* Associative array or alternating field/value array */
     const char*   expiry_type;  /* Expiry type string: EX, PX, EXAT, PXAT, KEEPTTL, PERSIST */
-    const char*   mode;         /* Mode: NX, XX, GT, LT (HSETEX: FNX, FXX) */
-    const char*   key_mode;     /* HSETEX key-level condition: NX, XX (Valkey 9.1+) */
-    size_t        key_len;      /* Hash key length */
-    size_t        field_len;    /* Field name length */
-    size_t        value_len;    /* Field value length */
-    double        float_incr;   /* Float increment value */
-    long long     expiry;       /* Expiration time (seconds/milliseconds/timestamp) - 64-bit */
-    long          increment;    /* Integer increment value */
-    long          count;        /* Number of fields to return */
-    int           field_count;  /* Number of fields */
-    int           fv_count;     /* Number of field-value pairs */
-    int           is_array_arg; /* Whether using associative array format */
-    int           withvalues;   /* Whether to return values with fields */
-    expiry_type_t expiry_enum;  /* Expiry type enum for fast comparison */
+    const char*   hsetex_key_condition;   /* HSETEX: NX, XX (Valkey 9.1+) */
+    const char*   hsetex_field_condition; /* HSETEX: FNX, FXX */
+    const char*   hexpire_condition; /* HEXPIRE, HPEXPIRE, HEXPIREAT, HPEXPIREAT: NX, XX, GT, LT */
+    size_t        key_len;           /* Hash key length */
+    size_t        field_len;         /* Field name length */
+    size_t        value_len;         /* Field value length */
+    double        float_incr;        /* Float increment value */
+    long long     expiry;            /* Expiration time (seconds/milliseconds/timestamp) - 64-bit */
+    long          increment;         /* Integer increment value */
+    long          count;             /* Number of fields to return */
+    int           field_count;       /* Number of fields */
+    int           fv_count;          /* Number of field-value pairs */
+    int           is_array_arg;      /* Whether using associative array format */
+    int           withvalues;        /* Whether to return values with fields */
+    expiry_type_t expiry_enum;       /* Expiry type enum for fast comparison */
 } h_command_args_t;
 
 // Helper functions for expiry type conversion
