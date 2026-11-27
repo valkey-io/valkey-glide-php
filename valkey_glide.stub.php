@@ -3564,11 +3564,11 @@ class ValkeyGlide
      * ['NX']                         Only set the key if it doesn't exist.
      * ['GET']                        Instead of returning `+OK` return the previous value of the
      *                                key or NULL if the key didn't exist.
-     * ['IFEQ' => 'value']            Only set the key if its current value equals `value`
-     *                                (Valkey 8.1+). Does not set a missing key. `value` must be
-     *                                a string. Not supported with compression enabled.
-     * ['IFNE' => 'value']            Only set the key if its current value differs from `value`
-     *                                (Valkey 9.2+). Sets a missing key. `value` must be a
+     * ['IFEQ' => 'value']            Only set the key if its current value equals `value`.
+     *                                Since Valkey 8.1.0. Does not set a missing key. `value`
+     *                                must be a string. Not supported with compression enabled.
+     * ['IFNE' => 'value']            Only set the key if its current value differs from `value`.
+     *                                Since Valkey 9.2.0. Sets a missing key. `value` must be a
      *                                string. Not supported with compression enabled.
      *
      * Only one of IFEQ and IFNE is used; if both are given, the last one applies.

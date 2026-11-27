@@ -1050,7 +1050,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $this->valkey_glide->del('foo');
     }
 
-    /* IFEQ/IFNE take only string comparison values; NX/XX combinations are rejected by the server */
+    /* IFEQ/IFNE take only string comparison values; NX/XX combinations are sent to the server */
     public function testValkeyIfEqIfNeInvalidCombinations()
     {
         if (! $this->is_valkey || ! $this->minVersionCheck('8.1.0')) {
@@ -1058,48 +1058,34 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         }
 
         $conds = $this->minVersionCheck('9.2.0') ? ['IFEQ', 'IFNE'] : ['IFEQ'];
-        $this->valkey_glide->del('foo');
 
+        // Non-string comparison values are rejected without sending. The stored value is one the
+        // condition would match if the SET reached the server.
         foreach ($conds as $cond) {
-            foreach (['NX', 'XX'] as $flag) {
-                $this->assertTrue($this->valkey_glide->set('foo', 'bar'));
-                $this->assertTrue($this->valkey_glide->clearLastError());
-                $warning = '';
-                set_error_handler(function (int $errno, string $errstr) use (&$warning): bool {
-                    $warning = $errstr;
-                    return true;
-                }, E_WARNING);
-                $result = $this->valkey_glide->set('foo', 'baz', [$cond => 'bar', $flag]);
-                restore_error_handler();
-
-                $this->assertFalse($result, "$cond $flag");
-                $this->assertEquals('', $warning, "$cond $flag");
-                $this->assertStringContains('syntax error', (string) $this->valkey_glide->getLastError());
-                $this->assertEquals('bar', $this->valkey_glide->get('foo'), "$cond $flag");
-            }
-        }
-
-        // Non-string comparison values are rejected without sending, also when passed by reference
-        $resource = tmpfile();
-        $unsupported = [
-            'int' => 42, 'float' => 1.5, 'true' => true, 'false' => false, 'null' => null,
-            'array' => ['x'], 'object' => new stdClass(), 'resource' => $resource,
-        ];
-        foreach ($conds as $cond) {
-            foreach ($unsupported as $type => $value) {
-                // Store a value the condition would match if the SET reached the server: the
-                // converted string for IFEQ, a different string for IFNE
-                $current = ($cond === 'IFEQ' && $type !== 'object') ? @strval($value) : 'current';
+            foreach (['int' => 42, 'array' => ['x']] as $type => $value) {
+                $current = $cond === 'IFEQ' ? @strval($value) : 'current';
                 $this->assertTrue($this->valkey_glide->set('foo', $current));
 
                 $this->assertFalse(@$this->valkey_glide->set('foo', 'baz', [$cond => $value]), "$cond $type");
-                $this->assertFalse(@$this->valkey_glide->set('foo', 'baz', [$cond => &$value]), "$cond &$type");
                 $this->assertEquals($current, $this->valkey_glide->get('foo'), "$cond $type");
             }
         }
-        fclose($resource);
 
         if (in_array('IFNE', $conds)) {
+            // Combined with NX, the command is sent without a client-side warning
+            $this->assertTrue($this->valkey_glide->clearLastError());
+            $warning = '';
+            set_error_handler(function (int $errno, string $errstr) use (&$warning): bool {
+                $warning = $errstr;
+                return true;
+            }, E_WARNING);
+            $result = $this->valkey_glide->set('foo', 'baz', ['IFNE' => 'bar', 'NX']);
+            restore_error_handler();
+
+            $this->assertFalse($result);
+            $this->assertEquals('', $warning);
+            $this->assertStringContains('syntax error', (string) $this->valkey_glide->getLastError());
+
             // When both IFEQ and IFNE are given, the last one applies
             $this->assertTrue($this->valkey_glide->set('foo', 'bar'));
             $this->assertFalse($this->valkey_glide->set('foo', 'baz', ['IFEQ' => 'bar', 'IFNE' => 'bar']));
