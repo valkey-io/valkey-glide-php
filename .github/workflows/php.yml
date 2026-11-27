@@ -1107,6 +1107,7 @@ jobs:
         with:
           engine-version: "9.0"
           cluster-port-start: "9001"
+          image: valkey/valkey-bundle:9.2.0
 
       - name: Run modules tests
         run: |
