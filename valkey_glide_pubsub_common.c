@@ -501,6 +501,8 @@ static void subscribe_blocking_loop(uintptr_t connection, enum RequestType unsub
         /* Renew the custom IAM credentials the core signs reconnects with, if due. Without the
          * queue mutex: the provider callable can take any time */
         valkey_glide_credential_refresh_if_due((const void*) connection);
+        /* The provider callable may have closed clients: release them now, not at shutdown */
+        valkey_glide_run_deferred_closes();
         if (!info->is_active || zend_hash_num_elements(info->subscribed_channels) == 0) {
             break;
         }

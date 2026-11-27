@@ -337,6 +337,10 @@ bool valkey_glide_credential_provider_fetch(valkey_glide_credential_provider_t* 
     zval_ptr_dtor(&retval);
     callable_depth--;
     provider->in_call = false;
+    /* A destructor of the result (e.g. an extra object in it) can throw */
+    if (!error && EG(exception)) {
+        error = "credentialProvider threw an exception";
+    }
 
     bool installed = false;
     if (!error && !provider->free_pending) {

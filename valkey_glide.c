@@ -450,8 +450,7 @@ int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_pa
         /* Check for IAM config (mutually exclusive with password) */
         zval* iam_config_val = zend_hash_str_find(
             cred_ht, VALKEY_GLIDE_AUTH_IAM_CONFIG, sizeof(VALKEY_GLIDE_AUTH_IAM_CONFIG) - 1);
-        if ((!iam_config_val || Z_TYPE_P(iam_config_val) != IS_ARRAY) &&
-            zend_hash_str_exists(cred_ht,
+        if (zend_hash_str_exists(cred_ht,
                                  VALKEY_GLIDE_IAM_CONFIG_CREDENTIAL_PROVIDER,
                                  sizeof(VALKEY_GLIDE_IAM_CONFIG_CREDENTIAL_PROVIDER) - 1)) {
             valkey_glide_cleanup_client_config(config);

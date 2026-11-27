@@ -1092,6 +1092,8 @@ int execute_exec_command(zval* object, int argc, zval* return_value, zend_class_
      * can run PHP code that re-enters this client and consumes or discards the batch, so this
      * comes before any batch state is read */
     valkey_glide_credential_refresh_if_due(valkey_glide->glide_client);
+    /* The provider callable may have closed clients: release them before any return */
+    valkey_glide_run_deferred_closes();
     if (!valkey_glide->glide_client) {
         return 0;
     }
