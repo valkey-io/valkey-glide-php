@@ -466,7 +466,8 @@ HVALS_METHOD_IMPL(ValkeyGlide);
 HSETEX_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 
-/* {{{ proto int ValkeyGlide::hPSetEx(string key, int milliseconds, ...) (deprecated) */
+/* {{{ proto int ValkeyGlide::hPSetEx(string key, int milliseconds, ...) (deprecated)
+ * TODO(#491): remove hPSetEx */
 HPSETEX_METHOD_IMPL(ValkeyGlide)
 /* }}} */
 

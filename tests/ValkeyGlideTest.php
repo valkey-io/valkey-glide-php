@@ -5850,6 +5850,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
             $this->sortedHash($key)
         );
         $this->valkey_glide->del($key);
+        // TODO(#491): remove this legacy-form check
         @$this->valkey_glide->hSetEx($key, 60, null, 'f', false, 't', true, 'n', null, 'd', 1.5);
         $this->assertEquals(['d' => '1.5', 'f' => '', 'n' => '', 't' => '1'], $this->sortedHash($key));
 
@@ -5858,6 +5859,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
         $unconvertible = [
             fn() => $this->valkey_glide->hSetEx($key, ['ok' => 'v', 'bad' => new \stdClass()]),
             fn() => $this->valkey_glide->hSetEx($key, ['ok' => 'v', 'bad' => new HSetExThrowingString()]),
+            // TODO(#491): remove this legacy-form case
             fn() => @$this->valkey_glide->hSetEx($key, 60, null, 'ok', 'v', 'bad', new HSetExThrowingString()),
         ];
         foreach ($unconvertible as $call) {
@@ -5876,6 +5878,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
 
     /**
      * Call $fn collecting E_DEPRECATED messages; returns [result, messages].
+     * TODO(#491): remove with the legacy hSetEx/hPSetEx tests.
      */
     private function callCollectingDeprecations(callable $fn): array
     {
@@ -5895,6 +5898,7 @@ class ValkeyGlideTest extends ValkeyGlideBaseTest
     /**
      * The legacy hSetEx/hPSetEx forms keep working, emit E_DEPRECATED on every
      * call, and the PHPRedis form never does.
+     * TODO(#491): remove with the legacy form.
      */
     public function testHSetExLegacyFormDeprecated()
     {

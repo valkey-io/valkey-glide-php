@@ -2578,9 +2578,11 @@ static int parse_hsetex_expiry_options(HashTable* opts, h_command_args_t* hargs)
  *   Legacy form:    hSetEx($key, $seconds, $mode, $field, $value, ...)
  *                   hPSetEx($key, $milliseconds, $mode, $field, $value, ...)
  *
- * The legacy form is deprecated: it emits E_DEPRECATED, gets no new options and
- * will be removed in the next major version. Argument 2 selects the form (an
- * array means the PHPRedis form).
+ * The legacy form is deprecated: it emits E_DEPRECATED and gets no new options.
+ * Argument 2 selects the form (an array means the PHPRedis form).
+ *
+ * TODO(#491): remove the legacy form. Delete the code marked TODO(#491) below
+ * and narrow the stubs to hSetEx(string $key, array $fields, ?array $expiry = null).
  */
 
 /* Send the HSETEX described by hargs. Shared by both calling forms. */
@@ -2669,11 +2671,13 @@ static int execute_hsetex_phpredis(zval*             object,
     return ret;
 }
 
+// TODO(#491): remove with the legacy form
 #define HSETEX_REPLACEMENT "hSetEx($key, [$field => $value, ...], ['EX' => $seconds])"
 
 /*
  * Deprecated legacy form (hSetEx and hPSetEx), after argument parsing. $mode is
  * 'NX' or 'XX', sent as FNX/FXX. args holds num_args field/value zvals.
+ * TODO(#491): remove with the legacy form.
  */
 static int hsetex_legacy_send(zval*       object,
                               const char* key,
@@ -2687,8 +2691,7 @@ static int hsetex_legacy_send(zval*       object,
                               zval*       return_value) {
     php_error_docref(NULL,
                      E_DEPRECATED,
-                     "The (key, %s, mode, field, value, ...) signature is deprecated and will be "
-                     "removed in the next major version. Use %s",
+                     "The (key, %s, mode, field, value, ...) signature is deprecated. Use %s",
                      expiry_type ? "milliseconds" : "seconds",
                      replacement);
     if (EG(exception)) {
@@ -2747,7 +2750,7 @@ static int hsetex_legacy_send(zval*       object,
     return ret;
 }
 
-/* Legacy form, positional arguments. */
+/* Legacy form, positional arguments. TODO(#491): remove with the legacy form. */
 static int execute_hsetex_legacy(zval*             object,
                                  int               argc,
                                  zval*             return_value,
@@ -2783,6 +2786,7 @@ static int execute_hsetex_legacy(zval*             object,
 /*
  * Legacy form with the legacy names (seconds, mode, field, value) as named
  * arguments. Checks types in this frame so the caller's strict_types applies.
+ * TODO(#491): remove with the legacy form.
  */
 static int hsetex_named_legacy_call(zend_execute_data* call, zval* object, zval* return_value) {
     static const char* names[] = {"key", "seconds", "mode", "field", "value"};
@@ -2871,7 +2875,11 @@ static int hsetex_named_legacy_call(zend_execute_data* call, zval* object, zval*
     return ret;
 }
 
-/* hSetEx entry point: picks the calling form from argument 2. */
+/*
+ * hSetEx entry point: picks the calling form from argument 2.
+ * TODO(#491): when the legacy form is removed, this becomes
+ * execute_hsetex_phpredis(); PHP itself then rejects unknown named arguments.
+ */
 int execute_hsetex_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     zval*              second = NULL;
     zend_execute_data* call   = EG(current_execute_data);
@@ -2903,7 +2911,7 @@ int execute_hsetex_command(zval* object, int argc, zval* return_value, zend_clas
     return execute_hsetex_legacy(object, argc, return_value, ce, NULL, HSETEX_REPLACEMENT);
 }
 
-/* hPSetEx: deprecated legacy form only. */
+/* hPSetEx: deprecated legacy form only. TODO(#491): remove hPSetEx. */
 int execute_hpsetex_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
     return execute_hsetex_legacy(object,
                                  argc,

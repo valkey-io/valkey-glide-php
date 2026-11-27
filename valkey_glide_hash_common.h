@@ -689,7 +689,7 @@ int process_h_ok_result_async(CommandResponse* response, void* output, zval* ret
 #define HSETEX_METHOD_IMPL(class_name) \
     HSETEX_VARIANT_METHOD_IMPL(class_name, hSetEx, execute_hsetex_command)
 
-// hPSetEx: deprecated legacy form
+// hPSetEx: deprecated legacy form. TODO(#491): remove hPSetEx.
 #define HPSETEX_METHOD_IMPL(class_name) \
     HSETEX_VARIANT_METHOD_IMPL(class_name, hPSetEx, execute_hpsetex_command)
 
@@ -797,6 +797,7 @@ int process_h_ok_result_async(CommandResponse* response, void* output, zval* ret
 
 // Hash Field Expiration function declarations
 int execute_hsetex_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+// TODO(#491): remove hPSetEx
 int execute_hpsetex_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 
 // Hash Field Expiration NX/XX variants

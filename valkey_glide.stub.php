@@ -1976,8 +1976,8 @@ class ValkeyGlide
      *                             (Valkey 9.1+).
      *                           Invalid entries return false without sending the command.
      *
-     * The legacy form hSetEx($key, $seconds, $mode, $field, $value, ...) is deprecated and will be
-     * removed in the next major version.
+     * The legacy form hSetEx($key, $seconds, $mode, $field, $value, ...) is deprecated.
+     * See https://github.com/valkey-io/valkey-glide-php/issues/491
      *
      * @return ValkeyGlide|int|false 1 if the fields were set, 0 if a condition prevented it,
      *                               or false on failure.
@@ -1986,10 +1986,12 @@ class ValkeyGlide
      * $client->hSetEx('profile', ['token' => 'abc123'], ['EX' => 60]);
      * $client->hSetEx('profile', ['token' => 'abc123'], ['PX' => 60000, 'FNX']);
      * $client->hSetEx('profile', ['token' => 'abc123'], ['XX', 'KEEPTTL']);
+     *
+     * TODO(#491): narrow to hSetEx(string $key, array $fields, ?array $expiry = null).
      */
     public function hSetEx(string $key, array|int $fields, array|string|null $expiry = null, mixed ...$legacy_fields_and_vals): ValkeyGlide|int|false;
     /**
-     * Deprecated and will be removed in the next major version.
+     * Deprecated. See https://github.com/valkey-io/valkey-glide-php/issues/491
      * Use hSetEx($key, [$field => $value, ...], ['PX' => $milliseconds]).
      *
      * @see https://valkey.io/commands/hsetex/
@@ -2002,6 +2004,8 @@ class ValkeyGlide
      * @param mixed $fields_and_vals Additional field-value pairs.
      *
      * @return ValkeyGlide|int|false 1 if the fields were set, 0 if a condition prevented it, or false on failure.
+     *
+     * TODO(#491): remove hPSetEx.
      */
     public function hPSetEx(string $key, int $milliseconds, ?string $mode, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlide|int|false;
 

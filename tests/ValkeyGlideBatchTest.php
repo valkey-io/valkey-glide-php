@@ -810,6 +810,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->valkey_glide->del($key);
     }
 
+    // TODO(#491): remove with the legacy form
     public function testBatchHSetExLegacyForm()
     {
         if (!$this->minVersionCheck('9.0.0')) {
