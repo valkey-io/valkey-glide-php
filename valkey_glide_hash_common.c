@@ -315,11 +315,8 @@ cleanup:
 
 // Unified parameter preparation with configurable components
 typedef struct {
-    bool        needs_expiry;
-    bool        needs_condition;
-    bool        needs_fields_keyword;
-    bool        field_value_pairs;  // true for HSETEX, false for HEXPIRE/HTTL
-    const char* condition_prefix;   // "F" for HSETEX (FNX/FXX), NULL for HEXPIRE (NX/XX)
+    bool needs_expiry;
+    bool needs_fields_keyword;
 } h_arg_config_t;
 
 static int prepare_h_args_unified(h_command_args_t*     args,
@@ -331,15 +328,10 @@ static int prepare_h_args_unified(h_command_args_t*     args,
     if (!args->key)
         return 0;
 
-    // Calculate field count and validate
-    int field_count = config->field_value_pairs ? args->fv_count / 2 : args->fv_count;
-    if (config->field_value_pairs && args->fv_count % 2 != 0)
-        return 0;
+    int field_count = args->fv_count;
 
     // Calculate argument count
     int arg_count = 1;  // key
-    if (config->needs_condition && args->mode)
-        arg_count++;
     if (config->needs_expiry && args->expiry > 0)
         arg_count += 2;  // unit + value
     if (config->needs_fields_keyword)
@@ -359,20 +351,6 @@ static int prepare_h_args_unified(h_command_args_t*     args,
     (*args_len_out)[arg_idx] = args->key_len;
     arg_idx++;
 
-    // Add condition
-    if (config->needs_condition && args->mode) {
-        const char* condition = args->mode;
-        if (config->condition_prefix) {
-            // Convert NX/XX to FNX/FXX for HSETEX
-            static char condition_buf[4];
-            snprintf(
-                condition_buf, sizeof(condition_buf), "%s%s", config->condition_prefix, args->mode);
-            condition = condition_buf;
-        }
-        (*args_out)[arg_idx]     = (uintptr_t) condition;
-        (*args_len_out)[arg_idx] = strlen(condition);
-        arg_idx++;
-    }
 
     // Add expiry
     if (config->needs_expiry && args->expiry > 0) {
@@ -441,14 +419,93 @@ int prepare_h_hfe_args(h_command_args_t* args,
                        unsigned long**   args_len_out,
                        char***           allocated_strings,
                        int*              allocated_count) {
-    h_arg_config_t config = {
-        .needs_expiry         = true,
-        .needs_condition      = true,
-        .needs_fields_keyword = true,
-        .field_value_pairs    = true,
-        .condition_prefix     = "F"};  // Correct: F prefix for HSETEX (NX->FNX, XX->FXX)
-    return prepare_h_args_unified(
-        args, args_out, args_len_out, allocated_strings, allocated_count, &config);
+    if (!args->key || !args->field_values || Z_TYPE_P(args->field_values) != IS_ARRAY)
+        return 0;
+
+    int field_count = zend_hash_num_elements(Z_ARRVAL_P(args->field_values));
+    if (field_count == 0)
+        return 0;
+
+    bool keepttl    = args->expiry_type && strcmp(args->expiry_type, "KEEPTTL") == 0;
+    bool has_expiry = args->expiry_type && !keepttl;
+
+    // key [NX|XX] [FNX|FXX] [EX n|PX n|EXAT n|PXAT n|KEEPTTL] FIELDS count field value ...
+    int arg_count = 1;
+    if (args->hsetex_key_condition)
+        arg_count++;
+    if (args->hsetex_field_condition)
+        arg_count++;
+    if (keepttl)
+        arg_count++;
+    if (has_expiry)
+        arg_count += 2;
+    arg_count += 2 + field_count * 2;
+
+    *args_out     = (uintptr_t*) emalloc(arg_count * sizeof(uintptr_t));
+    *args_len_out = (unsigned long*) emalloc(arg_count * sizeof(unsigned long));
+    // expiry value + field count + up to one string per field name and value
+    *allocated_strings = (char**) emalloc((2 + field_count * 2) * sizeof(char*));
+    *allocated_count   = 0;
+
+    int arg_idx = 0;
+
+    (*args_out)[arg_idx]     = (uintptr_t) args->key;
+    (*args_len_out)[arg_idx] = args->key_len;
+    arg_idx++;
+
+    // The key condition precedes the field condition
+    if (args->hsetex_key_condition) {
+        (*args_out)[arg_idx]     = (uintptr_t) args->hsetex_key_condition;
+        (*args_len_out)[arg_idx] = strlen(args->hsetex_key_condition);
+        arg_idx++;
+    }
+    if (args->hsetex_field_condition) {
+        (*args_out)[arg_idx]     = (uintptr_t) args->hsetex_field_condition;
+        (*args_len_out)[arg_idx] = strlen(args->hsetex_field_condition);
+        arg_idx++;
+    }
+
+    if (args->expiry_type) {
+        (*args_out)[arg_idx]     = (uintptr_t) args->expiry_type;
+        (*args_len_out)[arg_idx] = strlen(args->expiry_type);
+        arg_idx++;
+
+        if (has_expiry) {
+            size_t expiry_len;
+            char*  expiry_str = safe_format_long_long(args->expiry, &expiry_len);
+            add_string_arg(expiry_str,
+                           expiry_len,
+                           args_out,
+                           args_len_out,
+                           &arg_idx,
+                           allocated_strings,
+                           allocated_count);
+        }
+    }
+
+    (*args_out)[arg_idx]     = (uintptr_t) "FIELDS";
+    (*args_len_out)[arg_idx] = 6;
+    arg_idx++;
+
+    size_t field_count_len;
+    char*  field_count_str = safe_format_int(field_count, &field_count_len);
+    add_string_arg(field_count_str,
+                   field_count_len,
+                   args_out,
+                   args_len_out,
+                   &arg_idx,
+                   allocated_strings,
+                   allocated_count);
+
+    // field => value pairs; numeric keys are sent as their string form
+    int end_idx = process_field_value_pairs(
+        args->field_values, *args_out, *args_len_out, arg_idx, *allocated_strings, allocated_count);
+    if (end_idx != arg_count) {
+        // Caller frees the arrays and tracked strings on failure
+        return 0;
+    }
+
+    return arg_count;
 }
 
 int prepare_h_expire_args(h_command_args_t* args,
@@ -466,7 +523,7 @@ int prepare_h_expire_args(h_command_args_t* args,
     int arg_count = 1;  // key
     if (args->expiry > 0)
         arg_count++;  // expiry value (no EX keyword for HEXPIRE)
-    if (args->mode)
+    if (args->hexpire_condition)
         arg_count++;              // condition
     arg_count += 2;               // "FIELDS" + count
     arg_count += args->fv_count;  // fields
@@ -498,9 +555,9 @@ int prepare_h_expire_args(h_command_args_t* args,
     }
 
     // Add condition (NX/XX directly, no prefix for HEXPIRE)
-    if (args->mode) {
-        (*args_out)[arg_idx]     = (uintptr_t) args->mode;
-        (*args_len_out)[arg_idx] = strlen(args->mode);
+    if (args->hexpire_condition) {
+        (*args_out)[arg_idx]     = (uintptr_t) args->hexpire_condition;
+        (*args_len_out)[arg_idx] = strlen(args->hexpire_condition);
         arg_idx++;
     }
 
@@ -536,11 +593,7 @@ int prepare_h_field_only_args(h_command_args_t* args,
                               unsigned long**   args_len_out,
                               char***           allocated_strings,
                               int*              allocated_count) {
-    h_arg_config_t config = {.needs_expiry         = false,
-                             .needs_condition      = false,
-                             .needs_fields_keyword = true,
-                             .field_value_pairs    = false,
-                             .condition_prefix     = NULL};
+    h_arg_config_t config = {.needs_expiry = false, .needs_fields_keyword = true};
     return prepare_h_args_unified(
         args, args_out, args_len_out, allocated_strings, allocated_count, &config);
 }
@@ -2334,8 +2387,7 @@ int execute_hrandfield_command(zval* object, int argc, zval* return_value, zend_
     return 0;
 }
 
-// Helper function for all hSetEx variants with conditions
-// Unified helper function for all hash field expiration variants
+// Shared helper for the hExpire-family variants
 static int execute_hash_expiry_command(zval*             object,
                                        int               argc,
                                        zval*             return_value,
@@ -2374,11 +2426,9 @@ static int execute_hash_expiry_command(zval*             object,
     const char* final_condition = condition_str ? condition_str : condition;
 
     // Validate field count based on command type
-    if (cmd_type == HSetEx && (num_args < 2 || num_args % 2 != 0)) {
-        return 0;  // HSetEx needs field-value pairs
-    } else if ((cmd_type == HExpire || cmd_type == HPExpire || cmd_type == HExpireAt ||
-                cmd_type == HPExpireAt) &&
-               num_args < 1) {
+    if ((cmd_type == HExpire || cmd_type == HPExpire || cmd_type == HExpireAt ||
+         cmd_type == HPExpireAt) &&
+        num_args < 1) {
         return 0;  // The HEXPIRE family needs at least one field
     }
 
@@ -2387,15 +2437,15 @@ static int execute_hash_expiry_command(zval*             object,
         return 0;
     }
 
-    h_command_args_t hargs = {0};
-    hargs.key              = key;
-    hargs.key_len          = key_len;
-    hargs.field_values     = args;
-    hargs.fv_count         = num_args;
-    hargs.is_array_arg     = 0;
-    hargs.expiry           = (long long) expiry;
-    hargs.expiry_type      = (char*) expiry_type;
-    hargs.mode             = (char*) final_condition;
+    h_command_args_t hargs  = {0};
+    hargs.key               = key;
+    hargs.key_len           = key_len;
+    hargs.field_values      = args;
+    hargs.fv_count          = num_args;
+    hargs.is_array_arg      = 0;
+    hargs.expiry            = (long long) expiry;
+    hargs.expiry_type       = (char*) expiry_type;
+    hargs.hexpire_condition = final_condition;
 
     if (execute_h_simple_command(
             valkey_glide, cmd_type, &hargs, NULL, response_type, return_value)) {
@@ -2406,17 +2456,6 @@ static int execute_hash_expiry_command(zval*             object,
         return 1;
     }
     return 0;
-}
-
-// Helper function for hSetEx variants with conditions
-static int execute_hsetex_with_condition(zval*             object,
-                                         int               argc,
-                                         zval*             return_value,
-                                         zend_class_entry* ce,
-                                         const char*       expiry_type,
-                                         const char*       condition) {
-    return execute_hash_expiry_command(
-        object, argc, return_value, ce, HSetEx, expiry_type, condition, H_RESPONSE_INT, 2);
 }
 
 // Helper function for hExpire variants with conditions
@@ -2443,31 +2482,444 @@ static int execute_hexpire_with_condition(zval*             object,
         object, argc, return_value, ce, cmd_type, expiry_type, condition, H_RESPONSE_ARRAY, 1);
 }
 
-// Unified hash field expiration command execution
-#define DEFINE_HSETEX_COMMAND(name, expiry_type, condition)                 \
-    int execute_##name##_command(                                           \
-        zval* object, int argc, zval* return_value, zend_class_entry* ce) { \
-        return execute_hsetex_with_condition(                               \
-            object, argc, return_value, ce, expiry_type, condition);        \
+/*
+ * Parse the hSetEx $expiry array into hargs. Entry names are case-insensitive:
+ *   'EX' | 'PX' | 'EXAT' | 'PXAT' => int   expiry (non-negative)
+ *   'KEEPTTL'                             keep the existing TTL
+ *   'FNX' | 'FXX'                         field condition
+ *   'NX'  | 'XX'                          key condition (Valkey 9.1+)
+ * Unknown, malformed or conflicting entries are rejected so a typo can't turn a
+ * conditional write into an unconditional one. Returns 1 on success, 0 otherwise.
+ */
+static int parse_hsetex_expiry_options(HashTable* opts, h_command_args_t* hargs) {
+    zend_string* name;
+    zval*        zv;
+
+    ZEND_HASH_FOREACH_STR_KEY_VAL(opts, name, zv) {
+        ZVAL_DEREF(zv);
+
+        if (name) {
+            // Keyed entry: an expiry type with a numeric value
+            const char* type;
+            if (zend_string_equals_literal_ci(name, "EX")) {
+                type = "EX";
+            } else if (zend_string_equals_literal_ci(name, "PX")) {
+                type = "PX";
+            } else if (zend_string_equals_literal_ci(name, "EXAT")) {
+                type = "EXAT";
+            } else if (zend_string_equals_literal_ci(name, "PXAT")) {
+                type = "PXAT";
+            } else {
+                return 0;
+            }
+
+            zend_long value;
+            double    dval;
+            if (Z_TYPE_P(zv) == IS_LONG) {
+                value = Z_LVAL_P(zv);
+            } else if (Z_TYPE_P(zv) == IS_DOUBLE) {
+                // Whole numbers only, e.g. ['PX' => round($ms)]
+                dval = Z_DVAL_P(zv);
+                if (!zend_finite(dval) || dval != floor(dval) || !ZEND_DOUBLE_FITS_LONG(dval)) {
+                    return 0;
+                }
+                value = (zend_long) dval;
+            } else if (Z_TYPE_P(zv) != IS_STRING ||
+                       is_numeric_string(Z_STRVAL_P(zv), Z_STRLEN_P(zv), &value, NULL, 0) !=
+                           IS_LONG) {
+                return 0;
+            }
+
+            if (value < 0 || hargs->expiry_type) {
+                return 0;  // negative timeout, or a second expiry option
+            }
+            hargs->expiry_type = type;
+            hargs->expiry      = (long long) value;
+            continue;
+        }
+
+        // List entry: a flag
+        if (Z_TYPE_P(zv) != IS_STRING) {
+            return 0;
+        }
+        zend_string* flag = Z_STR_P(zv);
+
+        if (zend_string_equals_literal_ci(flag, "KEEPTTL")) {
+            if (hargs->expiry_type) {
+                return 0;
+            }
+            hargs->expiry_type = "KEEPTTL";
+        } else if (zend_string_equals_literal_ci(flag, "FNX") ||
+                   zend_string_equals_literal_ci(flag, "FXX")) {
+            if (hargs->hsetex_field_condition) {
+                return 0;
+            }
+            hargs->hsetex_field_condition =
+                zend_string_equals_literal_ci(flag, "FNX") ? "FNX" : "FXX";
+        } else if (zend_string_equals_literal_ci(flag, "NX") ||
+                   zend_string_equals_literal_ci(flag, "XX")) {
+            if (hargs->hsetex_key_condition) {
+                return 0;
+            }
+            hargs->hsetex_key_condition = zend_string_equals_literal_ci(flag, "NX") ? "NX" : "XX";
+        } else {
+            return 0;
+        }
+    }
+    ZEND_HASH_FOREACH_END();
+
+    return 1;
+}
+
+/*
+ * hSetEx() has two calling forms:
+ *
+ *   PHPRedis form:  hSetEx($key, [$field => $value, ...], ['EX' => 60, 'FNX'])
+ *   Legacy form:    hSetEx($key, $seconds, $mode, $field, $value, ...)
+ *                   hPSetEx($key, $milliseconds, $mode, $field, $value, ...)
+ *
+ * The legacy form is deprecated: it emits E_DEPRECATED and gets no new options.
+ * Argument 2 selects the form (an array means the PHPRedis form).
+ *
+ * TODO(#491): remove the legacy form. Delete the code marked TODO(#491) below
+ * and narrow the stubs to hSetEx(string $key, array $fields, ?array $expiry = null).
+ */
+
+/* Send the HSETEX described by hargs. Shared by both calling forms. */
+static int run_hsetex(valkey_glide_object* valkey_glide,
+                      zval*                object,
+                      h_command_args_t*    hargs,
+                      zval*                return_value) {
+    if (execute_h_simple_command(valkey_glide, HSetEx, hargs, NULL, H_RESPONSE_INT, return_value)) {
+        if (valkey_glide->is_in_batch_mode) {
+            ZVAL_COPY(return_value, object);
+        }
+        return 1;
+    }
+    return 0;
+}
+
+/* Copy src into dst with string values. Returns 0 if a conversion throws; dst
+ * must be destroyed either way. */
+static int hsetex_string_values(HashTable* src, zval* dst) {
+    zend_string* name;
+    zend_ulong   idx;
+    zval*        value;
+
+    array_init_size(dst, zend_hash_num_elements(src));
+    ZEND_HASH_FOREACH_KEY_VAL(src, idx, name, value) {
+        zval zv;
+        ZVAL_STR(&zv, zval_get_string(value));
+        if (EG(exception)) {
+            zval_ptr_dtor(&zv);
+            return 0;
+        }
+        if (name) {
+            zend_hash_update(Z_ARRVAL_P(dst), name, &zv);
+        } else {
+            zend_hash_index_update(Z_ARRVAL_P(dst), idx, &zv);
+        }
+    }
+    ZEND_HASH_FOREACH_END();
+    return 1;
+}
+
+/* PHPRedis form: hSetEx(string $key, array $fields, ?array $expiry = null) */
+static int execute_hsetex_phpredis(zval*             object,
+                                   int               argc,
+                                   zval*             return_value,
+                                   zend_class_entry* ce) {
+    valkey_glide_object* valkey_glide;
+    char*                key     = NULL;
+    size_t               key_len = 0;
+    zval*                z_fields;
+    zval*                z_expiry = NULL;
+
+    if (zend_parse_method_parameters(
+            argc, object, "Osa|a!", &object, ce, &key, &key_len, &z_fields, &z_expiry) == FAILURE) {
+        return 0;
     }
 
-// Base variants
-DEFINE_HSETEX_COMMAND(hsetex, NULL, NULL)
-DEFINE_HSETEX_COMMAND(hpsetex, "PX", NULL)
-DEFINE_HSETEX_COMMAND(hsetexat, "EXAT", NULL)
-DEFINE_HSETEX_COMMAND(hpsetexat, "PXAT", NULL)
+    if (zend_hash_num_elements(Z_ARRVAL_P(z_fields)) == 0) {
+        php_error_docref(NULL, E_WARNING, "Must pass at least one field");
+        return 0;
+    }
 
-// NX variants
-DEFINE_HSETEX_COMMAND(hsetexnx, NULL, "NX")
-DEFINE_HSETEX_COMMAND(hpsetexnx, "PX", "NX")
-DEFINE_HSETEX_COMMAND(hsetexatnx, "EXAT", "NX")
-DEFINE_HSETEX_COMMAND(hpsetexatnx, "PXAT", "NX")
+    valkey_glide = VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        return 0;
+    }
 
-// XX variants
-DEFINE_HSETEX_COMMAND(hsetexxx, NULL, "XX")
-DEFINE_HSETEX_COMMAND(hpsetexxx, "PX", "XX")
-DEFINE_HSETEX_COMMAND(hsetexatxx, "EXAT", "XX")
-DEFINE_HSETEX_COMMAND(hpsetexatxx, "PXAT", "XX")
+    h_command_args_t hargs = {0};
+    hargs.key              = key;
+    hargs.key_len          = key_len;
+
+    if (z_expiry && !parse_hsetex_expiry_options(Z_ARRVAL_P(z_expiry), &hargs)) {
+        return 0;
+    }
+
+    // Convert before anything is sent or queued
+    zval fields;
+    if (!hsetex_string_values(Z_ARRVAL_P(z_fields), &fields)) {
+        zval_ptr_dtor(&fields);
+        return 0;
+    }
+    hargs.field_values = &fields;
+
+    int ret = run_hsetex(valkey_glide, object, &hargs, return_value);
+    zval_ptr_dtor(&fields);
+    return ret;
+}
+
+// TODO(#491): remove with the legacy form
+#define HSETEX_REPLACEMENT "hSetEx($key, [$field => $value, ...], ['EX' => $seconds])"
+
+/*
+ * Deprecated legacy form (hSetEx and hPSetEx), after argument parsing. $mode is
+ * 'NX' or 'XX', sent as FNX/FXX. args holds num_args field/value zvals.
+ * TODO(#491): remove with the legacy form.
+ */
+static int hsetex_legacy_send(zval*       object,
+                              const char* key,
+                              size_t      key_len,
+                              zend_long   expiry,
+                              const char* mode,
+                              zval*       args,
+                              int         num_args,
+                              const char* expiry_type,
+                              const char* replacement,
+                              zval*       return_value) {
+    php_error_docref(NULL,
+                     E_DEPRECATED,
+                     "The (key, %s, mode, field, value, ...) signature is deprecated. Use %s",
+                     expiry_type ? "milliseconds" : "seconds",
+                     replacement);
+    if (EG(exception)) {
+        return 0;  // the error handler threw
+    }
+
+    if (num_args < 2 || num_args % 2 != 0) {
+        return 0;
+    }
+
+    const char* condition = NULL;
+    if (mode) {
+        if (strcasecmp(mode, "NX") == 0) {
+            condition = "FNX";
+        } else if (strcasecmp(mode, "XX") == 0) {
+            condition = "FXX";
+        } else {
+            return 0;
+        }
+    }
+
+    valkey_glide_object* valkey_glide =
+        VALKEY_GLIDE_PHP_ZVAL_GET_OBJECT(valkey_glide_object, object);
+    if (!valkey_glide || !valkey_glide->glide_client) {
+        return 0;
+    }
+
+    // Convert everything before sending; stop at the first failure
+    zval fields;
+    array_init_size(&fields, num_args / 2);
+    for (int i = 0; i < num_args && !EG(exception); i += 2) {
+        zend_string* name  = zval_get_string(&args[i]);
+        zend_string* value = zval_get_string(&args[i + 1]);
+        zval         zv;
+        ZVAL_STR(&zv, value);
+        zend_symtable_update(Z_ARRVAL(fields), name, &zv);
+        zend_string_release(name);
+    }
+    if (EG(exception)) {
+        zval_ptr_dtor(&fields);
+        return 0;
+    }
+
+    h_command_args_t hargs       = {0};
+    hargs.key                    = key;
+    hargs.key_len                = key_len;
+    hargs.field_values           = &fields;
+    hargs.hsetex_field_condition = condition;
+    if (expiry > 0) {  // a non-positive timeout sends no expiry
+        hargs.expiry_type = expiry_type ? expiry_type : "EX";
+        hargs.expiry      = (long long) expiry;
+    }
+
+    int ret = run_hsetex(valkey_glide, object, &hargs, return_value);
+    zval_ptr_dtor(&fields);
+    return ret;
+}
+
+/* Legacy form, positional arguments. TODO(#491): remove with the legacy form. */
+static int execute_hsetex_legacy(zval*             object,
+                                 int               argc,
+                                 zval*             return_value,
+                                 zend_class_entry* ce,
+                                 const char*       expiry_type,
+                                 const char*       replacement) {
+    char*     key = NULL;
+    size_t    key_len;
+    zval*     args     = NULL;
+    int       num_args = 0;
+    zend_long expiry;
+    char*     mode     = NULL;
+    size_t    mode_len = 0;
+
+    if (zend_parse_method_parameters(argc,
+                                     object,
+                                     "Osls!+",
+                                     &object,
+                                     ce,
+                                     &key,
+                                     &key_len,
+                                     &expiry,
+                                     &mode,
+                                     &mode_len,
+                                     &args,
+                                     &num_args) == FAILURE) {
+        return 0;
+    }
+    return hsetex_legacy_send(
+        object, key, key_len, expiry, mode, args, num_args, expiry_type, replacement, return_value);
+}
+
+/*
+ * Legacy form with the legacy names (seconds, mode, field, value) as named
+ * arguments. Checks types in this frame so the caller's strict_types applies.
+ * TODO(#491): remove with the legacy form.
+ */
+static int hsetex_named_legacy_call(zend_execute_data* call, zval* object, zval* return_value) {
+    static const char* names[] = {"key", "seconds", "mode", "field", "value"};
+    const char*        cls     = ZSTR_VAL(call->func->common.scope->name);
+    uint32_t           argc    = ZEND_CALL_NUM_ARGS(call);
+    zval               params[5];
+
+    for (uint32_t i = 0; i < 5; i++) {
+        ZVAL_UNDEF(&params[i]);
+        if (i < argc) {
+            ZVAL_COPY_VALUE(&params[i], ZEND_CALL_ARG(call, i + 1));
+        }
+    }
+
+    zend_string* name;
+    zval*        value;
+    ZEND_HASH_FOREACH_STR_KEY_VAL(call->extra_named_params, name, value) {
+        int slot = -1;
+        for (int i = 1; i < 5; i++) {
+            if (zend_string_equals_cstr(name, names[i], strlen(names[i]))) {
+                slot = i;
+                break;
+            }
+        }
+        if (slot < 0) {
+            zend_argument_count_error(
+                "Internal function %s::hSetEx() does not accept named variadic arguments", cls);
+            return 0;
+        }
+        if (Z_TYPE(params[slot]) != IS_UNDEF) {
+            zend_throw_error(NULL, "Named parameter $%s overwrites previous argument", names[slot]);
+            return 0;
+        }
+        ZVAL_COPY_VALUE(&params[slot], value);
+    }
+    ZEND_HASH_FOREACH_END();
+
+    for (int i = 0; i < 5; i++) {
+        if (Z_TYPE(params[i]) == IS_UNDEF) {
+            zend_argument_count_error(
+                "%s::hSetEx(): Argument #%d ($%s) not passed", cls, i + 1, names[i]);
+            return 0;
+        }
+    }
+
+    // Same checks as the positional "sls!", on copies (conversion is in place)
+    zval         key_zv, seconds_zv, mode_zv;
+    zend_string* key_str;
+    zend_string* mode_str;
+    zend_long    seconds;
+    bool         is_null;
+    int          ret = 0;
+
+    ZVAL_COPY(&key_zv, &params[0]);
+    ZVAL_COPY(&seconds_zv, &params[1]);
+    ZVAL_COPY(&mode_zv, &params[2]);
+
+    if (!zend_parse_arg_str(&key_zv, &key_str, false, 1)) {
+        if (!EG(exception)) {
+            zend_wrong_parameter_type_error(1, Z_EXPECTED_STRING, &key_zv);
+        }
+    } else if (!zend_parse_arg_long(&seconds_zv, &seconds, &is_null, false, 2)) {
+        if (!EG(exception)) {
+            zend_wrong_parameter_type_error(2, Z_EXPECTED_LONG, &seconds_zv);
+        }
+    } else if (!zend_parse_arg_str(&mode_zv, &mode_str, true, 3)) {
+        if (!EG(exception)) {
+            zend_wrong_parameter_type_error(3, Z_EXPECTED_STRING_OR_NULL, &mode_zv);
+        }
+    } else if (!EG(exception)) {
+        ret = hsetex_legacy_send(object,
+                                 ZSTR_VAL(key_str),
+                                 ZSTR_LEN(key_str),
+                                 seconds,
+                                 mode_str ? ZSTR_VAL(mode_str) : NULL,
+                                 &params[3],
+                                 2,
+                                 NULL,
+                                 HSETEX_REPLACEMENT,
+                                 return_value);
+    }
+
+    zval_ptr_dtor(&key_zv);
+    zval_ptr_dtor(&seconds_zv);
+    zval_ptr_dtor(&mode_zv);
+    return ret;
+}
+
+/*
+ * hSetEx entry point: picks the calling form from argument 2.
+ * TODO(#491): when the legacy form is removed, this becomes
+ * execute_hsetex_phpredis(); PHP itself then rejects unknown named arguments.
+ */
+int execute_hsetex_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    zval*              second = NULL;
+    zend_execute_data* call   = EG(current_execute_data);
+
+    if (ZEND_CALL_INFO(call) & ZEND_CALL_HAS_EXTRA_NAMED_PARAMS) {
+        // PHPRedis form: no extra named arguments are allowed
+        if (argc >= 2) {
+            second = ZEND_CALL_ARG(call, 2);
+            ZVAL_DEREF(second);
+            if (Z_TYPE_P(second) == IS_ARRAY) {
+                zend_string* name;
+                ZEND_HASH_FOREACH_STR_KEY(call->extra_named_params, name) {
+                    zend_throw_error(NULL, "Unknown named parameter $%s", ZSTR_VAL(name));
+                    return 0;
+                }
+                ZEND_HASH_FOREACH_END();
+            }
+        }
+        return hsetex_named_legacy_call(call, object, return_value);
+    }
+
+    if (argc >= 2) {
+        second = ZEND_CALL_ARG(call, 2);
+        ZVAL_DEREF(second);
+        if (Z_TYPE_P(second) == IS_ARRAY) {
+            return execute_hsetex_phpredis(object, argc, return_value, ce);
+        }
+    }
+    return execute_hsetex_legacy(object, argc, return_value, ce, NULL, HSETEX_REPLACEMENT);
+}
+
+/* hPSetEx: deprecated legacy form only. TODO(#491): remove hPSetEx. */
+int execute_hpsetex_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {
+    return execute_hsetex_legacy(object,
+                                 argc,
+                                 return_value,
+                                 ce,
+                                 "PX",
+                                 "hSetEx($key, [$field => $value, ...], ['PX' => $milliseconds])");
+}
 
 // hExpire NX/XX variants - reuse existing hExpire infrastructure with conditions
 int execute_hexpirenx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce) {

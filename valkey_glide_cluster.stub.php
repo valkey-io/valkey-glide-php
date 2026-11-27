@@ -1007,11 +1007,16 @@ class ValkeyGlideCluster
 
     /**
      * @see ValkeyGlide::hSetEx
+     *
+     * TODO(#491): narrow to hSetEx(string $key, array $fields, ?array $expiry = null).
      */
-    public function hSetEx(string $key, int $seconds, ?string $mode, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlideCluster|int|false;
+    public function hSetEx(string $key, array|int $fields, array|string|null $expiry = null, mixed ...$legacy_fields_and_vals): ValkeyGlideCluster|int|false;
 
     /**
+     * Deprecated; use hSetEx with ['PX' => $milliseconds]. See https://github.com/valkey-io/valkey-glide-php/issues/491
      * @see ValkeyGlide::hPSetEx
+     *
+     * TODO(#491): remove hPSetEx.
      */
     public function hPSetEx(string $key, int $milliseconds, ?string $mode, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlideCluster|int|false;
 

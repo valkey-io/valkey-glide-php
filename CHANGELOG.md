@@ -15,6 +15,14 @@
 * `hRandField()` with `withvalues` returns numeric field names as integer array keys (`'7'` becomes `7`), as `hGetAll()` and PHP arrays do. It returned them as string keys ([#443](https://github.com/valkey-io/valkey-glide-php/issues/443))
 * `ValkeyGlideCluster` now rejects a PHPRedis-style parameter combined with the ValkeyGlide-style parameter it stands in for: a non-zero `$read_timeout` with `$request_timeout` (`$read_timeout` silently replaced it), `$auth` with `$credentials` (`$auth` replaced them), and a non-zero `$timeout` with `advanced_config['connection_timeout']`. `$timeout` with `$request_timeout` is now allowed, as they set different timeouts. ([#454](https://github.com/valkey-io/valkey-glide-php/issues/454), [#455](https://github.com/valkey-io/valkey-glide-php/issues/455))
 
+### Deprecated
+
+* The `hSetEx($key, $seconds, $mode, $field, $value, ...$fields_and_vals)` form and `hPSetEx()` are deprecated and emit `E_DEPRECATED` on every call. They keep their behavior and gain no new options. Use the PHPRedis form `hSetEx($key, [$field => $value, ...], ['EX' => $seconds])`, or `['PX' => $ms]` instead of `hPSetEx`. A `$mode` of `'NX'`/`'XX'` (a field condition) becomes `'FNX'`/`'FXX'` in the new `$expiry` array; plain `'NX'`/`'XX'` there is the key condition ([#399](https://github.com/valkey-io/valkey-glide-php/issues/399))
+
+### Features
+
+* `hSetEx` accepts the PHPRedis signature `hSetEx(string $key, array $fields, ?array $expiry = null)`, with key `NX`/`XX` conditions (Valkey 9.1+), `EXAT`, `PXAT`, and `KEEPTTL` through the `$expiry` array, e.g. `['XX', 'FNX', 'EX' => 60]` ([#399](https://github.com/valkey-io/valkey-glide-php/issues/399))
+
 ### Fixes
 
 * `ValkeyGlideCluster` now uses a PHPRedis-style `$auth` given as a password, `[password]`, `[user, password]` or `['user' => ..., 'pass' => ...]`, and converts scalars and a null user as PHPRedis `RedisCluster` does. Only a `$credentials`-style array was read, so these connected without credentials. `false`, `[null]` and `[false]` mean no credentials, as in PHPRedis. Any other `$auth` it can't read now throws instead of connecting without credentials ([#454](https://github.com/valkey-io/valkey-glide-php/issues/454))
