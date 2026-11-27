@@ -123,20 +123,22 @@ class ValkeyGlideSearchTest extends ValkeyGlideBaseTest
         }
     }
 
+    private static ?bool $search13 = null;
+
     /**
-     * Capability probe for valkey-search 1.3.0.
+     * Capability probe for valkey-search 1.3.0, run once per suite.
      *
      * Probes a real 1.3-only behaviour (FT.SEARCH INKEYS, rejected with
      * "Unexpected argument `INKEYS`" by every pre-1.3 module build) on a
-     * throwaway index, rather than trusting MODULE LIST's version string
-     * alone -- the version number is unreliable across rc builds. The
-     * probe index is cleaned up
-     * before returning in every case, including when the probe itself
-     * throws; a failed cleanup DROPINDEX retries once, then raises
-     * (the capability probe must never swallow a genuine failure).
+     * throwaway index, rather than trusting MODULE LIST's version string,
+     * which is unreliable across rc builds. The probe index is dropped in
+     * every case; a failed DROPINDEX is retried once, then raised.
      */
     protected function requiresSearch13(): bool
     {
+        if (self::$search13 !== null) {
+            return self::$search13;
+        }
         $idx = uniqid('phpcap_');
         $this->getClient()->ftCreate(
             (new FtCreateBuilder())
@@ -160,6 +162,7 @@ class ValkeyGlideSearchTest extends ValkeyGlideBaseTest
             }
         }
         $this->dropCapabilityProbeIndex($idx);
+        self::$search13 = $capable;
         return $capable;
     }
 
@@ -169,11 +172,7 @@ class ValkeyGlideSearchTest extends ValkeyGlideBaseTest
         try {
             $this->getClient()->ftDropIndex($idx);
         } catch (\Throwable $e) {
-            try {
-                $this->getClient()->ftDropIndex($idx);
-            } catch (\Throwable $e2) {
-                throw $e2;
-            }
+            $this->getClient()->ftDropIndex($idx);
         }
     }
 
@@ -185,8 +184,7 @@ class ValkeyGlideSearchTest extends ValkeyGlideBaseTest
      * `requiresSearch13()` and still get null back are looking at an
      * unparseable reply from a module that IS 1.3-capable -- a bug in
      * this fixture, not "pre-1.3" -- and should treat that as a hard
-     * failure rather than silently skipping (mirrors the Python port's
-     * own fix for the same gap).
+     * failure rather than silently skipping.
      */
     protected function emulateReleaseLevel(): ?string
     {
@@ -198,9 +196,8 @@ class ValkeyGlideSearchTest extends ValkeyGlideBaseTest
         if (!is_array($config)) {
             return null;
         }
-        // ValkeyGlide's CONFIG GET returns an associative array (map), not
-        // a flat [key, value] list (the same shape the Python port's
-        // _parse_emulate_release_level had to defend against).
+        // CONFIG GET returns an associative array (map), not a flat
+        // [key, value] list.
         foreach ($config as $key => $value) {
             if (strcasecmp((string) $key, 'search.emulate-release') === 0 && is_string($value) && $value !== '') {
                 return $value;
@@ -572,7 +569,7 @@ class ValkeyGlideSearchTest extends ValkeyGlideBaseTest
     }
 
     /**
-     * FT.HYBRID tail-order port rule (jamesx, #7335): emit PARAMS before
+     * FT.HYBRID emits PARAMS before
      * any aggregate clause. A FILTER placed directly after the VSIM arm
      * (no LOAD in between) must land in the pipeline tail, not get
      * silently claimed by the server's VSIM parser as a VSIM pre-filter.
@@ -2108,7 +2105,7 @@ class ValkeyGlideSearchTest extends ValkeyGlideBaseTest
             $queryBlob = pack('f*', 1.0, 2.0);
             // VSIM ... RANGE parses for shape but is rejected at
             // execution on valkey-search 1.3.0 -- excluded from the typed
-            // API entirely (per plan decision D10), so this goes through
+            // API entirely, so this goes through
             // rawcommand() directly. rawcommand() returns false on a
             // server-side error rather than throwing (unlike the typed FT
             // builders' own methods); if RANGE is ever accepted upstream,
@@ -2472,7 +2469,7 @@ class ValkeyGlideSearchTest extends ValkeyGlideBaseTest
         }
     }
 
-    /* ── FT.SEARCH WITHSCORES + SCORER (H-3, valkey-search 1.3) ───────── */
+    /* ── FT.SEARCH WITHSCORES + SCORER (valkey-search 1.3) ───────── */
 
     public function testFtSearchWithScoresAndScorer()
     {
@@ -2515,7 +2512,7 @@ class ValkeyGlideSearchTest extends ValkeyGlideBaseTest
         }
     }
 
-    /* ── WITHSCORES + WITHSORTKEYS combined shape (H-3, valkey-search 1.3) */
+    /* ── WITHSCORES + WITHSORTKEYS combined shape (valkey-search 1.3) */
 
     public function testFtSearchWithScoresAndWithSortKeysCombinedShape()
     {
@@ -2563,7 +2560,7 @@ class ValkeyGlideSearchTest extends ValkeyGlideBaseTest
         }
     }
 
-    /* ── FT.CREATE SCORE_FIELD affects ranking (H-3, valkey-search 1.3) ── */
+    /* ── FT.CREATE SCORE_FIELD affects ranking (valkey-search 1.3) ── */
 
     public function testFtCreateScoreFieldAffectsRanking()
     {
@@ -2604,7 +2601,7 @@ class ValkeyGlideSearchTest extends ValkeyGlideBaseTest
         }
     }
 
-    /* ── FT.SEARCH SCORER TFIDF rejected (H-3, valkey-search 1.3) ─────── */
+    /* ── FT.SEARCH SCORER TFIDF rejected (valkey-search 1.3) ─────── */
 
     public function testFtSearchScorerTfidfRejected()
     {
@@ -2634,7 +2631,7 @@ class ValkeyGlideSearchTest extends ValkeyGlideBaseTest
         }
     }
 
-    /* ── FT.AGGREGATE typed cursor paged to exhaustion (H-3) ──────────── */
+    /* ── FT.AGGREGATE typed cursor paged to exhaustion ──────────── */
 
     public function testFtAggregateTypedCursorPagedToExhaustion()
     {
@@ -2690,7 +2687,7 @@ class ValkeyGlideSearchTest extends ValkeyGlideBaseTest
         }
     }
 
-    /* ── FT.AGGREGATE typed cursor DEL + errors (H-3) ─────────────────── */
+    /* ── FT.AGGREGATE typed cursor DEL + errors ─────────────────── */
 
     public function testFtAggregateTypedCursorDelAndErrors()
     {
@@ -2737,7 +2734,7 @@ class ValkeyGlideSearchTest extends ValkeyGlideBaseTest
 
     /* ── FT.HYBRID: basic query, combine methods, vector param reference,
      * filter policy, per-arm/combine YIELD_SCORE_AS, LOCALONLY, default K,
-     * MULTI/EXEC rejection (H-3, valkey-search 1.3) ────────────────────── */
+     * MULTI/EXEC (valkey-search 1.3) ────────────────────── */
 
     /** @internal Shared FT.HYBRID fixture: mirrors Python's HYBRID_DOCS. */
     private function createHybridIndex(string $idx, string $prefix): void
@@ -3032,7 +3029,7 @@ class ValkeyGlideSearchTest extends ValkeyGlideBaseTest
         }
     }
 
-    public function testFtHybridInsideMultiExecRejected()
+    public function testFtHybridInsideMultiRunsImmediately()
     {
         $this->skipIfModuleNotAvailable();
         if (!$this->requiresSearch13()) {
@@ -3043,28 +3040,20 @@ class ValkeyGlideSearchTest extends ValkeyGlideBaseTest
         try {
             $this->createHybridIndex($idx, $prefix);
             $client = $this->getClient();
-            // FT.HYBRID is rejected outright inside MULTI/EXEC
-            // (valkey-search 1.3.0, src/query/multi_search.h). No typed
-            // transaction wrapper exists for FT.HYBRID, so this goes
-            // through rawcommand() inside a MULTI block; exec() returns
-            // false when a queued command fails server-side, matching
-            // rawcommand()'s own false-on-error contract elsewhere.
             $client->multi();
-            $client->rawcommand(
-                'FT.HYBRID',
-                $idx,
-                'SEARCH',
-                'hello',
-                'VSIM',
-                '@vec',
-                '$q',
-                'PARAMS',
-                '2',
-                'q',
-                pack('f*', 1.0, 1.0)
-            );
-            $result = @$client->exec();
-            $this->assertFalse($result);
+            try {
+                $result = $client->ftHybrid(
+                    (new \ValkeyGlide\Search\FtHybridBuilder())
+                        ->index($idx)
+                        ->search('hello')
+                        ->vsim('vec', vector: pack('f*', 1.0, 1.0), k: 5)
+                );
+            } finally {
+                $queued = $client->exec();
+            }
+            $this->assertIsArray($result);
+            $this->assertCount(2, $result);
+            $this->assertEquals([], $queued);
         } finally {
             $this->dropHybridIndex($idx, $prefix);
         }
@@ -3129,82 +3118,5 @@ class ValkeyGlideSearchTest extends ValkeyGlideBaseTest
             $this->getClient()->ftDropIndex($idx);
             $this->getClient()->del($prefix . '1');
         }
-    }
-
-    /* ── Unit-level argv tests (H-3): no server needed ─────────────────── */
-
-    /**
-     * FT.HYBRID's PARAMS must be emitted before any aggregate-pipeline
-     * clause (FILTER/LIMIT/GROUPBY/SORTBY/APPLY). clauseTokens coming
-     * after PARAMS in the toArray() output, rather than interleaved with
-     * the arms, is exactly the shape build_ft_hybrid_args() depends on to
-     * avoid a FILTER right after the VSIM arm being misparsed as a VSIM
-     * pre-filter -- see the FT.HYBRID post-filter regression test's own
-     * docstring. This test pins the ORDERING at the PHP builder layer
-     * (toArray()'s own output), independent of the C argv builder.
-     */
-    public function testFtHybridBuilderEmitsClauseTokensAfterParams()
-    {
-        $options = (new \ValkeyGlide\Search\FtHybridBuilder())
-            ->index('idx')
-            ->search('hello')
-            ->vsim('vec', vector: 'rawbytes', k: 5)
-            ->filter('@price > 10')
-            ->toArray();
-        // The PHP builder keeps 'params' and 'clauseTokens' as SEPARATE
-        // array keys (the C layer interleaves them in the correct wire
-        // order); what this test can pin at the PHP layer is that
-        // clauseTokens contains the FILTER and nothing from params/vsim
-        // leaked into it, so the C layer's own PARAMS-then-clauseTokens
-        // concatenation order (verified by the live regression test) is
-        // operating on clean, non-conflated inputs.
-        $this->assertEquals(['FILTER', '@price > 10'], $options['clauseTokens']);
-        $this->assertNull($options['params']);
-    }
-
-    /**
-     * A raw vector value is ALWAYS treated as literal bytes, never as a
-     * `$name` parameter reference, regardless of its first byte -- even
-     * if the byte happens to be 0x24 ('$'). Only vsim()'s $paramRef
-     * parameter (a distinct, explicit argument) produces a reference;
-     * content-sniffing the $vector argument must never happen.
-     */
-    public function testFtHybridVsimRawBytesStartingWithDollarAreNotTreatedAsParamRef()
-    {
-        $rawBytesStartingWithDollar = "\x24\x00\x00\x00"; // literal 0x24 ('$') as the first byte
-        $options = (new \ValkeyGlide\Search\FtHybridBuilder())
-            ->index('idx')
-            ->search('hello')
-            ->vsim('vec', vector: $rawBytesStartingWithDollar, k: 5)
-            ->toArray();
-        $this->assertFalse($options['vsim']['isParamRef']);
-        $this->assertEquals($rawBytesStartingWithDollar, $options['vsim']['vector']);
-    }
-
-    /**
-     * efRuntime is not supported with VSIM filter policy=ADHOC -- the
-     * server rejects this combination, and FtHybridBuilder guards it
-     * client-side rather than relying on the server's error.
-     */
-    public function testFtHybridEfRuntimeWithAdhocPolicyRejectedClientSide()
-    {
-        $threw = false;
-        try {
-            (new \ValkeyGlide\Search\FtHybridBuilder())
-                ->index('idx')
-                ->search('hello')
-                ->vsim(
-                    'vec',
-                    vector: 'rawbytes',
-                    efRuntime: 40,
-                    filter: \ValkeyGlide\Search\FtHybridBuilder::vsimFilter('@title:hello', policy: 'ADHOC')
-                )
-                ->toArray();
-        } catch (\ValkeyGlideException $e) {
-            $threw = true;
-            $this->assertStringContains('efRuntime', $e->getMessage());
-            $this->assertStringContains('ADHOC', $e->getMessage());
-        }
-        $this->assertTrue($threw);
     }
 }

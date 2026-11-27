@@ -519,11 +519,9 @@ int execute_ft_aliaslist_command(zval* object, int argc, zval* return_value, zen
  * FT.HYBRID (valkey-search 1.3.0)
  * Usage: $client->ftHybrid(FtHybridBuilder $builder)
  *
- * Dispatched via CustomCommand, not a typed RequestType. Typed
- * RequestType.FtHybrid does not exist in the glide-core commit this
- * submodule is pinned to (the request-type core PR, valkey-glide#7456,
- * has not merged upstream yet) -- see this port's PR description's
- * Limitations section. CustomCommand requires the full command name as
+ * Dispatched via CustomCommand, not a typed RequestType: the typed
+ * request types (valkey-glide#7456) are not in the pinned glide-core
+ * (valkey-glide-php#490). CustomCommand requires the full command name as
  * argv[0]; build_ft_hybrid_args() does not include it, so it is
  * prepended here.
  * ==================================================================== */
@@ -649,9 +647,8 @@ int execute_ft_cursor_read_command(zval*             object,
         count_len = snprintf(count_str, sizeof(count_str), ZEND_LONG_FMT, count);
     }
 
-    /* FT.CURSOR READ <index> <cursor_id> [COUNT <count>] -- the COUNT
-     * keyword itself was missing here (H-2): the server's grammar
-     * requires the literal token before the count value
+    /* FT.CURSOR READ <index> <cursor_id> [COUNT <count>]: the server's grammar
+     * requires the literal COUNT token before the count value
      * (valkey-search src/commands/ft_cursor.cc), and without it the
      * trailing number is rejected with "Unexpected argument `<count>`".
      */

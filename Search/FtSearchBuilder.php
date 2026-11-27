@@ -273,8 +273,9 @@ class FtSearchBuilder
             );
         }
         if ($this->withSortKeys && $this->sortBy === null) {
-            throw new \ValkeyGlideException(
-                'FtSearchBuilder: withSortKeys() requires sortBy() to be set'
+            trigger_error(
+                'FtSearchBuilder: withSortKeys() without sortBy() is deprecated; its sort keys are always empty',
+                E_USER_DEPRECATED
             );
         }
 

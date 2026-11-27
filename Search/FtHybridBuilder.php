@@ -24,26 +24,6 @@ namespace ValkeyGlide\Search;
  *           ->limit(0, 10)
  *   );
  *
- * The VSIM arm's query vector can be given two ways, mirroring other
- * ports' `vector_data` convention:
- *
- * - vsim()'s `$vector` parameter: raw vector bytes. The builder
- *   generates an internal `$`-prefixed PARAMS entry under the hood.
- * - vsim()'s `$paramRef` parameter: an explicit `$name` string
- *   referencing an entry the caller has placed in params() directly.
- *
- * Which one applies is decided ENTIRELY by which named parameter the
- * caller passes -- never by inspecting the string's content. PHP has no
- * separate "binary" string type (`IS_STRING` covers both human-readable
- * text and opaque binary data), so a packed vector's bytes can
- * legitimately start with 0x24 ('$') by pure coincidence; a "does this
- * string start with $" content check would misclassify that vector as a
- * parameter reference and silently corrupt the query. `$vector` is
- * therefore always raw bytes, written verbatim into an internal PARAMS
- * entry regardless of its first byte, and `$paramRef` is always a
- * caller-supplied `$name` reference -- the two parameters are mutually
- * exclusive and vsim() rejects the call if neither or both are given.
- *
  * @see \ValkeyGlide::ftHybrid()
  * @see https://valkey.io/commands/ft.hybrid/
  */
@@ -111,23 +91,12 @@ class FtHybridBuilder
      * Set the VSIM arm: a vector similarity search against a vector
      * field.
      *
-     * Param reference vs. raw vector bytes is decided by WHICH parameter
-     * you pass, never by inspecting the content of `$vector` -- a raw
-     * vector's packed binary representation is arbitrary and can
-     * legitimately start with the byte 0x24 ('$') by coincidence, so a
-     * "does it start with $" content check would misclassify that vector
-     * as a parameter reference. Pass `$vector` to supply raw bytes
-     * directly (an internal PARAMS entry is generated automatically);
-     * pass `$paramRef` instead to reference a `$name` entry the caller
-     * has already placed in params(). Exactly one of the two must be
-     * given.
+     * `$vector` is always sent as raw bytes; use `$paramRef` to reference
+     * an entry in params(). Exactly one of the two must be given.
      *
      * @param string       $field       Vector field identifier, without
      *                                   the leading `@`.
-     * @param string|null  $vector      Raw vector bytes. Always treated
-     *                                   as literal data, never as a
-     *                                   parameter name, regardless of
-     *                                   its first byte.
+     * @param string|null  $vector      Raw vector bytes.
      * @param string|null  $paramRef    A `$name` string (including the
      *                                   leading `$`) naming an entry
      *                                   already present in params().
@@ -147,7 +116,7 @@ class FtHybridBuilder
      *                                   vsimFilter().
      *
      * @throws \ValkeyGlideException if neither or both of `$vector` and
-     *         `$paramRef` are given.
+     *         `$paramRef` are given, or `$paramRef` does not start with `$`.
      */
     public function vsim(
         string $field,
@@ -163,6 +132,9 @@ class FtHybridBuilder
             throw new \ValkeyGlideException(
                 'FtHybridBuilder::vsim: exactly one of $vector or $paramRef must be given'
             );
+        }
+        if ($paramRef !== null && !str_starts_with($paramRef, '$')) {
+            throw new \ValkeyGlideException("FtHybridBuilder::vsim: paramRef must start with '$'");
         }
         if ($shardKRatio !== null && !is_finite($shardKRatio)) {
             throw new \ValkeyGlideException('FtHybridBuilder::vsim: shardKRatio must be a finite number');
@@ -298,16 +270,17 @@ class FtHybridBuilder
 
     /**
      * Load only the fields passed in `$fields`. Each entry is either a
-     * plain field identifier (string), a LoadField (renamed via AS --
+     * plain field identifier (string) or a LoadField (renamed via AS --
      * valkey-search 1.3.0, requires search.emulate-release >= 1.3.0 to
-     * take effect, see LoadField's docstring), or
-     * `['field' => ..., 'as' => alias]` (equivalent to a LoadField,
-     * kept for shape parity with the array the C layer consumes
-     * directly). Must NOT include either arm's `yieldScoreAs` alias --
-     * the server rejects that outright even though the alias is
-     * otherwise freely reachable from every other clause.
+     * take effect, see LoadField's docstring). Must NOT include either
+     * arm's `yieldScoreAs` alias -- the server rejects that outright even
+     * though the alias is otherwise freely reachable from every other
+     * clause.
      *
-     * @param array<string|LoadField|array{field: string, as?: string}> $fields
+     * @param array<string|LoadField> $fields
+     *
+     * @throws \ValkeyGlideException if an entry is neither a string nor a
+     *         LoadField.
      */
     public function load(array $fields): self
     {
@@ -319,8 +292,10 @@ class FtHybridBuilder
                     'field' => $tokens[0],
                     'as' => $tokens[2] ?? null,
                 ];
-            } else {
+            } elseif (is_string($field)) {
                 $normalized[] = $field;
+            } else {
+                throw new \ValkeyGlideException('FtHybridBuilder::load: each field must be a string or a LoadField');
             }
         }
         $this->loadFields = $normalized;

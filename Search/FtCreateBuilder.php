@@ -200,7 +200,7 @@ class FtCreateBuilder
         if (empty($this->fields)) {
             throw new \ValkeyGlideException('FtCreateBuilder: at least one field is required');
         }
-        if ($this->filter !== null && $this->filter === '') {
+        if ($this->filter === '') {
             throw new \ValkeyGlideException('FtCreateBuilder: filter() cannot be empty');
         }
 

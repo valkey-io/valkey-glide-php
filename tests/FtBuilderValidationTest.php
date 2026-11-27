@@ -9,8 +9,10 @@ use ValkeyGlide\Search\FtAggregateBuilder;
 use ValkeyGlide\Search\FtHybridBuilder;
 use ValkeyGlide\Search\FtNumericField;
 use ValkeyGlide\Search\FtReducer;
+use ValkeyGlide\Search\FtSearchBuilder;
 use ValkeyGlide\Search\FtTagField;
 use ValkeyGlide\Search\FtTextField;
+use ValkeyGlide\Search\LoadField;
 
 /**
  * Client-side validation of the FT.* builders (valkey-search 1.3.0 options).
@@ -32,13 +34,75 @@ class FtBuilderValidationTest extends TestSuite
         $this->assertThrowsMatch(null, fn() => $this->hybrid()->vsim('vec'), '/exactly one of/');
         $this->assertThrowsMatch(
             null,
-            fn() => $this->hybrid()->vsim('vec', vector: 'abc', paramRef: 'q'),
+            fn() => $this->hybrid()->vsim('vec', vector: 'abc', paramRef: '$q'),
             '/exactly one of/'
         );
         $viaVector = $this->hybrid()->vsim('vec', vector: 'abc')->toArray();
-        $viaParam = $this->hybrid()->vsim('vec', paramRef: 'q')->toArray();
+        $viaParam = $this->hybrid()->vsim('vec', paramRef: '$q')->toArray();
         $this->assertEquals(false, $viaVector['vsim']['isParamRef']);
         $this->assertEquals(true, $viaParam['vsim']['isParamRef']);
+    }
+
+    public function testVsimParamRefMustStartWithDollar(): void
+    {
+        $this->assertThrowsMatch(
+            null,
+            fn() => $this->hybrid()->vsim('vec', paramRef: 'q'),
+            "/paramRef must start with '\\$'/"
+        );
+    }
+
+    public function testVsimVectorStartingWithDollarStaysRawBytes(): void
+    {
+        $bytes = "\x24\x00\x00\x00";
+        $options = $this->hybrid()->vsim('vec', vector: $bytes, k: 5)->toArray();
+        $this->assertFalse($options['vsim']['isParamRef']);
+        $this->assertEquals($bytes, $options['vsim']['vector']);
+    }
+
+    public function testHybridKeepsParamsOutOfClauseTokens(): void
+    {
+        $options = $this->hybrid()
+            ->vsim('vec', paramRef: '$q', k: 5)
+            ->params(['q' => 'abc', 'n' => 10])
+            ->filter('@price > 10')
+            ->toArray();
+        $this->assertEquals(['FILTER', '@price > 10'], $options['clauseTokens']);
+        $this->assertEquals(['q' => 'abc', 'n' => 10], $options['params']);
+    }
+
+    public function testLoadAcceptsOnlyStringsAndLoadFields(): void
+    {
+        $this->assertThrowsMatch(
+            null,
+            fn() => $this->hybrid()->load(['a', new LoadField('b', 'bb'), ['as' => 'orphan']]),
+            '/must be a string or a LoadField/'
+        );
+        $this->assertThrowsMatch(
+            null,
+            fn() => (new FtAggregateBuilder())->index('idx')->query('*')->load(['a', ['as' => 'orphan']]),
+            '/must be a string or a LoadField/'
+        );
+        $aggregate = (new FtAggregateBuilder())->index('idx')->query('*')
+            ->load(['a', new LoadField('b', 'bb')])->toArray();
+        $this->assertEquals(['LOAD', '4', 'a', 'b', 'AS', 'bb'], array_slice($aggregate['options'], 0, 6));
+    }
+
+    public function testWithSortKeysWithoutSortByIsDeprecated(): void
+    {
+        $deprecations = [];
+        set_error_handler(function (int $errno, string $msg) use (&$deprecations) {
+            $deprecations[] = $msg;
+            return true;
+        }, E_USER_DEPRECATED);
+        try {
+            $options = (new FtSearchBuilder())->index('idx')->query('*')->withSortKeys()->toArray();
+        } finally {
+            restore_error_handler();
+        }
+        $this->assertEquals(1, count($deprecations));
+        $this->assertTrue(str_contains($deprecations[0], 'withSortKeys() without sortBy() is deprecated'));
+        $this->assertTrue(in_array('WITHSORTKEYS', $options['options'], true) || isset($options['options']['WITHSORTKEYS']));
     }
 
     public function testVsimRejectsNonFiniteShardKRatio(): void

@@ -5638,8 +5638,8 @@ class ValkeyGlide
     /**
      * Run a fused text + vector similarity query against an index (valkey-search 1.3.0).
      *
-     * Dispatched via the client's raw-command path pending the upstream RequestType core
-     * PR (valkey-glide#7456); see this port's PR description's Limitations section.
+     * Sent as a custom command until the typed request types from valkey-glide#7456 are
+     * available ([#490](https://github.com/valkey-io/valkey-glide-php/issues/490)).
      *
      * @param \ValkeyGlide\Search\FtHybridBuilder $builder A configured hybrid builder.
      *
@@ -5670,7 +5670,7 @@ class ValkeyGlide
      * standalone client follows its ReadFrom configuration: with `READ_FROM_PREFER_REPLICA`
      * or an AZ-affinity strategy the cursor can be opened on a replica, and this call then
      * fails with `Cursor: not found`. Use `READ_FROM_PRIMARY` for cursor queries on a
-     * standalone client until the core fix lands.
+     * standalone client; see valkey-glide#7860.
      *
      * @param string   $index    The index the cursor was opened against.
      * @param int      $cursorId The cursor ID returned by the paged query.

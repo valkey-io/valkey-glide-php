@@ -149,138 +149,9 @@ static void ft_buf_add_long(ft_arg_buf_t* buf, zend_long val) {
 }
 
 static void ft_buf_add_double(ft_arg_buf_t* buf, double val) {
-    char tmp[64];
-    int  len = snprintf(tmp, sizeof(tmp), "%.6g", val);
-    ft_buf_add_copy(buf, tmp, len);
-}
-
-static void ft_buf_add_zval(ft_arg_buf_t* buf, zval* z);
-
-/*
- * Format a double the way Python's str(float) does: the shortest
- * decimal string that round-trips back to the same double, with at
- * least one digit after a literal decimal point for non-exponential
- * values (Python str(60.0) == "60.0", never "60"). Uses zend_dtoa's
- * mode 0 (the classic David Gay dtoa() "shortest round-trip digit
- * string" mode -- the same primitive var_export()/serialize_precision
- * = -1 ultimately call through to), rather than the fixed %.6g used by
- * ft_buf_add_double() above, which truncates past 6 significant digits
- * and silently diverges from Python beyond that (confirmed:
- * 0.123456789 -> "0.123457" under %.6g vs Python's "0.123456789").
- * zend_gcvt(value, 0, ...) was tried first and rejected: its `ndigit`
- * parameter is a literal significant-digit count, not a "shortest
- * mode" flag, so 0 silently clamped to a minimal digit count instead of
- * requesting the shortest round-trip string (confirmed via a live
- * FT.HYBRID argv capture: ALPHA 0.123456789 came out as "0.1", CONSTANT
- * 1234567.0 as "1e+6" -- both wrong). zend_dtoa mode 0 does not have
- * this problem: ndigits is ignored in mode 0, and decpt/sign come back
- * separately for the caller to place the digits correctly instead of
- * baking in a fixed format.
- *
- * Used only where argv must byte-match Python's FT.HYBRID output
- * (CONSTANT, ALPHA, BETA, SHARD_K_RATIO), confirmed via a direct argv
- * capture (MONITOR) compared against the real FtHybridOptions classes.
- */
-static void ft_buf_add_double_py_str(ft_arg_buf_t* buf, double val) {
-    char tmp[64];
-    int  out_len = 0;
-
-    if (val == 0.0) {
-        /* zend_dtoa's digit string for 0.0 is "0" with decpt 1; Python
-         * prints "-0.0" for negative zero and "0.0" otherwise -- handle
-         * the sign bit directly rather than relying on dtoa's decpt=1
-         * convention for this one special case. */
-        if (signbit(val)) {
-            tmp[out_len++] = '-';
-        }
-        tmp[out_len++] = '0';
-        tmp[out_len++] = '.';
-        tmp[out_len++] = '0';
-        ft_buf_add_copy(buf, tmp, out_len);
-        return;
-    }
-
-    int   decpt;
-    bool  sign;
-    char* rve;
-    char* digits  = zend_dtoa(val, 0, 0, &decpt, &sign, &rve);
-    int   ndigits = (int) (rve - digits);
-
-    if (sign) {
-        tmp[out_len++] = '-';
-    }
-
-    /* Python's float repr switches to scientific notation outside
-     * roughly [1e-4, 1e17) in decimal-point terms; dtoa's own decpt
-     * (the power-of-ten position of the decimal point relative to the
-     * first digit) maps directly onto that same threshold. */
-    if (decpt < -3 || decpt > 16) {
-        /* Scientific: d.dddde+NN (always a sign, lowercase 'e', and at
-         * least one digit after the point even if ndigits == 1 --
-         * confirmed Python never omits it: str(1e20) == '1e+20' has no
-         * forced ".0", so only force a trailing ".0" when ndigits > 1). */
-        tmp[out_len++] = digits[0];
-        if (ndigits > 1) {
-            tmp[out_len++] = '.';
-            for (int i = 1; i < ndigits; i++) {
-                tmp[out_len++] = digits[i];
-            }
-        }
-        tmp[out_len++] = 'e';
-        int exp        = decpt - 1;
-        tmp[out_len++] = (exp < 0) ? '-' : '+';
-        char expbuf[8];
-        int  explen = snprintf(expbuf, sizeof(expbuf), "%02d", exp < 0 ? -exp : exp);
-        memcpy(tmp + out_len, expbuf, (size_t) explen);
-        out_len += explen;
-    } else if (decpt <= 0) {
-        /* 0.000ddd form. */
-        tmp[out_len++] = '0';
-        tmp[out_len++] = '.';
-        for (int i = 0; i < -decpt; i++) {
-            tmp[out_len++] = '0';
-        }
-        memcpy(tmp + out_len, digits, (size_t) ndigits);
-        out_len += ndigits;
-    } else if (decpt >= ndigits) {
-        /* All significant digits are before the point; pad with
-         * trailing zeros, then the mandatory ".0" Python always keeps
-         * for a whole-number float. */
-        memcpy(tmp + out_len, digits, (size_t) ndigits);
-        out_len += ndigits;
-        for (int i = 0; i < decpt - ndigits; i++) {
-            tmp[out_len++] = '0';
-        }
-        tmp[out_len++] = '.';
-        tmp[out_len++] = '0';
-    } else {
-        /* The point falls inside the digit string. */
-        memcpy(tmp + out_len, digits, (size_t) decpt);
-        out_len += decpt;
-        tmp[out_len++] = '.';
-        memcpy(tmp + out_len, digits + decpt, (size_t) (ndigits - decpt));
-        out_len += ndigits - decpt;
-    }
-
-    zend_freedtoa(digits);
-    ft_buf_add_copy(buf, tmp, out_len);
-}
-
-/* Like ft_buf_add_double_py_str(), but takes a zval (LONG or DOUBLE;
- * anything else falls back to the generic zval stringifier). */
-static void ft_buf_add_zval_py_float(ft_arg_buf_t* buf, zval* z) {
-    if (Z_TYPE_P(z) == IS_DOUBLE) {
-        ft_buf_add_double_py_str(buf, Z_DVAL_P(z));
-    } else if (Z_TYPE_P(z) == IS_LONG) {
-        /* An integer-typed PHP value (e.g. constant: 60, not 60.0) has
-         * no float representation to match -- Python's own FtHybridRrf
-         * etc. take a plain float parameter, so an int argument there
-         * would already be int-typed on the Python side too and
-         * stringify the same way as PHP's IS_LONG path. */
-        ft_buf_add_long(buf, Z_LVAL_P(z));
-    } else {
-        ft_buf_add_zval(buf, z);
-    }
+    char tmp[ZEND_DOUBLE_MAX_LENGTH];
+    zend_gcvt(val, -1, '.', 'e', tmp);
+    ft_buf_add_copy(buf, tmp, strlen(tmp));
 }
 
 /* Serialize a zval of any scalar type as an argv token: strings and
@@ -302,7 +173,7 @@ static void ft_buf_add_zval(ft_arg_buf_t* buf, zval* z) {
     }
 }
 
-/* Free every allocation ft_buf_add_zval()/ft_buf_add_double_py_str() made into
+/* Free every allocation ft_buf_add_zval() made into
  * buf->allocated, then the buffer's own arrays. Does not free buf itself. */
 static void ft_buf_destroy(ft_arg_buf_t* buf) {
     for (int i = 0; i < buf->alloc_count; i++) {
@@ -965,20 +836,8 @@ int build_ft_info_args(const char*   index_name,
  *     'dialect'      => ?int,
  *   ]
  *
- * Param reference by type (port rule): whether a VSIM
- * vector value is a "$name" reference or raw vector bytes is decided
- * ENTIRELY by 'isParamRef', which FtHybridBuilder::vsim() sets based on
- * WHICH of its two mutually exclusive parameters the caller passed
- * ($vector for raw bytes, $paramRef for an explicit reference) -- never
- * by inspecting the string's content. PHP has no separate "binary"
- * string type (IS_STRING covers both text and opaque binary data), so a
- * packed vector's bytes can legitimately start with 0x24 ('$') by pure
- * coincidence; a "does this start with $" content check would
- * misclassify that vector as a parameter reference, exactly the bug the
- * port rules warn about. This C layer never re-inspects 'vector's byte
- * content to make that decision -- it trusts 'isParamRef' verbatim. If
- * 'isParamRef' is false, this builder always synthesizes an internal
- * PARAMS entry, regardless of what the first byte of 'vector' is.
+ * 'vector' is sent as raw bytes in a generated PARAMS entry unless
+ * 'isParamRef' is true.
  * ==================================================================== */
 
 #define FT_HYBRID_GENERATED_VSIM_PARAM_NAME "__glide_vsim_vector"
@@ -1104,7 +963,7 @@ static int ft_hybrid_build_vsim_arm(ft_arg_buf_t* buf,
         }
         if (z_shard_ratio && Z_TYPE_P(z_shard_ratio) != IS_NULL) {
             FT_BUF_LIT(&sub, "SHARD_K_RATIO");
-            ft_buf_add_zval_py_float(&sub, z_shard_ratio);
+            ft_buf_add_zval(&sub, z_shard_ratio);
         }
         FT_BUF_LIT(buf, "KNN");
         ft_buf_add_long(buf, sub.count);
@@ -1142,7 +1001,7 @@ static void ft_hybrid_build_combine(ft_arg_buf_t* buf, HashTable* combine_ht) {
     if (strcasecmp(method, "RRF") == 0) {
         if ((z = ft_find(combine_ht, "constant")) && Z_TYPE_P(z) != IS_NULL) {
             FT_BUF_LIT(&sub, "CONSTANT");
-            ft_buf_add_zval_py_float(&sub, z);
+            ft_buf_add_zval(&sub, z);
         }
         if ((z = ft_find(combine_ht, "window")) && Z_TYPE_P(z) != IS_NULL) {
             FT_BUF_LIT(&sub, "WINDOW");
@@ -1157,11 +1016,11 @@ static void ft_hybrid_build_combine(ft_arg_buf_t* buf, HashTable* combine_ht) {
     } else if (strcasecmp(method, "LINEAR") == 0) {
         if ((z = ft_find(combine_ht, "alpha")) && Z_TYPE_P(z) != IS_NULL) {
             FT_BUF_LIT(&sub, "ALPHA");
-            ft_buf_add_zval_py_float(&sub, z);
+            ft_buf_add_zval(&sub, z);
         }
         if ((z = ft_find(combine_ht, "beta")) && Z_TYPE_P(z) != IS_NULL) {
             FT_BUF_LIT(&sub, "BETA");
-            ft_buf_add_zval_py_float(&sub, z);
+            ft_buf_add_zval(&sub, z);
         }
         if ((z = ft_find(combine_ht, "window")) && Z_TYPE_P(z) != IS_NULL) {
             FT_BUF_LIT(&sub, "WINDOW");
@@ -1244,7 +1103,7 @@ static void ft_hybrid_build_load(ft_arg_buf_t* buf, zval* z_load_all, HashTable*
 /*
  * PUBLIC: build_ft_hybrid_args
  *
- * Wire order (port rule, confirmed live in ft_hybrid_parser.cc):
+ * Wire order (as parsed by valkey-search's ft_hybrid_parser.cc):
  *   index, SEARCH arm, VSIM arm, [COMBINE], [LOCALONLY],
  *   [LOAD], [TIMEOUT], PARAMS (always present -- the VSIM vector always
  *   needs either a generated or caller-supplied entry), <clauseTokens>,
@@ -1254,8 +1113,7 @@ static void ft_hybrid_build_load(ft_arg_buf_t* buf, zval* z_load_all, HashTable*
  * has been parsed, regardless of what follows). clauseTokens must come
  * AFTER PARAMS -- a leading FILTER clause emitted right after the VSIM
  * arm would otherwise be claimed by the server's VSIM parser as a VSIM
- * pre-filter instead of an aggregate-pipeline FILTER (the #7335 FT.HYBRID
- * tail-order port rule).
+ * pre-filter instead of an aggregate-pipeline FILTER.
  */
 int build_ft_hybrid_args(const char*   index_name,
                          size_t        index_name_len,

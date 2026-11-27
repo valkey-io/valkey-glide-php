@@ -131,6 +131,9 @@ class FtAggregateBuilder
      * alias) against the budget, matching the server's own accounting.
      *
      * @param array<string|LoadField> $fields
+     *
+     * @throws \ValkeyGlideException if an entry is neither a string nor a
+     *         LoadField.
      */
     public function load(array $fields): self
     {
@@ -145,8 +148,10 @@ class FtAggregateBuilder
                 foreach ($field->toTokens() as $t) {
                     $entryTokens[] = $t;
                 }
+            } elseif (is_string($field)) {
+                $entryTokens[] = $field;
             } else {
-                $entryTokens[] = (string) $field;
+                throw new \ValkeyGlideException('FtAggregateBuilder::load: each field must be a string or a LoadField');
             }
         }
         $this->tokens[] = (string) count($entryTokens);
@@ -191,8 +196,8 @@ class FtAggregateBuilder
      * client follows its ReadFrom configuration: with READ_FROM_PREFER_REPLICA
      * or an AZ-affinity strategy the cursor can be opened on a replica, and
      * ftCursorRead()/ftCursorDel() then fail with `Cursor: not found`. Use
-     * READ_FROM_PRIMARY for cursor queries on a standalone client until the
-     * core fix lands.
+     * READ_FROM_PRIMARY for cursor queries on a standalone client; see
+     * valkey-glide#7860.
      *
      * @param int|null $count   Rows to return per page.
      * @param int|null $maxIdle How long (ms) the cursor may sit idle
