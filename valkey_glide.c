@@ -207,6 +207,20 @@ void valkey_glide_init_common_constructor_params(
     params->address_resolver           = NULL;
 }
 
+/* A credential string reaches the core as a NUL-terminated C string, so an embedded NUL would cut
+ * it short on the wire ("abc\0def" authenticates as "abc"). Returns true, with an exception
+ * thrown, if zv is a string holding a NUL byte; name is the key for the message. */
+static bool credential_has_nul(zval* zv, const char* name) {
+    if (Z_TYPE_P(zv) != IS_STRING || !memchr(Z_STRVAL_P(zv), '\0', Z_STRLEN_P(zv))) {
+        return false;
+    }
+    char message[96];
+    snprintf(message, sizeof(message), "Credential '%s' must not contain NUL bytes.", name);
+    VALKEY_LOG_ERROR("valkey_glide_build_client_config_base", message);
+    zend_throw_exception(get_valkey_glide_exception_ce(), message, 0);
+    return true;
+}
+
 int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_params_t* params,
                                           valkey_glide_base_client_configuration_t*     config,
                                           bool is_cluster) {
@@ -420,6 +434,10 @@ int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_pa
         /* Check for username */
         zval* username_val = zend_hash_str_find(
             cred_ht, VALKEY_GLIDE_AUTH_USERNAME, sizeof(VALKEY_GLIDE_AUTH_USERNAME) - 1);
+        if (username_val && credential_has_nul(username_val, VALKEY_GLIDE_AUTH_USERNAME)) {
+            valkey_glide_cleanup_client_config(config);
+            return FAILURE;
+        }
         if (username_val && Z_TYPE_P(username_val) == IS_STRING) {
             config->credentials->username = Z_STRVAL_P(username_val);
         } else {
@@ -429,6 +447,10 @@ int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_pa
         /* Check for password */
         zval* password_val = zend_hash_str_find(
             cred_ht, VALKEY_GLIDE_AUTH_PASSWORD, sizeof(VALKEY_GLIDE_AUTH_PASSWORD) - 1);
+        if (password_val && credential_has_nul(password_val, VALKEY_GLIDE_AUTH_PASSWORD)) {
+            valkey_glide_cleanup_client_config(config);
+            return FAILURE;
+        }
         if (password_val && Z_TYPE_P(password_val) == IS_STRING) {
             config->credentials->password = Z_STRVAL_P(password_val);
         } else {
@@ -449,6 +471,11 @@ int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_pa
                 zend_hash_str_find(iam_ht,
                                    VALKEY_GLIDE_IAM_CONFIG_CLUSTER_NAME,
                                    sizeof(VALKEY_GLIDE_IAM_CONFIG_CLUSTER_NAME) - 1);
+            if (cluster_name_val &&
+                credential_has_nul(cluster_name_val, VALKEY_GLIDE_IAM_CONFIG_CLUSTER_NAME)) {
+                valkey_glide_cleanup_client_config(config);
+                return FAILURE;
+            }
             if (cluster_name_val && Z_TYPE_P(cluster_name_val) == IS_STRING) {
                 config->credentials->iam_config->cluster_name = Z_STRVAL_P(cluster_name_val);
             } else {
@@ -458,6 +485,10 @@ int valkey_glide_build_client_config_base(valkey_glide_php_common_constructor_pa
             /* Parse region (required) */
             zval* region_val = zend_hash_str_find(
                 iam_ht, VALKEY_GLIDE_IAM_CONFIG_REGION, sizeof(VALKEY_GLIDE_IAM_CONFIG_REGION) - 1);
+            if (region_val && credential_has_nul(region_val, VALKEY_GLIDE_IAM_CONFIG_REGION)) {
+                valkey_glide_cleanup_client_config(config);
+                return FAILURE;
+            }
             if (region_val && Z_TYPE_P(region_val) == IS_STRING) {
                 config->credentials->iam_config->region = Z_STRVAL_P(region_val);
             } else {

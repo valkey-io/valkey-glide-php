@@ -480,6 +480,45 @@ class ConnectionRequestTest extends \TestSuite
     }
 
     /**
+     * A credential containing a NUL byte is rejected. Credentials reach the core as NUL-terminated
+     * C strings, so "abc\0def" would otherwise authenticate as "abc" (#468).
+     */
+    public function testCredentialsRejectNulBytes()
+    {
+        $credentials = [
+            ["'username'", ['username' => "user\0x", 'password' => 'pass']],
+            ["'password'", ['username' => 'user', 'password' => "pass\0x"]],
+            ["'password'", ['password' => "\0"]],
+            ["'clusterName'", ['username' => 'user', 'iamConfig' => ['clusterName' => "test\0x", 'region' => 'us-east-1']]],
+            ["'region'", ['username' => 'user', 'iamConfig' => ['clusterName' => 'test', 'region' => "us-east-1\0x"]]],
+        ];
+        foreach ($credentials as [$key, $credential]) {
+            foreach (['simulate_standalone_constructor', 'simulate_cluster_constructor'] as $constructor) {
+                $this->assertThrowsMatch(
+                    null,
+                    fn () => ClientConstructorMock::$constructor(credentials: $credential),
+                    "/Credential $key must not contain NUL bytes/"
+                );
+            }
+        }
+
+        /* Every PHPRedis-style cluster $auth form maps to the same credentials */
+        $auths = [
+            ["'password'", "pass\0x"],
+            ["'password'", ["pass\0x"]],
+            ["'username'", ["user\0x", 'pass']],
+            ["'password'", ['user' => 'user', 'pass' => "pass\0x"]],
+        ];
+        foreach ($auths as [$key, $auth]) {
+            $this->assertThrowsMatch(
+                null,
+                fn () => ClientConstructorMock::simulate_cluster_phpredis_constructor(auth: $auth),
+                "/Credential $key must not contain NUL bytes/"
+            );
+        }
+    }
+
+    /**
      * A client_az with leading or trailing whitespace (e.g. "us-east-1a\n" from getenv or
      * file_get_contents) is rejected. It has content but would never match a node under the core's
      * exact-equality compare, silently falling back to reading across all nodes. Rejecting it

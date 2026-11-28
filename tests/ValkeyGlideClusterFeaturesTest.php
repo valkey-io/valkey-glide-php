@@ -1970,6 +1970,23 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         }
     }
 
+    /* A NUL byte in a keyed $auth array is rejected, as in $credentials (#468) */
+    public function testPhpRedisStyleAuthRejectsNulBytes()
+    {
+        $seeds = $this->getClusterAddresses();
+        $auths = [
+            'username' => ['username' => "user\0x", 'password' => 'pass'],
+            'password' => ['username' => 'user', 'password' => "pass\0x"],
+        ];
+        foreach ($auths as $field => $auth) {
+            $this->assertThrowsMatch(
+                null,
+                fn () => new ValkeyGlideCluster(null, $seeds, auth: $auth),
+                "/Credential '$field' must not contain NUL bytes/"
+            );
+        }
+    }
+
     /* PHPRedis-style parameters can't be combined with $addresses (#177) */
     public function testPhpRedisStyleConstructorConflicts()
     {
