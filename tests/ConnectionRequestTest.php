@@ -501,6 +501,21 @@ class ConnectionRequestTest extends \TestSuite
                 );
             }
         }
+
+        /* Every PHPRedis-style cluster $auth form maps to the same credentials */
+        $auths = [
+            ["'password'", "pass\0x"],
+            ["'password'", ["pass\0x"]],
+            ["'username'", ["user\0x", 'pass']],
+            ["'password'", ['user' => 'user', 'pass' => "pass\0x"]],
+        ];
+        foreach ($auths as [$key, $auth]) {
+            $this->assertThrowsMatch(
+                null,
+                fn () => ClientConstructorMock::simulate_cluster_phpredis_constructor(auth: $auth),
+                "/Credential $key must not contain NUL bytes/"
+            );
+        }
     }
 
     /**

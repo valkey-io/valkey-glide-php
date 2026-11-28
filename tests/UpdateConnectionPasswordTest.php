@@ -75,18 +75,25 @@ class UpdateConnectionPasswordTest extends TestSuite
     }
 
     // A password containing a NUL byte is rejected: the core takes a C string, so it would be cut
-    // short (#468)
+    // short (#468). The check runs before any state changes, with or without immediate AUTH, so
+    // the client still works afterwards.
     public function testUpdateConnectionPasswordRejectsNulBytes()
     {
         foreach (['createClient', 'createClusterClient'] as $create) {
-            $client = $this->$create();
-            try {
-                $client->updateConnectionPassword("pass\0word", false);
-                $this->fail("Expected exception for a password containing a NUL byte");
-            } catch (ValkeyGlideException $e) {
-                $this->assertStringContains("Password must not contain NUL bytes", $e->getMessage());
-            } finally {
-                $client->close();
+            foreach ([false, true] as $immediateAuth) {
+                $client = $this->$create();
+                try {
+                    $client->updateConnectionPassword("pass\0word", $immediateAuth);
+                    $this->fail("Expected exception for a password containing a NUL byte");
+                } catch (ValkeyGlideException $e) {
+                    $this->assertStringContains("Password must not contain NUL bytes", $e->getMessage());
+                    /* A cluster ping() without a route returns false without sending anything */
+                    $this->assertTrue($create === 'createClusterClient'
+                        ? $client->ping(['type' => 'primarySlotKey', 'key' => 'test'])
+                        : $client->ping());
+                } finally {
+                    $client->close();
+                }
             }
         }
     }
