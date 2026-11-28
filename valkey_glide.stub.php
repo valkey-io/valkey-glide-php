@@ -1961,34 +1961,51 @@ class ValkeyGlide
     public function hVals(string $key): ValkeyGlide|array|false;
 
     /**
-     * Set hash fields with expiration time in seconds.
+     * Set one or more hash fields with optional expiration and conditions.
      *
      * @see https://valkey.io/commands/hsetex/
      *
-     * @param string $key The key of the hash.
-     * @param int $seconds The expiration time in seconds.
-     * @param string|null $mode Optional condition (NX, XX).
-     * @param string $field The field name.
-     * @param mixed $value The field value.
-     * @param mixed $fields_and_vals Additional field-value pairs.
+     * @param string     $key    The key of the hash.
+     * @param array      $fields The fields to set, as field => value.
+     * @param array|null $expiry Optional expiration and conditions:
+     *                           - 'EX', 'PX', 'EXAT' or 'PXAT' => int: expiry. At most one of
+     *                             these or 'KEEPTTL'.
+     *                           - 'KEEPTTL': keep the fields' existing TTL.
+     *                           - 'FNX' / 'FXX': set only if none / all of the fields exist.
+     *                           - 'NX' / 'XX': set only if the key does not / does exist
+     *                             (Valkey 9.1+).
+     *                           Invalid entries return false without sending the command.
      *
-     * @return ValkeyGlide|int|false Returns the number of fields that were added or updated, or false on failure.
+     * The legacy form hSetEx($key, $seconds, $mode, $field, $value, ...) is deprecated.
+     * See https://github.com/valkey-io/valkey-glide-php/issues/491
+     *
+     * @return ValkeyGlide|int|false 1 if the fields were set, 0 if a condition prevented it,
+     *                               or false on failure.
+     *
+     * @example
+     * $client->hSetEx('profile', ['token' => 'abc123'], ['EX' => 60]);
+     * $client->hSetEx('profile', ['token' => 'abc123'], ['PX' => 60000, 'FNX']);
+     * $client->hSetEx('profile', ['token' => 'abc123'], ['XX', 'KEEPTTL']);
+     *
+     * TODO(#491): narrow to hSetEx(string $key, array $fields, ?array $expiry = null).
      */
-    public function hSetEx(string $key, int $seconds, ?string $mode, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlide|int|false;
-
+    public function hSetEx(string $key, array|int $fields, array|string|null $expiry = null, mixed ...$legacy_fields_and_vals): ValkeyGlide|int|false;
     /**
-     * Set hash fields with expiration time in milliseconds.
+     * Deprecated. See https://github.com/valkey-io/valkey-glide-php/issues/491
+     * Use hSetEx($key, [$field => $value, ...], ['PX' => $milliseconds]).
      *
      * @see https://valkey.io/commands/hsetex/
      *
      * @param string $key The key of the hash.
      * @param int $milliseconds The expiration time in milliseconds.
-     * @param string|null $mode Optional condition (NX, XX).
+     * @param string|null $mode Optional field condition: 'NX' or 'XX'.
      * @param string $field The field name.
      * @param mixed $value The field value.
      * @param mixed $fields_and_vals Additional field-value pairs.
      *
-     * @return ValkeyGlide|int|false Returns the number of fields that were added or updated, or false on failure.
+     * @return ValkeyGlide|int|false 1 if the fields were set, 0 if a condition prevented it, or false on failure.
+     *
+     * TODO(#491): remove hPSetEx.
      */
     public function hPSetEx(string $key, int $milliseconds, ?string $mode, string $field, mixed $value, mixed ...$fields_and_vals): ValkeyGlide|int|false;
 
@@ -3564,13 +3581,23 @@ class ValkeyGlide
      * ['NX']                         Only set the key if it doesn't exist.
      * ['GET']                        Instead of returning `+OK` return the previous value of the
      *                                key or NULL if the key didn't exist.
+     * ['IFEQ' => 'value']            Only set the key if its current value equals `value`.
+     *                                Since Valkey 8.1.0. Does not set a missing key. `value`
+     *                                must be a string. Not supported with compression enabled.
+     * ['IFNE' => 'value']            Only set the key if its current value differs from `value`.
+     *                                Since Valkey 9.2.0. Sets a missing key. `value` must be a
+     *                                string. Not supported with compression enabled.
+     *
+     * Only one of IFEQ and IFNE is used; if both are given, the last one applies.
      *
      * @return ValkeyGlide|string|bool True if the key was set or false on failure.
      *
      * @see https://valkey.io/commands/set
      * @see https://valkey.io/commands/setex
+     * @see https://glide.valkey.io/concepts/client-features/compression/
      *
      * @example $valkey_glide->set('key', 'value');
+     * @example $valkey_glide->set('key', 'new', ['IFNE' => 'old']);
      * @example $valkey_glide->set('key', 'expires_in_60_seconds', 60);
      */
     public function set(string $key, mixed $value, mixed $options = null): ValkeyGlide|string|bool;

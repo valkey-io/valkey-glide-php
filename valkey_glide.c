@@ -177,32 +177,34 @@ static bool _load_data_from_file(const char* path, uint8_t** data, size_t* lengt
 
 void valkey_glide_init_common_constructor_params(
     valkey_glide_php_common_constructor_params_t* params) {
-    params->addresses               = NULL;
-    params->use_tls                 = 0;
-    params->credentials             = NULL;
-    params->read_from               = 0; /* PRIMARY by default */
-    params->node_discovery_mode     = 0; /* STANDARD by default */
-    params->request_timeout         = 0;
-    params->request_timeout_is_null = 1;
-    params->reconnect_strategy      = NULL;
-    params->client_name             = NULL;
-    params->client_name_len         = 0;
-    params->client_az               = NULL;
-    params->client_az_len           = 0;
-    params->lib_name                = NULL;
-    params->lib_name_len            = 0;
-    params->client_info_tag         = NULL;
-    params->client_info_tag_len     = 0;
-    params->advanced_config         = NULL;
-    params->lazy_connect            = 0;
-    params->lazy_connect_is_null    = 1;
-    params->database_id             = 0;
-    params->database_id_is_null     = 1;
-    params->context                 = NULL;
-    params->compression             = NULL;
-    params->client_side_cache       = NULL;
-    params->circuit_breaker         = NULL;
-    params->address_resolver        = NULL;
+    params->addresses                  = NULL;
+    params->use_tls                    = 0;
+    params->credentials                = NULL;
+    params->read_from                  = 0; /* PRIMARY by default */
+    params->node_discovery_mode        = 0; /* STANDARD by default */
+    params->request_timeout            = 0;
+    params->request_timeout_is_null    = 1;
+    params->reconnect_strategy         = NULL;
+    params->client_name                = NULL;
+    params->client_name_len            = 0;
+    params->client_az                  = NULL;
+    params->client_az_len              = 0;
+    params->lib_name                   = NULL;
+    params->lib_name_len               = 0;
+    params->client_info_tag            = NULL;
+    params->client_info_tag_len        = 0;
+    params->advanced_config            = NULL;
+    params->lazy_connect               = 0;
+    params->lazy_connect_is_null       = 1;
+    params->database_id                = 0;
+    params->database_id_is_null        = 1;
+    params->connection_timeout         = 0;
+    params->connection_timeout_is_null = 1;
+    params->context                    = NULL;
+    params->compression                = NULL;
+    params->client_side_cache          = NULL;
+    params->circuit_breaker            = NULL;
+    params->address_resolver           = NULL;
 }
 
 /* A credential string reaches the core as a NUL-terminated C string, so an embedded NUL would cut
@@ -2198,6 +2200,10 @@ static HashTable* _get_advanced_tls_config_ht(
  * @return       Connection timeout in milliseconds.
  */
 static int _determine_connection_timeout(valkey_glide_php_common_constructor_params_t* params) {
+    if (!params->connection_timeout_is_null) {
+        return (int) params->connection_timeout;
+    }
+
     HashTable* advanced_config_ht = _get_advanced_config_ht(params);
     if (!advanced_config_ht) {
         return VALKEY_GLIDE_DEFAULT_CONNECTION_TIMEOUT;

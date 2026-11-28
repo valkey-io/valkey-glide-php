@@ -386,6 +386,83 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
         $valkey_glide->close();
     }
 
+    /* A PHPRedis-style [user, password] or [user =>, pass =>] $auth authenticates (#454) */
+    public function testPhpRedisStyleAuthList()
+    {
+        // The PHPRedis-style constructor connects without TLS
+        $this->skipIfTlsEnabled();
+
+        $user  = 'glide_phpredis_auth_list_' . uniqid();
+        $admin = $this->newInstance();
+        $seeds = $this->getClusterAddresses();
+
+        try {
+            $admin->rawcommand('allNodes', 'ACL', 'SETUSER', $user, 'on', '>user_pass', '~*', '&*', '+@all');
+
+            foreach ([[$user, 'user_pass'], ['user' => $user, 'pass' => 'user_pass']] as $auth) {
+                $client = new ValkeyGlideCluster(null, $seeds, auth: $auth);
+                try {
+                    $this->assertEquals($user, $client->rawcommand('test', 'ACL', 'WHOAMI'));
+                } finally {
+                    $client->close();
+                }
+            }
+
+            // A wrong password is sent, not dropped, so the connection is refused
+            $this->assertThrowsMatch($seeds, function ($seeds) use ($user) {
+                new ValkeyGlideCluster(null, $seeds, auth: [$user, 'wrong_pass']);
+            }, '/WRONGPASS/');
+        } finally {
+            try {
+                $admin->rawcommand('allNodes', 'ACL', 'DELUSER', $user);
+            } finally {
+                $admin->close();
+            }
+        }
+    }
+
+    /* A PHPRedis-style password $auth authenticates as the default user, and false or [null]
+     * means no credentials, as in PHPRedis (#454) */
+    public function testPhpRedisStyleAuthPassword()
+    {
+        // The PHPRedis-style constructor connects without TLS
+        $this->skipIfTlsEnabled();
+        // The default user's password is set and then removed, which would break --auth runs
+        if ($this->getAuth()) {
+            $this->markTestSkipped('The default user already has a password');
+        }
+
+        $seeds = $this->getClusterAddresses();
+
+        // These threw before. The default user has no password, so this shows they connect;
+        // ConnectionRequestTest checks that no credentials are sent
+        foreach ([false, [null]] as $auth) {
+            $client = new ValkeyGlideCluster(null, $seeds, auth: $auth);
+            try {
+                $this->assertEquals('default', $client->rawcommand('test', 'ACL', 'WHOAMI'));
+            } finally {
+                $client->close();
+            }
+        }
+
+        try {
+            $this->valkey_glide->rawcommand('allNodes', 'ACL', 'SETUSER', 'default', '>default_password');
+
+            $client = new ValkeyGlideCluster(null, $seeds, auth: 'default_password');
+            try {
+                $this->assertEquals('default', $client->rawcommand('test', 'ACL', 'WHOAMI'));
+            } finally {
+                $client->close();
+            }
+
+            $this->assertThrowsMatch($seeds, function ($seeds) {
+                new ValkeyGlideCluster(null, $seeds, auth: 'wrong_pass');
+            }, '/WRONGPASS/');
+        } finally {
+            $this->valkey_glide->rawcommand('allNodes', 'ACL', 'SETUSER', 'default', 'nopass');
+        }
+    }
+
     // ==============================================
     // RECONNECTION STRATEGY PARAMETER TESTS
     // ==============================================
@@ -2660,6 +2737,59 @@ class ValkeyGlideClusterFeaturesTest extends ValkeyGlideClusterBaseTest
             $client->set($key, $data);
             $result = $client->append($key, ' suffix');
             $this->assertFalse($result, 'APPEND should return false when compression is enabled');
+        } finally {
+            $client->del($key);
+        }
+    }
+
+    public function testCompressionClusterBlockedSetIfEq()
+    {
+        if (!$this->is_valkey || !$this->minVersionCheck('8.1.0')) {
+            $this->markTestSkipped('SET IFEQ requires Valkey 8.1.0+ (current: ' . $this->version . ')');
+        }
+
+        $client = $this->getCompressedClusterClient();
+        // Keep the value below the compression threshold so a regression that removes the
+        // compression guard would make IFEQ match and overwrite the key.
+        $data = 'setifeq_data';
+        $key = 'compression_cluster_blocked_setifeq_' . uniqid();
+
+        try {
+            $client->set($key, $data);
+            $this->assertTrue($client->clearLastError());
+
+            $result = $client->set($key, 'new_value', ['IFEQ' => $data]);
+
+            $this->assertFalse($result, 'SET IFEQ should return false when compression is enabled');
+            $this->assertStringContains('incompatible with compression', (string) $client->getLastError());
+            $this->assertEquals($data, $client->get($key), 'SET IFEQ should not modify the key when compression is enabled');
+        } finally {
+            $client->del($key);
+        }
+    }
+
+    public function testCompressionClusterBlockedSetIfNe()
+    {
+        if (!$this->is_valkey || !$this->minVersionCheck('9.2.0')) {
+            $this->markTestSkipped('SET IFNE requires Valkey 9.2.0+ (current: ' . $this->version . ')');
+        }
+
+        $client = $this->getCompressedClusterClient();
+
+        // Compare against a different value, so a regression that removes the compression guard
+        // would make IFNE match and overwrite the key.
+        $data = 'setifne_data';
+        $key = 'compression_cluster_blocked_setifne_' . uniqid();
+
+        try {
+            $client->set($key, $data);
+            $this->assertTrue($client->clearLastError());
+
+            $result = $client->set($key, 'new_value', ['IFNE' => 'other_value']);
+
+            $this->assertFalse($result, 'SET IFNE should return false when compression is enabled');
+            $this->assertStringContains('incompatible with compression', (string) $client->getLastError());
+            $this->assertEquals($data, $client->get($key), 'SET IFNE should not modify the key when compression is enabled');
         } finally {
             $client->del($key);
         }

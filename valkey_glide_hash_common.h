@@ -50,19 +50,21 @@ typedef struct _h_command_args_t {
     zval*         fields;       /* Array of field names */
     zval*         field_values; /* Associative array or alternating field/value array */
     const char*   expiry_type;  /* Expiry type string: EX, PX, EXAT, PXAT, KEEPTTL, PERSIST */
-    const char*   mode;         /* Mode: NX, XX, GT, LT */
-    size_t        key_len;      /* Hash key length */
-    size_t        field_len;    /* Field name length */
-    size_t        value_len;    /* Field value length */
-    double        float_incr;   /* Float increment value */
-    long long     expiry;       /* Expiration time (seconds/milliseconds/timestamp) - 64-bit */
-    long          increment;    /* Integer increment value */
-    long          count;        /* Number of fields to return */
-    int           field_count;  /* Number of fields */
-    int           fv_count;     /* Number of field-value pairs */
-    int           is_array_arg; /* Whether using associative array format */
-    int           withvalues;   /* Whether to return values with fields */
-    expiry_type_t expiry_enum;  /* Expiry type enum for fast comparison */
+    const char*   hsetex_key_condition;   /* HSETEX: NX, XX (Valkey 9.1+) */
+    const char*   hsetex_field_condition; /* HSETEX: FNX, FXX */
+    const char*   hexpire_condition; /* HEXPIRE, HPEXPIRE, HEXPIREAT, HPEXPIREAT: NX, XX, GT, LT */
+    size_t        key_len;           /* Hash key length */
+    size_t        field_len;         /* Field name length */
+    size_t        value_len;         /* Field value length */
+    double        float_incr;        /* Float increment value */
+    long long     expiry;            /* Expiration time (seconds/milliseconds/timestamp) - 64-bit */
+    long          increment;         /* Integer increment value */
+    long          count;             /* Number of fields to return */
+    int           field_count;       /* Number of fields */
+    int           fv_count;          /* Number of field-value pairs */
+    int           is_array_arg;      /* Whether using associative array format */
+    int           withvalues;        /* Whether to return values with fields */
+    expiry_type_t expiry_enum;       /* Expiry type enum for fast comparison */
 } h_command_args_t;
 
 // Helper functions for expiry type conversion
@@ -207,7 +209,9 @@ int prepare_h_randfield_args(h_command_args_t* args,
                              int*              allocated_count);
 
 /**
- * Prepare arguments for Hash Field Expiration commands
+ * Prepare arguments for HSETEX:
+ *   key [NX|XX] [FNX|FXX] [EX|PX|EXAT|PXAT n | KEEPTTL] FIELDS numfields field value ...
+ * args->field_values must be a PHP array of field => value.
  */
 int prepare_h_hfe_args(h_command_args_t* args,
                        uintptr_t**       args_out,
@@ -681,10 +685,11 @@ int process_h_ok_result_async(CommandResponse* response, void* output, zval* ret
         RETURN_FALSE;                                                     \
     }
 
-// Define all hSetEx method implementations
+// hSetEx: PHPRedis form, plus the deprecated legacy form
 #define HSETEX_METHOD_IMPL(class_name) \
     HSETEX_VARIANT_METHOD_IMPL(class_name, hSetEx, execute_hsetex_command)
 
+// hPSetEx: deprecated legacy form. TODO(#491): remove hPSetEx.
 #define HPSETEX_METHOD_IMPL(class_name) \
     HSETEX_VARIANT_METHOD_IMPL(class_name, hPSetEx, execute_hpsetex_command)
 
@@ -792,17 +797,8 @@ int process_h_ok_result_async(CommandResponse* response, void* output, zval* ret
 
 // Hash Field Expiration function declarations
 int execute_hsetex_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
+// TODO(#491): remove hPSetEx
 int execute_hpsetex_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_hsetexat_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_hpsetexat_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_hsetexnx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_hpsetexnx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_hsetexatnx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_hpsetexatnx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_hsetexxx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_hpsetexxx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_hsetexatxx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
-int execute_hpsetexatxx_command(zval* object, int argc, zval* return_value, zend_class_entry* ce);
 
 // Hash Field Expiration NX/XX variants
 

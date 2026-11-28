@@ -186,10 +186,6 @@ $not_compatible = [
     // PHPRedis: hGetEx(key, fields_array, expiry) - expiry as positional args
     // Glide:    hGetEx(key, fields_array, options) - options as associative array
     'hgetex',
-
-    // PHPRedis: hSetEx(key, fields_array, expiry) - fields as associative array
-    // Glide:    hSetEx(key, seconds, mode, field, value, ...) - variadic field/value pairs
-    'hsetex',
 ];
 
 // ============================================================================
@@ -396,9 +392,9 @@ $cluster_not_compatible = [
     // PHPRedis: hTtl(key, fields_array) / hPersist(key, fields_array) - fields as array
     // Glide:    hTtl(key, field, ...other_fields) - variadic fields instead of array
     'httl', 'hpttl', 'hexpiretime', 'hpexpiretime', 'hpersist',
-    // PHPRedis: hGetEx(key, fields_array, expiry) / hSetEx(key, fields_array, expiry)
-    // Glide:    hGetEx(key, fields, options) / hSetEx(key, seconds, mode, field, value, ...)
-    'hgetex', 'hsetex',
+    // PHPRedis: hGetEx(key, fields_array, expiry)
+    // Glide:    hGetEx(key, fields, options)
+    'hgetex',
 ];
 
 $phpredis_cluster_norm = normalize($phpredis_cluster_commands);

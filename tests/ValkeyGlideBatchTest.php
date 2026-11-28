@@ -250,6 +250,37 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
         $this->assertEquals(0, $this->valkey_glide->exists($key));
     }
 
+    public function testSetIfNeBatch()
+    {
+        if (!$this->minVersionCheck('9.2.0')) {
+            $this->markTestSkipped('SET IFNE requires Valkey 9.2.0+ (current: ' . $this->version . ')');
+        }
+
+        $key = '{xyz}batch_setifne_' . uniqid();
+        $missingKey = '{xyz}batch_setifne_missing_' . uniqid();
+
+        $this->valkey_glide->set($key, 'value');
+
+        // Equal (not set), different (set), different with GET, equal with expiry (not set),
+        // missing key (set)
+        $results = $this->valkey_glide->multi()
+            ->set($key, 'new1', ['IFNE' => 'value'])
+            ->set($key, 'new1', ['IFNE' => 'other'])
+            ->set($key, 'new2', ['IFNE' => 'other', 'GET'])
+            ->set($key, 'new3', ['IFNE' => 'new2', 'EX' => 100])
+            ->set($missingKey, 'created', ['IFNE' => 'other'])
+            ->exec();
+
+        $this->assertEquals([false, true, 'new1', false, true], $results);
+
+        // Verify server-side effects
+        $this->assertEquals('new2', $this->valkey_glide->get($key));
+        $this->assertEquals(-1, $this->valkey_glide->ttl($key));
+        $this->assertEquals('created', $this->valkey_glide->get($missingKey));
+
+        $this->valkey_glide->del($key, $missingKey);
+    }
+
     // ===================================================================
     // HASH OPERATIONS BATCH TESTS
     // ===================================================================
@@ -758,8 +789,8 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
         // Execute HFE operations in batch
         $this->valkey_glide->multi();
-        $this->valkey_glide->hSetEx($key1, 60, null, 'expire_field', 'expire_value');
-        $this->valkey_glide->hPSetEx($key1, 30000, null, 'pexpire_field', 'pexpire_value');
+        $this->valkey_glide->hSetEx($key1, ['expire_field' => 'expire_value'], ['EX' => 60]);
+        $this->valkey_glide->hSetEx($key1, ['pexpire_field' => 'pexpire_value'], ['PX' => 30000]);
         $this->valkey_glide->hExpire($key1, 120, null, 'field1', 'field2');
         $this->valkey_glide->hPExpire($key1, 90000, null, 'field3');
         $this->valkey_glide->hTtl($key1, 'field1');
@@ -769,7 +800,7 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
         // Verify results
         $this->assertEquals(1, $results[0]); // hSetEx
-        $this->assertEquals(1, $results[1]); // hPSetEx
+        $this->assertEquals(1, $results[1]); // hSetEx with PX
         $this->assertEquals([1, 1], $results[2]); // hExpire
         $this->assertEquals([1], $results[3]); // hPExpire
         $this->assertIsArray($results[4]); // hTtl
@@ -782,6 +813,90 @@ class ValkeyGlideBatchTest extends ValkeyGlideBaseTest
 
         // Cleanup
         $this->valkey_glide->del($key1);
+    }
+
+    public function testHSetExKeyConditionsBatch()
+    {
+        if (!$this->minVersionCheck('9.1.0')) {
+            $this->markTestSkipped('HSETEX key NX/XX conditions require Valkey 9.1.0+');
+            return;
+        }
+
+        $key = 'batch_hsetex_keycond_' . uniqid();
+
+        $this->valkey_glide->multi();
+        $this->valkey_glide->hSetEx($key, ['f1' => 'v1'], ['NX', 'EX' => 60]);
+        $this->valkey_glide->hSetEx($key, ['f1' => 'v2'], ['NX', 'EX' => 60]);
+        $this->valkey_glide->hSetEx($key, ['f1' => 'v3'], ['XX', 'EX' => 60]);
+        $this->valkey_glide->hSetEx($key, ['f1' => 'v4'], ['XX', 'FNX', 'PX' => 60000]);
+        $this->valkey_glide->hGet($key, 'f1');
+        $results = $this->valkey_glide->exec();
+
+        $this->assertEquals(1, $results[0]); // NX, key absent
+        $this->assertEquals(0, $results[1]); // NX, key exists
+        $this->assertEquals(1, $results[2]); // XX, key exists
+        $this->assertEquals(0, $results[3]); // XX + FNX, f1 exists
+        $this->assertEquals('v3', $results[4]);
+
+        $this->valkey_glide->del($key);
+    }
+
+    // TODO(#491): remove with the legacy form
+    public function testBatchHSetExLegacyForm()
+    {
+        if (!$this->minVersionCheck('9.0.0')) {
+            $this->markTestSkipped('HSETEX requires Valkey 9.0.0+');
+            return;
+        }
+
+        $key = 'batch_hsetex_legacy_' . uniqid();
+        $this->valkey_glide->multi();
+        @$this->valkey_glide->hSetEx($key, 60, null, 'f1', 'v1');
+        @$this->valkey_glide->hPSetEx($key, 30000, null, 'f2', 'v2');
+        @$this->valkey_glide->hSetEx($key, 60, 'NX', 'f1', 'again');
+        $this->valkey_glide->hSetEx($key, ['f3' => 'v3'], ['EX' => 60]);
+        @$this->valkey_glide->hSetEx($key, seconds: 60, mode: 'XX', field: 'f3', value: 'v4');
+        $results = $this->valkey_glide->exec();
+
+        $this->assertEquals(1, $results[0]);
+        $this->assertEquals(1, $results[1]);
+        $this->assertEquals(0, $results[2]); // f1 exists, field NX
+        $this->assertEquals(1, $results[3]);
+        $this->assertEquals(1, $results[4]); // legacy named arguments
+        $this->valkey_glide->del($key);
+
+        // A named legacy argument with the wrong type under strict_types throws
+        // and queues nothing, as the positional call does
+        $client = $this->valkey_glide;
+        $k = $key;
+        $this->valkey_glide->multi();
+        $threw = 0;
+        foreach (['hSetEx($k, "60", null, "f", "v")', 'hSetEx($k, seconds: "60", mode: null, field: "f", value: "v")'] as $strictCall) {
+            try {
+                eval('declare(strict_types=1); return @$client->' . $strictCall . ';');
+            } catch (\TypeError $e) {
+                $threw++;
+            }
+        }
+        $results = $this->valkey_glide->exec();
+        $this->assertEquals(2, $threw);
+        $this->assertEquals([], $results);
+        $this->assertEquals(0, $this->valkey_glide->exists($key));
+
+        // A value that can't be converted throws and queues nothing
+        $this->valkey_glide->multi();
+        $threw = false;
+        try {
+            $this->valkey_glide->hSetEx($key, ['bad' => new \stdClass()]);
+        } catch (\Error $e) {
+            $threw = true;
+        }
+        $this->valkey_glide->hSetEx($key, ['ok' => 'v']);
+        $results = $this->valkey_glide->exec();
+        $this->assertTrue($threw);
+        $this->assertEquals([1], $results);
+        $this->assertEquals(['ok' => 'v'], $this->valkey_glide->hGetAll($key));
+        $this->valkey_glide->del($key);
     }
 
     // ===================================================================
