@@ -42,7 +42,7 @@ class FtAggregateBuilder
      * GROUPBY, SORTBY, APPLY, FILTER, and LIMIT clauses, and order matters.
      * A flat list avoids the duplicate-key problem and preserves clause order.
      *
-     * @var array<string>
+     * @var array<string|float>
      */
     private array $tokens = [];
 
@@ -109,7 +109,9 @@ class FtAggregateBuilder
         $this->tokens[] = (string) (count($params) * 2);
         foreach ($params as $key => $value) {
             $this->tokens[] = (string) $key;
-            $this->tokens[] = (string) $value;
+            /* The extension sends a float in its shortest exact form; (string) would round it
+             * to the precision INI setting (14 significant digits by default) */
+            $this->tokens[] = is_float($value) ? $value : (string) $value;
         }
         return $this;
     }

@@ -16,6 +16,7 @@
 #include <zend_API.h>
 #include <zend_exceptions.h>
 
+#include "command_response.h"
 #include "valkey_glide_ft_common.h"
 
 /* ====================================================================
@@ -146,10 +147,13 @@ static void ft_buf_add_long(ft_arg_buf_t* buf, zend_long val) {
     ft_buf_add_copy(buf, tmp, len);
 }
 
+/* Shortest form that reads back as the same double, with '.' whatever the locale: "%.6g" kept
+ * 6 significant digits (0.123456789 -> "0.123457") and followed LC_NUMERIC ("0,5" under de_DE) */
 static void ft_buf_add_double(ft_arg_buf_t* buf, double val) {
-    char tmp[64];
-    int  len = snprintf(tmp, sizeof(tmp), "%.6g", val);
-    ft_buf_add_copy(buf, tmp, len);
+    size_t len;
+    char*  str = double_to_string(val, &len);
+    ft_buf_add_copy(buf, str, len);
+    efree(str);
 }
 
 static void ft_buf_add_zval(ft_arg_buf_t* buf, zval* z) {
