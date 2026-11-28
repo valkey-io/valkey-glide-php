@@ -1396,6 +1396,7 @@ class ValkeyGlideClusterSearchTest extends ValkeyGlideClusterBaseTest
             if (setlocale(LC_NUMERIC, 'de_DE.UTF-8', 'de_DE', 'de_DE.utf8') === false) {
                 throw new TestSkippedException("No locale with a decimal comma is installed");
             }
+            $this->assertEquals(',', localeconv()['decimal_point']);
             $this->getClient()->hSet($prefix . '1', 'tag', 'a');
             usleep(self::INDEX_SYNC_DELAY_US);
 

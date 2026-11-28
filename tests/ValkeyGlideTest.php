@@ -12014,4 +12014,67 @@ if (extension_loaded("valkey_glide") || dl("' . __DIR__ . '/../modules/valkey_gl
 
         $this->valkey_glide->del('{object}k', '{object}marker');
     }
+
+    /**
+     * FT.* float arguments are sent in the shortest form that reads back as the same double, with
+     * '.' as the decimal point under any locale (#488). Without the search module the server's
+     * "unknown command" error echoes the arguments it received, so this runs on plain servers.
+     */
+    public function testFtFloatArgumentsAsSent()
+    {
+        foreach (glob(__DIR__ . '/../Search/*.php') as $file) {
+            require_once $file;
+        }
+        /* Only a server without the search module echoes the arguments */
+        try {
+            $this->valkey_glide->ftList();
+            throw new TestSkippedException('The server has the search module');
+        } catch (ValkeyGlideException $e) {
+            if (stripos($e->getMessage(), 'unknown command') === false) {
+                throw $e;
+            }
+        }
+        $index = 'i' . uniqid();
+        $sent = function (callable $command): string {
+            try {
+                $command();
+            } catch (ValkeyGlideException $e) {
+                if (stripos($e->getMessage(), 'unknown command') !== false) {
+                    return $e->getMessage();
+                }
+                throw $e;
+            }
+            throw new TestSkippedException('The server has the search module');
+        };
+        $create = fn (float $score, float $weight) => $sent(fn () => $this->valkey_glide->ftCreate(
+            (new \ValkeyGlide\Search\FtCreateBuilder())
+                ->index($index)
+                ->on('HASH')
+                ->score($score)
+                ->addField((new \ValkeyGlide\Search\FtTextField('t'))->weight($weight))
+        ));
+        $search = fn (float $value) => $sent(fn () => $this->valkey_glide->ftSearch(
+            (new \ValkeyGlide\Search\FtSearchBuilder())->index($index)->query('q')->params(['r' => $value])
+        ));
+
+        $error = $create(0.123456789, 1234567.0);
+        $this->assertStringContains("'SCORE' '0.123456789'", $error);
+        $this->assertStringContains("'WEIGHT' '1234567'", $error);
+        $this->assertStringContains("'r' '0.9999999'", $search(0.9999999));
+        $this->assertStringContains("'r' '1.0e+20'", $search(1e20));
+
+        $locale = setlocale(LC_NUMERIC, 0);
+        try {
+            if (setlocale(LC_NUMERIC, 'de_DE.UTF-8', 'de_DE', 'de_DE.utf8') === false) {
+                throw new TestSkippedException('No locale with a decimal comma is installed');
+            }
+            $this->assertEquals(',', localeconv()['decimal_point']);
+            $error = $create(0.5, 2.5);
+            $this->assertStringContains("'SCORE' '0.5'", $error);
+            $this->assertStringContains("'WEIGHT' '2.5'", $error);
+            $this->assertStringContains("'r' '2.5'", $search(2.5));
+        } finally {
+            setlocale(LC_NUMERIC, $locale);
+        }
+    }
 }
